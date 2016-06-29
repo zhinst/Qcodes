@@ -1,0 +1,417 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>qcodes.instrument.mock &mdash; QCoDeS 0.1.0 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+    <link rel="top" title="QCoDeS 0.1.0 documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> QCoDeS
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../user/index.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../community/index.html">Community Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/index.html">Classes and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../roadmap.html">Qcodes project plan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changes/index.html">Changelogs</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../../index.html">QCoDeS</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      
+    <li>qcodes.instrument.mock</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for qcodes.instrument.mock</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Mock instruments for testing purposes.&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+
+<span class="kn">from</span> <span class="nn">.base</span> <span class="kn">import</span> <span class="n">Instrument</span>
+<span class="kn">from</span> <span class="nn">qcodes.process.server</span> <span class="kn">import</span> <span class="n">ServerManager</span><span class="p">,</span> <span class="n">BaseServer</span>
+
+
+<div class="viewcode-block" id="MockInstrument"><a class="viewcode-back" href="../../../api/generated/qcodes.MockInstrument.html#qcodes.MockInstrument">[docs]</a><span class="k">class</span> <span class="nc">MockInstrument</span><span class="p">(</span><span class="n">Instrument</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create a software instrument, mostly for testing purposes.</span>
+
+<span class="sd">    Also works for simulatoins, but usually this will be simpler, easier to</span>
+<span class="sd">    use, and faster if made as a single ``Instrument`` subclass.</span>
+
+<span class="sd">    ``MockInstrument``s have extra overhead as they serialize all commands</span>
+<span class="sd">    (to mimic a network communication channel) and use at least two processes</span>
+<span class="sd">    (instrument server and model server) both of which must be involved in any</span>
+<span class="sd">    given query.</span>
+
+<span class="sd">    parameters to pass to model should be declared with:</span>
+<span class="sd">        get_cmd = param_name + &#39;?&#39;</span>
+<span class="sd">        set_cmd = param_name + &#39;:{:.3f}&#39; (specify the format &amp; precision)</span>
+<span class="sd">    alternatively independent set/get functions may still be provided.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name (str): The name of this instrument.</span>
+
+<span class="sd">        delay (number): Time (in seconds) to wait after any operation</span>
+<span class="sd">            to simulate communication delay. Default 0.</span>
+
+<span class="sd">        model (MockModel): A model to connect to. Subclasses MUST accept</span>
+<span class="sd">            ``model`` as a constructor kwarg ONLY, even though it is required.</span>
+<span class="sd">            See notes in ``Instrument`` docstring.</span>
+<span class="sd">            The model should have one or two methods related directly to this</span>
+<span class="sd">            instrument by ``name``:</span>
+<span class="sd">            ``&lt;name&gt;_set(param, value)``: set a parameter on the model</span>
+<span class="sd">            ``&lt;name&gt;_get(param)``: returns the value of a parameter</span>
+
+<span class="sd">        keep_history (bool): Whether to record (in self.history) every command</span>
+<span class="sd">            sent to this instrument. Default True.</span>
+
+<span class="sd">        server_name (Union[str, None]): leave default (&#39;&#39;) to make a</span>
+<span class="sd">            MockInsts-####### server with the number matching the model server</span>
+<span class="sd">            id, or set None to not use a server.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        shared_kwargs (List[str]): Class attribute, constructor kwargs to</span>
+<span class="sd">            provide via server init. For MockInstrument this should always be</span>
+<span class="sd">            [&#39;model&#39;] at least.</span>
+
+<span class="sd">        keep_history (bool): Whether to record all commands and responses. Set</span>
+<span class="sd">            on init, but may be changed at any time.</span>
+
+<span class="sd">        history (List[tuple]): All commands and responses while keep_history is</span>
+<span class="sd">            enabled, as tuples:</span>
+<span class="sd">                (timestamp, &#39;ask&#39; or &#39;write&#39;, param_name[, value])</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">shared_kwargs</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;model&#39;</span><span class="p">]</span>
+
+<div class="viewcode-block" id="MockInstrument.__init__"><a class="viewcode-back" href="../../../api/generated/qcodes.MockInstrument.html#qcodes.MockInstrument.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">delay</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">keep_history</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">delay</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">))</span> <span class="ow">or</span> <span class="n">delay</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;delay must be a non-negative number&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_delay</span> <span class="o">=</span> <span class="n">delay</span>
+
+        <span class="c1"># try to access write and ask so we know they exist</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">write</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">ask</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_model</span> <span class="o">=</span> <span class="n">model</span>
+
+        <span class="c1"># keep a record of every command sent to this instrument</span>
+        <span class="c1"># for debugging purposes?</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">keep_history</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">keep_history</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">history</span> <span class="o">=</span> <span class="p">[]</span></div>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="MockInstrument.default_server_name"><a class="viewcode-back" href="../../../api/generated/qcodes.MockInstrument.html#qcodes.MockInstrument.default_server_name">[docs]</a>    <span class="k">def</span> <span class="nf">default_server_name</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the default server name for this instrument.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            **kwargs: All the kwargs supplied in the constructor.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            str: Default MockInstrument server name is MockInsts-#######, where</span>
+<span class="sd">                ####### is the first 7 characters of the MockModel&#39;s uuid.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;model&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">model</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">model</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;Model&#39;</span><span class="p">,</span> <span class="s1">&#39;MockInsts&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s1">&#39;MockInstruments&#39;</span></div>
+
+<div class="viewcode-block" id="MockInstrument.write_raw"><a class="viewcode-back" href="../../../api/generated/qcodes.MockInstrument.html#qcodes.MockInstrument.write_raw">[docs]</a>    <span class="k">def</span> <span class="nf">write_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Low-level interface to ``model.write``.</span>
+
+<span class="sd">        Prepends self.name + &#39;:&#39; to the command, so the ``MockModel``</span>
+<span class="sd">        will direct this query to its ``&lt;name&gt;_set`` method</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            cmd (str): The command to send to the instrument.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_delay</span><span class="p">:</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_delay</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">parameter</span><span class="p">,</span> <span class="n">value</span> <span class="o">=</span> <span class="n">cmd</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="n">parameter</span><span class="p">,</span> <span class="n">value</span> <span class="o">=</span> <span class="n">cmd</span><span class="p">,</span> <span class="bp">None</span>  <span class="c1"># for functions with no value</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">keep_history</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1"> %H:%M:%S&#39;</span><span class="p">),</span>
+                                 <span class="s1">&#39;write&#39;</span><span class="p">,</span> <span class="n">parameter</span><span class="p">,</span> <span class="n">value</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;cmd&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;:&#39;</span> <span class="o">+</span> <span class="n">cmd</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MockInstrument.ask_raw"><a class="viewcode-back" href="../../../api/generated/qcodes.MockInstrument.html#qcodes.MockInstrument.ask_raw">[docs]</a>    <span class="k">def</span> <span class="nf">ask_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Low-level interface to ``model.ask``.</span>
+
+<span class="sd">        Prepends self.name + &#39;:&#39; to the command, so the ``MockModel``</span>
+<span class="sd">        will direct this query to its ``&lt;name&gt;_get`` method</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            cmd (str): The command to send to the instrument.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            str: The instrument&#39;s response.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If ``cmd`` is malformed in that it contains text</span>
+<span class="sd">                after the &#39;?&#39;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_delay</span><span class="p">:</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_delay</span><span class="p">)</span>
+
+        <span class="n">parameter</span><span class="p">,</span> <span class="n">blank</span> <span class="o">=</span> <span class="n">cmd</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;?&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">blank</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;text found after end of query&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">keep_history</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1"> %H:%M:%S&#39;</span><span class="p">),</span>
+                                 <span class="s1">&#39;ask&#39;</span><span class="p">,</span> <span class="n">parameter</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;cmd&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;:&#39;</span> <span class="o">+</span> <span class="n">cmd</span><span class="p">)</span></div></div>
+
+
+<span class="c1"># MockModel is purely in service of mock instruments which *are* tested</span>
+<span class="c1"># so coverage testing this (by running it locally) would be a waste.</span>
+<div class="viewcode-block" id="MockModel"><a class="viewcode-back" href="../../../api/generated/qcodes.MockModel.html#qcodes.MockModel">[docs]</a><span class="k">class</span> <span class="nc">MockModel</span><span class="p">(</span><span class="n">ServerManager</span><span class="p">,</span> <span class="n">BaseServer</span><span class="p">):</span>  <span class="c1"># pragma: no cover</span>
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Base class for models to connect to various MockInstruments.</span>
+
+<span class="sd">    Creates a separate process that holds the model state, so that</span>
+<span class="sd">    any process can interact with the model and get the same state.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name (str): The server name to create for the model.</span>
+<span class="sd">            Default &#39;Model-{:.7s}&#39; uses the first 7 characters of</span>
+<span class="sd">            the server&#39;s uuid.</span>
+
+<span class="sd">    for every instrument that connects to this model, create two methods:</span>
+<span class="sd">        ``&lt;instrument&gt;_set(param, value)``: set a parameter on the model</span>
+<span class="sd">        ``&lt;instrument&gt;_get(param)``: returns the value of a parameter</span>
+<span class="sd">    ``param`` and the set/return values should all be strings</span>
+
+<span class="sd">    If ``param`` and/or ``value`` is not recognized, the method should raise</span>
+<span class="sd">    an error.</span>
+
+<span class="sd">    Other uses of ServerManager use separate classes for the server and its</span>
+<span class="sd">    manager, but here I put the two together into a single class, to make it</span>
+<span class="sd">    easier to define models. The downside is you have a local object with</span>
+<span class="sd">    methods you shouldn&#39;t call: the extras (&lt;instrument&gt;_(set|get)) should</span>
+<span class="sd">    only be called on the server copy. Normally this should only be called via</span>
+<span class="sd">    the attached instruments anyway.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="MockModel.__init__"><a class="viewcode-back" href="../../../api/generated/qcodes.MockModel.html#qcodes.MockModel.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;Model-{:.7s}&#39;</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">server_class</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_run_server</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_event_loop</span><span class="p">()</span>
+
+<div class="viewcode-block" id="MockModel.handle_cmd"><a class="viewcode-back" href="../../../api/generated/qcodes.MockModel.html#qcodes.MockModel.handle_cmd">[docs]</a>    <span class="k">def</span> <span class="nf">handle_cmd</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Handler for all model queries.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            cmd (str): Can take several forms:</span>
+<span class="sd">                &#39;&lt;instrument&gt;:&lt;parameter&gt;?&#39;:</span>
+<span class="sd">                    calls ``self.&lt;instrument&gt;_get(&lt;parameter&gt;)`` and forwards</span>
+<span class="sd">                    the return value.</span>
+<span class="sd">                &#39;&lt;instrument&gt;:&lt;parameter&gt;:&lt;value&gt;&#39;:</span>
+<span class="sd">                    calls ``self.&lt;instrument&gt;_set(&lt;parameter&gt;, &lt;value&gt;)``</span>
+<span class="sd">                &#39;&lt;instrument&gt;:&lt;parameter&gt;&#39;.</span>
+<span class="sd">                    calls ``self.&lt;instrument&gt;_set(&lt;parameter&gt;, None)``</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Union(str, None): The parameter value, if ``cmd`` has the form</span>
+<span class="sd">                &#39;&lt;instrument&gt;:&lt;parameter&gt;?&#39;, otherwise no return.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: if cmd does not match one of the patterns above.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="n">cmd</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)</span>
+
+        <span class="n">instrument</span> <span class="o">=</span> <span class="n">query</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">param</span> <span class="o">=</span> <span class="n">query</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">param</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;?&#39;</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">query</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instrument</span> <span class="o">+</span> <span class="s1">&#39;_get&#39;</span><span class="p">)(</span><span class="n">param</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">query</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">query</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">query</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span> <span class="k">else</span> <span class="bp">None</span>
+            <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instrument</span> <span class="o">+</span> <span class="s1">&#39;_set&#39;</span><span class="p">)(</span><span class="n">param</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">()</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.1.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

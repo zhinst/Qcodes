@@ -1,0 +1,426 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>qcodes.instrument.ip &mdash; QCoDeS 0.1.0 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+    <link rel="top" title="QCoDeS 0.1.0 documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> QCoDeS
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../user/index.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../community/index.html">Community Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/index.html">Classes and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../roadmap.html">Qcodes project plan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changes/index.html">Changelogs</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../../index.html">QCoDeS</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      
+    <li>qcodes.instrument.ip</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for qcodes.instrument.ip</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Ethernet instrument driver class based on sockets.&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">socket</span>
+
+<span class="kn">from</span> <span class="nn">.base</span> <span class="kn">import</span> <span class="n">Instrument</span>
+
+
+<div class="viewcode-block" id="IPInstrument"><a class="viewcode-back" href="../../../api/generated/qcodes.IPInstrument.html#qcodes.IPInstrument">[docs]</a><span class="k">class</span> <span class="nc">IPInstrument</span><span class="p">(</span><span class="n">Instrument</span><span class="p">):</span>
+
+    <span class="sd">r&quot;&quot;&quot;</span>
+<span class="sd">    Bare socket ethernet instrument implementation.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name (str): What this instrument is called locally.</span>
+
+<span class="sd">        address (Optional[str]): The IP address or name. If not given on</span>
+<span class="sd">            construction, must be provided before any communication.</span>
+
+<span class="sd">        port (Optional[int]): The IP port. If not given on construction, must</span>
+<span class="sd">            be provided before any communication.</span>
+
+<span class="sd">        timeout (number): Seconds to allow for responses. Default 5.</span>
+
+<span class="sd">        terminator (str): Character(s) to terminate each send. Default &#39;\n&#39;.</span>
+
+<span class="sd">        persistent (bool): Whether to leave the socket open between calls.</span>
+<span class="sd">            Default True.</span>
+
+<span class="sd">        write_confirmation (bool): Whether the instrument acknowledges writes</span>
+<span class="sd">            with some response we should read. Default True.</span>
+
+<span class="sd">        server_name (str): Name of the InstrumentServer to use. Defaults to</span>
+<span class="sd">            &#39;IPInstruments&#39;.</span>
+
+<span class="sd">            Use ``None`` to run locally - but then this instrument will not</span>
+<span class="sd">            work with qcodes Loops or other multiprocess procedures.</span>
+
+<span class="sd">        metadata (Optional[Dict]): additional static metadata to add to this</span>
+<span class="sd">            instrument&#39;s JSON snapshot.</span>
+
+<span class="sd">    See help for ``qcodes.Instrument`` for additional information on writing</span>
+<span class="sd">    instrument subclasses.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="IPInstrument.__init__"><a class="viewcode-back" href="../../../api/generated/qcodes.IPInstrument.html#qcodes.IPInstrument.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">address</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+                 <span class="n">terminator</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">persistent</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">write_confirmation</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                 <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_address</span> <span class="o">=</span> <span class="n">address</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_port</span> <span class="o">=</span> <span class="n">port</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_timeout</span> <span class="o">=</span> <span class="n">timeout</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_terminator</span> <span class="o">=</span> <span class="n">terminator</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_confirmation</span> <span class="o">=</span> <span class="n">write_confirmation</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_connection</span> <span class="o">=</span> <span class="n">EnsureConnection</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_socket</span> <span class="o">=</span> <span class="bp">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_persistent</span><span class="p">(</span><span class="n">persistent</span><span class="p">)</span></div>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="IPInstrument.default_server_name"><a class="viewcode-back" href="../../../api/generated/qcodes.IPInstrument.html#qcodes.IPInstrument.default_server_name">[docs]</a>    <span class="k">def</span> <span class="nf">default_server_name</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the default server name for this instrument.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            **kwargs: All the kwargs supplied in the constructor.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            str: By default all IPInstruments go on the server &#39;IPInstruments&#39;.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s1">&#39;IPInstruments&#39;</span></div>
+
+<div class="viewcode-block" id="IPInstrument.set_address"><a class="viewcode-back" href="../../../api/generated/qcodes.IPInstrument.html#qcodes.IPInstrument.set_address">[docs]</a>    <span class="k">def</span> <span class="nf">set_address</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">address</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Change the IP address and/or port of this instrument.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            address (Optional[str]): The IP address or name.</span>
+<span class="sd">            port (Optional[number]): The IP port.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">address</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_address</span> <span class="o">=</span> <span class="n">address</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_address&#39;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;This instrument doesn</span><span class="se">\&#39;</span><span class="s1">t have an address yet, &#39;</span>
+                            <span class="s1">&#39;you must provide one.&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">port</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_port</span> <span class="o">=</span> <span class="n">port</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_port&#39;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;This instrument doesn</span><span class="se">\&#39;</span><span class="s1">t have a port yet, &#39;</span>
+                            <span class="s1">&#39;you must provide one.&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_disconnect</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_persistent</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_persistent</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="IPInstrument.set_persistent"><a class="viewcode-back" href="../../../api/generated/qcodes.IPInstrument.html#qcodes.IPInstrument.set_persistent">[docs]</a>    <span class="k">def</span> <span class="nf">set_persistent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">persistent</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Change whether this instrument keeps its socket open between calls.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            persistent (bool): Set True to keep the socket open all the time.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_persistent</span> <span class="o">=</span> <span class="n">persistent</span>
+        <span class="k">if</span> <span class="n">persistent</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_connect</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_disconnect</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">_connect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_socket</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_disconnect</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_socket</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">socket</span><span class="p">(</span><span class="n">socket</span><span class="o">.</span><span class="n">AF_INET</span><span class="p">,</span> <span class="n">socket</span><span class="o">.</span><span class="n">SOCK_STREAM</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_socket</span><span class="o">.</span><span class="n">connect</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">_address</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_port</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_timeout</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_timeout</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_disconnect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_socket&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_socket</span><span class="o">.</span><span class="n">shutdown</span><span class="p">(</span><span class="n">socket</span><span class="o">.</span><span class="n">SHUT_RDWR</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_socket</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_socket</span> <span class="o">=</span> <span class="bp">None</span>
+
+<div class="viewcode-block" id="IPInstrument.set_timeout"><a class="viewcode-back" href="../../../api/generated/qcodes.IPInstrument.html#qcodes.IPInstrument.set_timeout">[docs]</a>    <span class="k">def</span> <span class="nf">set_timeout</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Change the read timeout for the socket.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            timeout (number): Seconds to allow for responses.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_timeout</span> <span class="o">=</span> <span class="n">timeout</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_socket</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_socket</span><span class="o">.</span><span class="n">settimeout</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_timeout</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="IPInstrument.set_terminator"><a class="viewcode-back" href="../../../api/generated/qcodes.IPInstrument.html#qcodes.IPInstrument.set_terminator">[docs]</a>    <span class="k">def</span> <span class="nf">set_terminator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">terminator</span><span class="p">):</span>
+        <span class="sd">r&quot;&quot;&quot;</span>
+<span class="sd">        Change the write terminator to use.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            terminator (str): Character(s) to terminate each send.</span>
+<span class="sd">                Default &#39;\n&#39;.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_terminator</span> <span class="o">=</span> <span class="n">terminator</span></div>
+
+    <span class="k">def</span> <span class="nf">_send</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">cmd</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_terminator</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_socket</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">_recv</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_socket</span><span class="o">.</span><span class="n">recv</span><span class="p">(</span><span class="mi">512</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
+
+<div class="viewcode-block" id="IPInstrument.close"><a class="viewcode-back" href="../../../api/generated/qcodes.IPInstrument.html#qcodes.IPInstrument.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Disconnect and irreversibly tear down the instrument.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_disconnect</span><span class="p">()</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="IPInstrument.write_raw"><a class="viewcode-back" href="../../../api/generated/qcodes.IPInstrument.html#qcodes.IPInstrument.write_raw">[docs]</a>    <span class="k">def</span> <span class="nf">write_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Low-level interface to send a command that gets no response.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            cmd (str): The command to send to the instrument.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_connection</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_send</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_confirmation</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_recv</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="IPInstrument.ask_raw"><a class="viewcode-back" href="../../../api/generated/qcodes.IPInstrument.html#qcodes.IPInstrument.ask_raw">[docs]</a>    <span class="k">def</span> <span class="nf">ask_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Low-level interface to send a command an read a response.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            cmd (str): The command to send to the instrument.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            str: The instrument&#39;s response.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ensure_connection</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_send</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_recv</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="IPInstrument.snapshot_base"><a class="viewcode-back" href="../../../api/generated/qcodes.IPInstrument.html#qcodes.IPInstrument.snapshot_base">[docs]</a>    <span class="k">def</span> <span class="nf">snapshot_base</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        State of the instrument as a JSON-compatible dict.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            update (bool): If True, update the state by querying the</span>
+<span class="sd">                instrument. If False, just use the latest values in memory.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict: base snapshot</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">snap</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">snapshot_base</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="n">update</span><span class="p">)</span>
+
+        <span class="n">snap</span><span class="p">[</span><span class="s1">&#39;port&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_port</span>
+        <span class="n">snap</span><span class="p">[</span><span class="s1">&#39;confirmation&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_confirmation</span>
+        <span class="n">snap</span><span class="p">[</span><span class="s1">&#39;address&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_address</span>
+        <span class="n">snap</span><span class="p">[</span><span class="s1">&#39;terminator&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_terminator</span>
+        <span class="n">snap</span><span class="p">[</span><span class="s1">&#39;timeout&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_timeout</span>
+        <span class="n">snap</span><span class="p">[</span><span class="s1">&#39;persistent&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_persistent</span>
+
+        <span class="k">return</span> <span class="n">snap</span></div></div>
+
+
+<span class="k">class</span> <span class="nc">EnsureConnection</span><span class="p">:</span>
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Context manager to ensure an instrument is connected when needed.</span>
+
+<span class="sd">    Uses ``instrument._persistent`` to determine whether or not to close</span>
+<span class="sd">    the connection immediately on completion.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        instrument (IPInstrument): the instance to connect.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instrument</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span> <span class="o">=</span> <span class="n">instrument</span>
+
+    <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Make sure we connect when entering the context.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">instrument</span><span class="o">.</span><span class="n">_persistent</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">instrument</span><span class="o">.</span><span class="n">_socket</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">instrument</span><span class="o">.</span><span class="n">_connect</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Possibly disconnect on exiting the context.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">instrument</span><span class="o">.</span><span class="n">_persistent</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">instrument</span><span class="o">.</span><span class="n">_disconnect</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.1.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

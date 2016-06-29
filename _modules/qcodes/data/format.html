@@ -1,0 +1,420 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>qcodes.data.format &mdash; QCoDeS 0.1.0 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+    <link rel="top" title="QCoDeS 0.1.0 documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> QCoDeS
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../user/index.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../community/index.html">Community Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/index.html">Classes and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../roadmap.html">Qcodes project plan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changes/index.html">Changelogs</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../../index.html">QCoDeS</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      
+    <li>qcodes.data.format</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for qcodes.data.format</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">namedtuple</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">traceback</span> <span class="kn">import</span> <span class="n">format_exc</span>
+<span class="kn">from</span> <span class="nn">operator</span> <span class="kn">import</span> <span class="n">attrgetter</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+
+<div class="viewcode-block" id="Formatter"><a class="viewcode-back" href="../../../api/generated/qcodes.Formatter.html#qcodes.Formatter">[docs]</a><span class="k">class</span> <span class="nc">Formatter</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Data file formatters</span>
+
+<span class="sd">    Formatters translate between DataSets and data files.</span>
+
+<span class="sd">    Each Formatter is expected to implement a write method:</span>
+<span class="sd">        write(self, data_set)</span>
+
+<span class="sd">    and either read or read_one_file:</span>
+<span class="sd">        read(self, data_set)</span>
+<span class="sd">        read_one_file(data_set, f, ids_read)</span>
+<span class="sd">            f: a file-like object supporting .readline() and for ... in</span>
+<span class="sd">            ids_read: a set of array_id&#39;s we&#39;ve already encountered, so</span>
+<span class="sd">                read_one_file can check for duplication and consistency</span>
+
+<span class="sd">    data_set is a DataSet object, which is expected to have attributes:</span>
+<span class="sd">        io: an IO manager (see qcodes.io)</span>
+<span class="sd">        location: a string, like a file path, that identifies the DataSet and</span>
+<span class="sd">            tells the IO manager where to store it</span>
+<span class="sd">        arrays: a dict of {array_id:DataArray} to read into.</span>
+<span class="sd">            - read will create DataArrays that don&#39;t yet exist.</span>
+<span class="sd">            - write will write ALL DataArrays in the DataSet, using</span>
+<span class="sd">              last_saved_index and modified_range, as well as whether or not</span>
+<span class="sd">              it found the specified file, to determine how much to write.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ArrayGroup</span> <span class="o">=</span> <span class="n">namedtuple</span><span class="p">(</span><span class="s1">&#39;ArrayGroup&#39;</span><span class="p">,</span> <span class="s1">&#39;shape set_arrays data name&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Formatter.write"><a class="viewcode-back" href="../../../api/generated/qcodes.Formatter.html#qcodes.Formatter.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_set</span><span class="p">,</span> <span class="n">io_manager</span><span class="p">,</span> <span class="n">location</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Write the DataSet to storage.</span>
+
+<span class="sd">        Subclasses must override this method.</span>
+
+<span class="sd">        It is up to the Formatter to decide when to overwrite completely,</span>
+<span class="sd">        and when to just append or otherwise update the file(s).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            data_set (DataSet): the data we are writing.</span>
+<span class="sd">            io_manager (io_manager): base physical location to write to.</span>
+<span class="sd">            location (str): the file location within the io_manager.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+<div class="viewcode-block" id="Formatter.read"><a class="viewcode-back" href="../../../api/generated/qcodes.Formatter.html#qcodes.Formatter.read">[docs]</a>    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_set</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Read the entire DataSet by finding all files matching its location</span>
+<span class="sd">        (using io_manager.list) and calling read_one_file from the Formatter</span>
+<span class="sd">        subclass. Subclasses may alternatively override this entire method.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">io_manager</span> <span class="o">=</span> <span class="n">data_set</span><span class="o">.</span><span class="n">io</span>
+        <span class="n">location</span> <span class="o">=</span> <span class="n">data_set</span><span class="o">.</span><span class="n">location</span>
+
+        <span class="n">data_files</span> <span class="o">=</span> <span class="n">io_manager</span><span class="o">.</span><span class="n">list</span><span class="p">(</span><span class="n">location</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">data_files</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;no data found at &#39;</span> <span class="o">+</span> <span class="n">location</span><span class="p">)</span>
+
+        <span class="c1"># in case the DataArrays exist but haven&#39;t been initialized</span>
+        <span class="k">for</span> <span class="n">array</span> <span class="ow">in</span> <span class="n">data_set</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">array</span><span class="o">.</span><span class="n">ndarray</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">array</span><span class="o">.</span><span class="n">init_data</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">read_metadata</span><span class="p">(</span><span class="n">data_set</span><span class="p">)</span>
+
+        <span class="n">ids_read</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">fn</span> <span class="ow">in</span> <span class="n">data_files</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">io_manager</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">read_one_file</span><span class="p">(</span><span class="n">data_set</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">ids_read</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                    <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;error reading file &#39;</span> <span class="o">+</span> <span class="n">fn</span><span class="p">)</span>
+                    <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">format_exc</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="Formatter.write_metadata"><a class="viewcode-back" href="../../../api/generated/qcodes.Formatter.html#qcodes.Formatter.write_metadata">[docs]</a>    <span class="k">def</span> <span class="nf">write_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_set</span><span class="p">,</span> <span class="n">io_manager</span><span class="p">,</span> <span class="n">location</span><span class="p">,</span> <span class="n">read_first</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Write the metadata for this DataSet to storage.</span>
+
+<span class="sd">        Subclasses must override this method.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            data_set (DataSet): the data we are writing.</span>
+<span class="sd">            io_manager (io_manager): base physical location to write to.</span>
+<span class="sd">            location (str): the file location within the io_manager.</span>
+<span class="sd">            read_first (bool, optional): whether to first look for previously</span>
+<span class="sd">                saved metadata that may contain more information than the local</span>
+<span class="sd">                copy.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+<div class="viewcode-block" id="Formatter.read_metadata"><a class="viewcode-back" href="../../../api/generated/qcodes.Formatter.html#qcodes.Formatter.read_metadata">[docs]</a>    <span class="k">def</span> <span class="nf">read_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_set</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Read the metadata from this DataSet from storage.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+<div class="viewcode-block" id="Formatter.read_one_file"><a class="viewcode-back" href="../../../api/generated/qcodes.Formatter.html#qcodes.Formatter.read_one_file">[docs]</a>    <span class="k">def</span> <span class="nf">read_one_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_set</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">ids_read</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Formatter subclasses that handle multiple data files may choose to</span>
+<span class="sd">        override this method, which handles one file at a time.</span>
+
+<span class="sd">        data_set: the DataSet we are reading into</span>
+<span class="sd">        f: a file-like object to read from</span>
+<span class="sd">        ids_read: a `set` of array_ids that we have already read.</span>
+<span class="sd">            when you read an array, check that it&#39;s not in this set (except</span>
+<span class="sd">            setpoints, which can be in several files with different inner loop)</span>
+<span class="sd">            then add it to the set so other files know not to read it again</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+<div class="viewcode-block" id="Formatter.match_save_range"><a class="viewcode-back" href="../../../api/generated/qcodes.Formatter.html#qcodes.Formatter.match_save_range">[docs]</a>    <span class="k">def</span> <span class="nf">match_save_range</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">group</span><span class="p">,</span> <span class="n">file_exists</span><span class="p">,</span> <span class="n">only_complete</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Find the save range that will capture all changes in an array group.</span>
+<span class="sd">        matches all full-sized arrays: the data arrays plus the inner loop</span>
+<span class="sd">        setpoint array</span>
+
+<span class="sd">        note: if an outer loop has changed values (without the inner</span>
+<span class="sd">        loop or measured data changing) we won&#39;t notice it here</span>
+
+<span class="sd">        use the inner setpoint as a base and look for differences</span>
+<span class="sd">        in last_saved_index and modified_range in the data arrays</span>
+
+<span class="sd">        if `only_complete` is True (default), will not mark any range to be</span>
+<span class="sd">        saved unless it contains no NaN values</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">inner_setpoint</span> <span class="o">=</span> <span class="n">group</span><span class="o">.</span><span class="n">set_arrays</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">last_saved_index</span> <span class="o">=</span> <span class="p">(</span><span class="n">inner_setpoint</span><span class="o">.</span><span class="n">last_saved_index</span> <span class="k">if</span> <span class="n">file_exists</span>
+                            <span class="k">else</span> <span class="bp">None</span><span class="p">)</span>
+        <span class="n">modified_range</span> <span class="o">=</span> <span class="n">inner_setpoint</span><span class="o">.</span><span class="n">modified_range</span>
+        <span class="k">for</span> <span class="n">array</span> <span class="ow">in</span> <span class="n">group</span><span class="o">.</span><span class="n">data</span><span class="p">:</span>
+            <span class="c1"># force overwrite if inconsistent last_saved_index</span>
+            <span class="k">if</span> <span class="n">array</span><span class="o">.</span><span class="n">last_saved_index</span> <span class="o">!=</span> <span class="n">last_saved_index</span><span class="p">:</span>
+                <span class="n">last_saved_index</span> <span class="o">=</span> <span class="bp">None</span>
+
+            <span class="c1"># find the modified_range that encompasses all modifications</span>
+            <span class="n">amr</span> <span class="o">=</span> <span class="n">array</span><span class="o">.</span><span class="n">modified_range</span>
+            <span class="k">if</span> <span class="n">amr</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">modified_range</span><span class="p">:</span>
+                    <span class="n">modified_range</span> <span class="o">=</span> <span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">modified_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">amr</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+                                      <span class="nb">max</span><span class="p">(</span><span class="n">modified_range</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">amr</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">modified_range</span> <span class="o">=</span> <span class="n">amr</span>
+
+        <span class="k">if</span> <span class="n">only_complete</span> <span class="ow">and</span> <span class="n">modified_range</span><span class="p">:</span>
+            <span class="n">modified_range</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_completed_range</span><span class="p">(</span><span class="n">modified_range</span><span class="p">,</span>
+                                                       <span class="n">inner_setpoint</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
+                                                       <span class="n">group</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">modified_range</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">None</span>
+
+        <span class="c1"># calculate the range to save</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">modified_range</span><span class="p">:</span>
+            <span class="c1"># nothing to save</span>
+            <span class="k">return</span> <span class="bp">None</span>
+        <span class="k">if</span> <span class="n">last_saved_index</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">or</span> <span class="n">last_saved_index</span> <span class="o">&gt;=</span> <span class="n">modified_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="c1"># need to overwrite - start save from 0</span>
+            <span class="k">return</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">modified_range</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># we can append! save only from last save to end of mods</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">last_saved_index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">modified_range</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span></div>
+
+    <span class="k">def</span> <span class="nf">_get_completed_range</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">modified_range</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">arrays</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        check the last data point to see if it&#39;s complete.</span>
+
+<span class="sd">        If it&#39;s not complete, back up one point so that we don&#39;t need</span>
+<span class="sd">        to rewrite this point later on when it *is* complete</span>
+
+<span class="sd">        This should work for regular `Loop` data that comes in sequentially.</span>
+<span class="sd">        But if you have non-sequential data, such as a parallel simulation,</span>
+<span class="sd">        then you would want to look farther back.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">last_pt</span> <span class="o">=</span> <span class="n">modified_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unravel_index</span><span class="p">(</span><span class="n">last_pt</span><span class="p">,</span> <span class="n">shape</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">array</span> <span class="ow">in</span> <span class="n">arrays</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">array</span><span class="p">[</span><span class="n">indices</span><span class="p">]):</span>
+                <span class="k">if</span> <span class="n">last_pt</span> <span class="o">==</span> <span class="n">modified_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                    <span class="k">return</span> <span class="bp">None</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="p">(</span><span class="n">modified_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">last_pt</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">modified_range</span>
+
+<div class="viewcode-block" id="Formatter.group_arrays"><a class="viewcode-back" href="../../../api/generated/qcodes.Formatter.html#qcodes.Formatter.group_arrays">[docs]</a>    <span class="k">def</span> <span class="nf">group_arrays</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arrays</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        find the sets of arrays which share all the same setpoint arrays</span>
+<span class="sd">        so each set can be grouped together into one file</span>
+<span class="sd">        returns ArrayGroup namedtuples</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">set_array_sets</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">set_arrays</span>
+                                   <span class="k">for</span> <span class="n">array</span> <span class="ow">in</span> <span class="n">arrays</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
+        <span class="n">all_set_arrays</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">set_array_set</span> <span class="ow">in</span> <span class="n">set_array_sets</span><span class="p">:</span>
+            <span class="n">all_set_arrays</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">set_array_set</span><span class="p">)</span>
+
+        <span class="n">grouped_data</span> <span class="o">=</span> <span class="p">[[]</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">set_array_sets</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">array</span> <span class="ow">in</span> <span class="n">arrays</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">i</span> <span class="o">=</span> <span class="n">set_array_sets</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">set_arrays</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">array</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">all_set_arrays</span><span class="p">:</span>  <span class="c1"># array.set_arrays[-1] != array:</span>
+                <span class="c1"># don&#39;t include the setpoint array itself in the data</span>
+                <span class="n">grouped_data</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">array</span><span class="p">)</span>
+
+        <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">id_getter</span> <span class="o">=</span> <span class="n">attrgetter</span><span class="p">(</span><span class="s1">&#39;array_id&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">set_arrays</span><span class="p">,</span> <span class="n">data</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">set_array_sets</span><span class="p">,</span> <span class="n">grouped_data</span><span class="p">):</span>
+            <span class="n">leni</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">set_arrays</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">data</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">other_set_arrays</span> <span class="ow">in</span> <span class="n">set_array_sets</span> <span class="k">if</span>
+                                <span class="nb">len</span><span class="p">(</span><span class="n">other_set_arrays</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">leni</span> <span class="ow">and</span>
+                                <span class="n">other_set_arrays</span><span class="p">[:</span><span class="n">leni</span><span class="p">]</span> <span class="o">==</span> <span class="n">set_arrays</span><span class="p">):</span>
+                <span class="c1"># this is an outer loop that doesn&#39;t have any data of its own,</span>
+                <span class="c1"># so skip it.</span>
+                <span class="c1"># Inner-loop setpoints with no data is weird (we set values</span>
+                <span class="c1"># but didn&#39;t measure anything there?) but we should keep it.</span>
+                <span class="k">continue</span>
+
+            <span class="n">group_name</span> <span class="o">=</span> <span class="s1">&#39;_&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">sai</span><span class="o">.</span><span class="n">array_id</span> <span class="k">for</span> <span class="n">sai</span> <span class="ow">in</span> <span class="n">set_arrays</span><span class="p">)</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ArrayGroup</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="n">set_arrays</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
+                                       <span class="n">set_arrays</span><span class="o">=</span><span class="n">set_arrays</span><span class="p">,</span>
+                                       <span class="n">data</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">id_getter</span><span class="p">)),</span>
+                                       <span class="n">name</span><span class="o">=</span><span class="n">group_name</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">out</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.1.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

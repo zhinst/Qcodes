@@ -1,0 +1,408 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>qcodes.instrument.visa &mdash; QCoDeS 0.1.0 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+    <link rel="top" title="QCoDeS 0.1.0 documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> QCoDeS
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../user/index.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../community/index.html">Community Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/index.html">Classes and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../roadmap.html">Qcodes project plan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changes/index.html">Changelogs</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../../index.html">QCoDeS</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      
+    <li>qcodes.instrument.visa</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for qcodes.instrument.visa</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Visa instrument driver based on pyvisa.&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">visa</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="kn">from</span> <span class="nn">.base</span> <span class="kn">import</span> <span class="n">Instrument</span>
+<span class="kn">import</span> <span class="nn">qcodes.utils.validators</span> <span class="kn">as</span> <span class="nn">vals</span>
+
+
+<div class="viewcode-block" id="VisaInstrument"><a class="viewcode-back" href="../../../api/generated/qcodes.VisaInstrument.html#qcodes.VisaInstrument">[docs]</a><span class="k">class</span> <span class="nc">VisaInstrument</span><span class="p">(</span><span class="n">Instrument</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Base class for all instruments using visa connections.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name (str): What this instrument is called locally.</span>
+
+<span class="sd">        address (str): The visa resource name. see eg:</span>
+<span class="sd">            http://pyvisa.readthedocs.org/en/stable/names.html</span>
+
+<span class="sd">        timeout (number): seconds to allow for responses. Default 5.</span>
+
+<span class="sd">        terminator: Read termination character(s) to look for. Default &#39;&#39;.</span>
+
+<span class="sd">        server_name (str): Name of the InstrumentServer to use. By default</span>
+<span class="sd">            uses &#39;GPIBServer&#39; for all GPIB instruments, &#39;SerialServer&#39; for</span>
+<span class="sd">            serial port instruments, and &#39;VisaServer&#39; for all others.</span>
+
+<span class="sd">            Use ``None`` to run locally - but then this instrument will not</span>
+<span class="sd">            work with qcodes Loops or other multiprocess procedures.</span>
+
+<span class="sd">        metadata (Optional[Dict]): additional static metadata to add to this</span>
+<span class="sd">            instrument&#39;s JSON snapshot.</span>
+
+<span class="sd">    See help for ``qcodes.Instrument`` for additional information on writing</span>
+<span class="sd">    instrument subclasses.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        visa_handle (pyvisa.resources.Resource): The communication channel.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="VisaInstrument.__init__"><a class="viewcode-back" href="../../../api/generated/qcodes.VisaInstrument.html#qcodes.VisaInstrument.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">address</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">terminator</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;timeout&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_visa_timeout</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_visa_timeout</span><span class="p">,</span>
+                           <span class="n">units</span><span class="o">=</span><span class="s1">&#39;s&#39;</span><span class="p">,</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">MultiType</span><span class="p">(</span><span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">(</span><span class="n">min_value</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+                                               <span class="n">vals</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="bp">None</span><span class="p">)))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_address</span><span class="p">(</span><span class="n">address</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_terminator</span><span class="p">(</span><span class="n">terminator</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">timeout</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">timeout</span><span class="p">)</span></div>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="VisaInstrument.default_server_name"><a class="viewcode-back" href="../../../api/generated/qcodes.VisaInstrument.html#qcodes.VisaInstrument.default_server_name">[docs]</a>    <span class="k">def</span> <span class="nf">default_server_name</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the default server name for this instrument.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            **kwargs: All the kwargs supplied in the constructor.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            str: The default server name, either &#39;GPIBServer&#39;, &#39;SerialServer&#39;,</span>
+<span class="sd">                or &#39;VisaServer&#39; depending on ``kwargs[&#39;address&#39;]``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">upper_address</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;address&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+        <span class="k">if</span> <span class="s1">&#39;GPIB&#39;</span> <span class="ow">in</span> <span class="n">upper_address</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s1">&#39;GPIBServer&#39;</span>
+        <span class="k">elif</span> <span class="s1">&#39;ASRL&#39;</span> <span class="ow">in</span> <span class="n">upper_address</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s1">&#39;SerialServer&#39;</span>
+
+        <span class="k">return</span> <span class="s1">&#39;VisaServer&#39;</span></div>
+
+<div class="viewcode-block" id="VisaInstrument.get_idn"><a class="viewcode-back" href="../../../api/generated/qcodes.VisaInstrument.html#qcodes.VisaInstrument.get_idn">[docs]</a>    <span class="k">def</span> <span class="nf">get_idn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parse a standard VISA &#39;*IDN?&#39; response into an ID dict.</span>
+
+<span class="sd">        Override this if your instrument returns a nonstandard IDN string.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A dict containing vendor, model, serial, and firmware.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">idstr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;*IDN?&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># form is supposed to be comma-separated, but we&#39;ve seen</span>
+            <span class="c1"># other separators occasionally</span>
+            <span class="k">for</span> <span class="n">separator</span> <span class="ow">in</span> <span class="s1">&#39;,;:&#39;</span><span class="p">:</span>
+                <span class="c1"># split into no more than 4 parts, so we don&#39;t lose info</span>
+                <span class="n">idparts</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">idstr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">separator</span><span class="p">,</span> <span class="mi">3</span><span class="p">)]</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">idparts</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="k">break</span>
+            <span class="c1"># in case parts at the end are missing, fill in None</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">idparts</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">4</span><span class="p">:</span>
+                <span class="n">idparts</span> <span class="o">+=</span> <span class="p">[</span><span class="bp">None</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">4</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">idparts</span><span class="p">))</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Error interpreting *IDN? response &#39;</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="n">idstr</span><span class="p">))</span>
+            <span class="n">idparts</span> <span class="o">=</span> <span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">]</span>
+
+        <span class="c1"># some strings include the word &#39;model&#39; at the front of model</span>
+        <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">idparts</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;model&#39;</span><span class="p">):</span>
+            <span class="n">idparts</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">idparts</span><span class="p">[</span><span class="mi">1</span><span class="p">])[</span><span class="mi">5</span><span class="p">:]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">((</span><span class="s1">&#39;vendor&#39;</span><span class="p">,</span> <span class="s1">&#39;model&#39;</span><span class="p">,</span> <span class="s1">&#39;serial&#39;</span><span class="p">,</span> <span class="s1">&#39;firmware&#39;</span><span class="p">),</span> <span class="n">idparts</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="VisaInstrument.set_address"><a class="viewcode-back" href="../../../api/generated/qcodes.VisaInstrument.html#qcodes.VisaInstrument.set_address">[docs]</a>    <span class="k">def</span> <span class="nf">set_address</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">address</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Change the address for this instrument.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            address: The visa resource name to use to connect.</span>
+<span class="sd">                see eg: http://pyvisa.readthedocs.org/en/stable/names.html</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># in case we&#39;re changing the address - close the old handle first</span>
+        <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;visa_handle&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="n">resource_manager</span> <span class="o">=</span> <span class="n">visa</span><span class="o">.</span><span class="n">ResourceManager</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span> <span class="o">=</span> <span class="n">resource_manager</span><span class="o">.</span><span class="n">open_resource</span><span class="p">(</span><span class="n">address</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_address</span> <span class="o">=</span> <span class="n">address</span></div>
+
+<div class="viewcode-block" id="VisaInstrument.set_terminator"><a class="viewcode-back" href="../../../api/generated/qcodes.VisaInstrument.html#qcodes.VisaInstrument.set_terminator">[docs]</a>    <span class="k">def</span> <span class="nf">set_terminator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">terminator</span><span class="p">):</span>
+        <span class="sd">r&quot;&quot;&quot;</span>
+<span class="sd">        Change the read terminator to use.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            terminator (str): Character(s) to look for at the end of a read.</span>
+<span class="sd">                eg. &#39;\r\n&#39;.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">read_termination</span> <span class="o">=</span> <span class="n">terminator</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_terminator</span> <span class="o">=</span> <span class="n">terminator</span></div>
+
+    <span class="k">def</span> <span class="nf">_set_visa_timeout</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">timeout</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">timeout</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># pyvisa uses milliseconds but we use seconds</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">timeout</span> <span class="o">=</span> <span class="n">timeout</span> <span class="o">*</span> <span class="mf">1000.0</span>
+
+    <span class="k">def</span> <span class="nf">_get_visa_timeout</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">timeout_ms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">timeout</span>
+        <span class="k">if</span> <span class="n">timeout_ms</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># pyvisa uses milliseconds but we use seconds</span>
+            <span class="k">return</span> <span class="n">timeout_ms</span> <span class="o">/</span> <span class="mi">1000</span>
+
+<div class="viewcode-block" id="VisaInstrument.close"><a class="viewcode-back" href="../../../api/generated/qcodes.VisaInstrument.html#qcodes.VisaInstrument.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Disconnect and irreversibly tear down the instrument.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;visa_handle&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="VisaInstrument.check_error"><a class="viewcode-back" href="../../../api/generated/qcodes.VisaInstrument.html#qcodes.VisaInstrument.check_error">[docs]</a>    <span class="k">def</span> <span class="nf">check_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ret_code</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Default error checking, raises an error if return code !=0.</span>
+
+<span class="sd">        Does not differentiate between warnings or specific error messages.</span>
+<span class="sd">        Override this function in your driver if you want to add specific</span>
+<span class="sd">        error messages.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            ret_code (int): A Visa error code. See eg:</span>
+<span class="sd">                https://github.com/hgrecco/pyvisa/blob/master/pyvisa/errors.py</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            visa.VisaIOError: if ``ret_code`` indicates a communication</span>
+<span class="sd">                problem.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">ret_code</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">visa</span><span class="o">.</span><span class="n">VisaIOError</span><span class="p">(</span><span class="n">ret_code</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="VisaInstrument.write_raw"><a class="viewcode-back" href="../../../api/generated/qcodes.VisaInstrument.html#qcodes.VisaInstrument.write_raw">[docs]</a>    <span class="k">def</span> <span class="nf">write_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Low-level interface to ``visa_handle.write``.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            cmd (str): The command to send to the instrument.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">nr_bytes_written</span><span class="p">,</span> <span class="n">ret_code</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_error</span><span class="p">(</span><span class="n">ret_code</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="VisaInstrument.ask_raw"><a class="viewcode-back" href="../../../api/generated/qcodes.VisaInstrument.html#qcodes.VisaInstrument.ask_raw">[docs]</a>    <span class="k">def</span> <span class="nf">ask_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Low-level interface to ``visa_handle.ask``.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            cmd (str): The command to send to the instrument.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            str: The instrument&#39;s response.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="VisaInstrument.snapshot_base"><a class="viewcode-back" href="../../../api/generated/qcodes.VisaInstrument.html#qcodes.VisaInstrument.snapshot_base">[docs]</a>    <span class="k">def</span> <span class="nf">snapshot_base</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        State of the instrument as a JSON-compatible dict.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            update (bool): If True, update the state by querying the</span>
+<span class="sd">                instrument. If False, just use the latest values in memory.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict: base snapshot</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">snap</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">snapshot_base</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="n">update</span><span class="p">)</span>
+
+        <span class="n">snap</span><span class="p">[</span><span class="s1">&#39;address&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_address</span>
+        <span class="n">snap</span><span class="p">[</span><span class="s1">&#39;terminator&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_terminator</span>
+        <span class="n">snap</span><span class="p">[</span><span class="s1">&#39;timeout&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">timeout</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">snap</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.1.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>
