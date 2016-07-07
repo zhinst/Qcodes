@@ -227,6 +227,8 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_meta_attrs</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span>
 
+        <span class="bp">self</span><span class="o">.</span><span class="n">_no_proxy_methods</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;__getstate__&#39;</span><span class="p">}</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">record_instance</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">get_idn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -658,14 +660,23 @@
             <span class="n">value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
             <span class="k">if</span> <span class="p">((</span><span class="ow">not</span> <span class="nb">callable</span><span class="p">(</span><span class="n">value</span><span class="p">))</span> <span class="ow">or</span>
                     <span class="n">value</span> <span class="ow">is</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">attr</span><span class="p">)</span> <span class="ow">or</span>
-                    <span class="n">value</span> <span class="ow">is</span> <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">attr</span><span class="p">)):</span>
+                    <span class="n">value</span> <span class="ow">is</span> <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">attr</span><span class="p">)</span> <span class="ow">or</span>
+                    <span class="n">attr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_no_proxy_methods</span><span class="p">):</span>
                 <span class="c1"># Functions and Parameters are callable and they show up in</span>
                 <span class="c1"># dir(), but they have their own listing.</span>
                 <span class="k">continue</span>
 
             <span class="n">out</span><span class="p">[</span><span class="n">attr</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;__doc__&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="s1">&#39;__doc__&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="p">[]</span>
 
-        <span class="k">return</span> <span class="n">out</span></div>
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="k">def</span> <span class="nf">__getstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Prevent pickling instruments, and give a nice error message.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="s1">&#39;qcodes Instruments should not be pickled. Likely this means you &#39;</span>
+            <span class="s1">&#39;were trying to use a local instrument (defined with &#39;</span>
+            <span class="s1">&#39;server_name=None) in a background Loop. Local instruments can &#39;</span>
+            <span class="s1">&#39;only be used in Loops with background=False.&#39;</span><span class="p">)</span></div>
 </pre></div>
 
            </div>
