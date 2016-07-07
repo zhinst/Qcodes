@@ -135,7 +135,10 @@
 
 <span class="kn">from</span> <span class="nn">enum</span> <span class="kn">import</span> <span class="n">Enum</span>
 <span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">traceback</span> <span class="kn">import</span> <span class="n">format_exc</span>
 <span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">deepcopy</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
 
 <span class="kn">from</span> <span class="nn">.manager</span> <span class="kn">import</span> <span class="n">get_data_manager</span><span class="p">,</span> <span class="n">NoData</span>
 <span class="kn">from</span> <span class="nn">.gnuplot_format</span> <span class="kn">import</span> <span class="n">GNUPlotFormat</span>
@@ -363,6 +366,19 @@
 <span class="sd">            between saves to disk. If not ``LOCAL``, the ``DataServer`` handles</span>
 <span class="sd">            this and generally writes more often. Use None to disable writing</span>
 <span class="sd">            from calls to ``self.store``. Default 5.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        background_functions (OrderedDict[callable]): Class attribute,</span>
+<span class="sd">            ``{key: fn}``: ``fn`` is a callable accepting no arguments, and</span>
+<span class="sd">            ``key`` is a name to identify the function and help you attach and</span>
+<span class="sd">            remove it.</span>
+
+<span class="sd">            In ``DataSet.complete`` we call each of these periodically, in the</span>
+<span class="sd">            order that they were attached.</span>
+
+<span class="sd">            Note that because this is a class attribute, the functions will</span>
+<span class="sd">            apply to every DataSet. If you want specific functions for one</span>
+<span class="sd">            DataSet you can override this with an instance attribute.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="c1"># ie data_set.arrays[&#39;vsd&#39;] === data_set.vsd</span>
@@ -371,6 +387,8 @@
     <span class="n">default_io</span> <span class="o">=</span> <span class="n">DiskIO</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
     <span class="n">default_formatter</span> <span class="o">=</span> <span class="n">GNUPlotFormat</span><span class="p">()</span>
     <span class="n">location_provider</span> <span class="o">=</span> <span class="n">FormatLocation</span><span class="p">()</span>
+
+    <span class="n">background_functions</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
 
 <div class="viewcode-block" id="DataSet.__init__"><a class="viewcode-back" href="../../../api/generated/qcodes.DataSet.html#qcodes.DataSet.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">DataMode</span><span class="o">.</span><span class="n">LOCAL</span><span class="p">,</span> <span class="n">arrays</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
                  <span class="n">data_manager</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">formatter</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">io</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">write_period</span><span class="o">=</span><span class="mi">5</span><span class="p">):</span>
@@ -531,6 +549,69 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
                 <span class="k">return</span> <span class="bp">False</span>
 
+    <span class="k">def</span> <span class="nf">fraction_complete</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the fraction of this DataSet which has data in it.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            float: the average of all measured (not setpoint) arrays&#39;</span>
+<span class="sd">                ``fraction_complete()`` values, independent of the individual</span>
+<span class="sd">                array sizes. If there are no measured arrays, returns zero.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">array_count</span><span class="p">,</span> <span class="n">total</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span>
+
+        <span class="k">for</span> <span class="n">array</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">array</span><span class="o">.</span><span class="n">is_setpoint</span><span class="p">:</span>
+                <span class="n">array_count</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">total</span> <span class="o">+=</span> <span class="n">array</span><span class="o">.</span><span class="n">fraction_complete</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">total</span> <span class="o">/</span> <span class="p">(</span><span class="n">array_count</span> <span class="ow">or</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">complete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delay</span><span class="o">=</span><span class="mf">1.5</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Periodically sync the DataSet and display percent complete status.</span>
+
+<span class="sd">        Also, each period, execute functions stored in (class attribute)</span>
+<span class="sd">        ``self.background_functions``. If a function fails, we log its</span>
+<span class="sd">        traceback and continue on. If any one function fails twice in</span>
+<span class="sd">        a row, it gets removed.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            delay (float): seconds between iterations. Default 1.5</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s1">&#39;waiting for DataSet &lt;{}&gt; to complete&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">location</span><span class="p">))</span>
+
+        <span class="n">failing</span> <span class="o">=</span> <span class="p">{</span><span class="n">key</span><span class="p">:</span> <span class="bp">False</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">background_functions</span><span class="p">}</span>
+
+        <span class="n">nloops</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">completed</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="k">while</span> <span class="ow">not</span> <span class="n">completed</span><span class="p">:</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;DataSet: {:.0f}</span><span class="si">% c</span><span class="s1">omplete&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">fraction_complete</span><span class="p">()</span> <span class="o">*</span> <span class="mi">100</span><span class="p">))</span>
+
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">delay</span><span class="p">)</span>
+            <span class="n">nloops</span> <span class="o">+=</span> <span class="mi">1</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span> <span class="ow">is</span> <span class="bp">False</span><span class="p">:</span>
+                <span class="n">completed</span> <span class="o">=</span> <span class="bp">True</span>
+
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">fn</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">background_functions</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;calling {}: {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">repr</span><span class="p">(</span><span class="n">fn</span><span class="p">)))</span>
+                    <span class="n">fn</span><span class="p">()</span>
+                    <span class="n">failing</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="bp">False</span>
+                <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">format_exc</span><span class="p">())</span>
+                    <span class="k">if</span> <span class="n">failing</span><span class="p">[</span><span class="n">key</span><span class="p">]:</span>
+                        <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                            <span class="s1">&#39;background function {} failed twice in a row, &#39;</span>
+                            <span class="s1">&#39;removing it&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+                        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">background_functions</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+                    <span class="n">failing</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
+
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;DataSet &lt;{}&gt; is complete&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">location</span><span class="p">))</span>
+
     <span class="k">def</span> <span class="nf">get_changes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">synced_index</span><span class="p">):</span>
         <span class="n">changes</span> <span class="o">=</span> <span class="p">{}</span>
 
@@ -570,9 +651,9 @@
         <span class="n">action_indices</span> <span class="o">=</span> <span class="p">[</span><span class="n">array</span><span class="o">.</span><span class="n">action_indices</span> <span class="k">for</span> <span class="n">array</span> <span class="ow">in</span> <span class="n">arrays</span><span class="p">]</span>
         <span class="k">for</span> <span class="n">array</span> <span class="ow">in</span> <span class="n">arrays</span><span class="p">:</span>
             <span class="n">name</span> <span class="o">=</span> <span class="n">array</span><span class="o">.</span><span class="n">full_name</span>
-            <span class="k">if</span> <span class="n">array</span><span class="o">.</span><span class="n">is_setpoint</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">name</span><span class="p">:</span>
-                    <span class="n">name</span> <span class="o">+=</span> <span class="s1">&#39;_set&#39;</span>
+            <span class="k">if</span> <span class="n">array</span><span class="o">.</span><span class="n">is_setpoint</span> <span class="ow">and</span> <span class="n">name</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">name</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;_set&#39;</span><span class="p">):</span>
+                <span class="n">name</span> <span class="o">+=</span> <span class="s1">&#39;_set&#39;</span>
+
             <span class="n">array</span><span class="o">.</span><span class="n">array_id</span> <span class="o">=</span> <span class="n">name</span>
         <span class="n">array_ids</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([</span><span class="n">array</span><span class="o">.</span><span class="n">array_id</span> <span class="k">for</span> <span class="n">array</span> <span class="ow">in</span> <span class="n">arrays</span><span class="p">])</span>
         <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">array_ids</span><span class="p">:</span>
