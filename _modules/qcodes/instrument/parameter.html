@@ -180,7 +180,7 @@
                                   <span class="n">DelegateAttributes</span><span class="p">,</span> <span class="n">full_class</span><span class="p">,</span> <span class="n">named_repr</span><span class="p">)</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.metadata</span> <span class="kn">import</span> <span class="n">Metadatable</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.command</span> <span class="kn">import</span> <span class="n">Command</span><span class="p">,</span> <span class="n">NoCommandError</span>
-<span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="kn">import</span> <span class="n">Validator</span><span class="p">,</span> <span class="n">Numbers</span><span class="p">,</span> <span class="n">Ints</span><span class="p">,</span> <span class="n">Enum</span>
+<span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="kn">import</span> <span class="n">Validator</span><span class="p">,</span> <span class="n">Numbers</span><span class="p">,</span> <span class="n">Ints</span><span class="p">,</span> <span class="n">Enum</span><span class="p">,</span> <span class="n">Anything</span>
 <span class="kn">from</span> <span class="nn">qcodes.instrument.sweep_values</span> <span class="kn">import</span> <span class="n">SweepFixedValues</span>
 <span class="kn">from</span> <span class="nn">qcodes.data.data_array</span> <span class="kn">import</span> <span class="n">DataArray</span>
 
@@ -243,13 +243,15 @@
 <span class="sd">        units: (1&amp;3) string that indicates units of parameter for use in axis</span>
 <span class="sd">            label and snapshot</span>
 
-<span class="sd">        shape: (3&amp;4) a tuple of integers for the shape of array returned by .get().</span>
+<span class="sd">        shape: (3&amp;4) a tuple of integers for the shape of array returned by</span>
+<span class="sd">            .get().</span>
 
 <span class="sd">        shapes: (5) a tuple of tuples, each one as in `shape`.</span>
 <span class="sd">            Single values should be denoted by None or ()</span>
 
 <span class="sd">        setpoints: (3,4,5) the setpoints for the returned array of values.</span>
-<span class="sd">            3&amp;4 - a tuple of arrays. The first array is be 1D, the second 2D, etc.</span>
+<span class="sd">            3&amp;4 - a tuple of arrays. The first array is be 1D, the second 2D,</span>
+<span class="sd">                etc.</span>
 <span class="sd">            5 - a tuple of tuples of arrays</span>
 <span class="sd">            Defaults to integers from zero in each respective direction</span>
 <span class="sd">            Each may be either a DataArray, a numpy array, or a sequence</span>
@@ -258,7 +260,8 @@
 <span class="sd">            this out and return the setpoints (with extra names) in the get.</span>
 
 <span class="sd">        setpoint_names: (3,4,5) one identifier (like `name`) per setpoint</span>
-<span class="sd">            array. Ignored if `setpoints` are DataArrays, which already have names.</span>
+<span class="sd">            array. Ignored if `setpoints` are DataArrays, which already have</span>
+<span class="sd">            names.</span>
 
 <span class="sd">        setpoint_labels: (3&amp;4) one label (like `label`) per setpoint array.</span>
 <span class="sd">            Overridden if `setpoints` are DataArrays and already have labels.</span>
@@ -266,9 +269,9 @@
 <span class="sd">        vals: allowed values for setting this parameter (only relevant</span>
 <span class="sd">            if it has a setter),  defaults to Numbers()</span>
 
-<span class="sd">        docstring (Optional[string]): documentation string for the __doc__ field of the object</span>
-<span class="sd">            The __doc__ field of the instance is used by some help systems,</span>
-<span class="sd">            but not all</span>
+<span class="sd">        docstring (Optional[string]): documentation string for the __doc__</span>
+<span class="sd">            field of the object. The __doc__ field of the instance is used by</span>
+<span class="sd">            some help systems, but not all</span>
 
 <span class="sd">        snapshot_get (bool): Prevent any update to the parameter</span>
 <span class="sd">          for example if it takes too long to update</span>
@@ -288,6 +291,10 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">has_set</span> <span class="o">=</span> <span class="bp">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_meta_attrs</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;setpoint_names&#39;</span><span class="p">,</span> <span class="s1">&#39;setpoint_labels&#39;</span><span class="p">]</span>
 
+        <span class="c1"># always let the parameter have a single name (in fact, require this!)</span>
+        <span class="c1"># even if it has names too</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="n">names</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
             <span class="c1"># check for names first - that way you can provide both name</span>
             <span class="c1"># AND names for instrument parameters - name is how you get the</span>
@@ -297,6 +304,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">labels</span> <span class="o">=</span> <span class="n">names</span> <span class="k">if</span> <span class="n">labels</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">names</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">units</span> <span class="o">=</span> <span class="n">units</span> <span class="k">if</span> <span class="n">units</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="k">else</span> <span class="p">[</span><span class="s1">&#39;&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">names</span><span class="p">)</span>
 
+            <span class="bp">self</span><span class="o">.</span><span class="n">set_validator</span><span class="p">(</span><span class="n">vals</span> <span class="ow">or</span> <span class="n">Anything</span><span class="p">())</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">__doc__</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">linesep</span><span class="o">.</span><span class="n">join</span><span class="p">((</span>
                 <span class="s1">&#39;Parameter class:&#39;</span><span class="p">,</span>
                 <span class="s1">&#39;* `names` </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="p">),</span>
@@ -305,7 +313,6 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_meta_attrs</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s1">&#39;names&#39;</span><span class="p">,</span> <span class="s1">&#39;labels&#39;</span><span class="p">,</span> <span class="s1">&#39;units&#39;</span><span class="p">])</span>
 
         <span class="k">elif</span> <span class="n">name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">name</span> <span class="k">if</span> <span class="n">label</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">label</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">units</span> <span class="o">=</span> <span class="n">units</span> <span class="k">if</span> <span class="n">units</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span>
 
@@ -317,7 +324,7 @@
                 <span class="s1">&#39;Parameter class:&#39;</span><span class="p">,</span>
                 <span class="s1">&#39;* `name` </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
                 <span class="s1">&#39;* `label` </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">,</span>
-                <span class="c1">#TODO is this unit s a typo? shouldnt that be unit?</span>
+                <span class="c1"># TODO is this unit s a typo? shouldnt that be unit?</span>
                 <span class="s1">&#39;* `units` </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">units</span><span class="p">,</span>
                 <span class="s1">&#39;* `vals` </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_vals</span><span class="p">)))</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_meta_attrs</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">,</span> <span class="s1">&#39;units&#39;</span><span class="p">,</span> <span class="s1">&#39;vals&#39;</span><span class="p">])</span>
@@ -499,7 +506,8 @@
 <span class="sd">            num (Optional[int]): Number of values to generate.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            SweepFixedValues: collection of parameter values to be iterated over</span>
+<span class="sd">            SweepFixedValues: collection of parameter values to be</span>
+<span class="sd">                iterated over</span>
 
 <span class="sd">        Examples:</span>
 <span class="sd">            &gt;&gt;&gt; sweep(0, 10, num=5)</span>
@@ -556,33 +564,31 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        name (string): the local name of this parameter</span>
-<span class="sd">        instrument (Optional[Instrument]): an instrument that handles this function</span>
-<span class="sd">            default None</span>
+<span class="sd">        instrument (Optional[Instrument]): an instrument that handles this</span>
+<span class="sd">            function. Default None.</span>
 
-<span class="sd">        get_cmd (Optional[Union[string, function]]): a string or function to get this parameter</span>
-<span class="sd">            you can only use a string if an instrument is provided,</span>
-<span class="sd">            this string will be passed to instrument.ask</span>
+<span class="sd">        get_cmd (Optional[Union[string, function]]): a string or function to</span>
+<span class="sd">            get this parameter. You can only use a string if an instrument is</span>
+<span class="sd">            provided, then this string will be passed to instrument.ask</span>
 
-<span class="sd">        get_parser ( Optional[function]): function to transform the response from get</span>
-<span class="sd">            to the final output value.</span>
-<span class="sd">            NOTE: only applies if get_cmd is a string. The function form</span>
-<span class="sd">            of get_cmd should do its own parsing</span>
+<span class="sd">        get_parser ( Optional[function]): function to transform the response</span>
+<span class="sd">            from get to the final output value.</span>
 <span class="sd">            See also val_mapping</span>
 
-<span class="sd">        set_cmd (Optional[Union[string, function]]): command to set this parameter, either:</span>
+<span class="sd">        set_cmd (Optional[Union[string, function]]): command to set this</span>
+<span class="sd">            parameter, either:</span>
 <span class="sd">            - a string (containing one field to .format, like &quot;{}&quot; etc)</span>
 <span class="sd">              you can only use a string if an instrument is provided,</span>
 <span class="sd">              this string will be passed to instrument.write</span>
 <span class="sd">            - a function (of one parameter)</span>
 
-<span class="sd">        set_parser (Optional[function]): function to transform the input set value to an encoded</span>
-<span class="sd">            value sent to the instrument.</span>
-<span class="sd">            NOTE: only applies if set_cmd is a string. The function form</span>
-<span class="sd">            of set_cmd  should do its own parsing</span>
+<span class="sd">        set_parser (Optional[function]): function to transform the input set</span>
+<span class="sd">            value to an encoded value sent to the instrument.</span>
 <span class="sd">            See also val_mapping</span>
 
-<span class="sd">        val_mapping (Optional[dict]): a bidirectional map data/readable values to instrument codes,</span>
-<span class="sd">            expressed as a dict {data_val: instrument_code}</span>
+<span class="sd">        val_mapping (Optional[dict]): a bidirectional map data/readable values</span>
+<span class="sd">            to instrument codes, expressed as a dict:</span>
+<span class="sd">            ``{data_val: instrument_code}``</span>
 <span class="sd">            For example, if the instrument uses &#39;0&#39; to mean 1V and &#39;1&#39; to mean</span>
 <span class="sd">            10V, set val_mapping={1: &#39;0&#39;, 10: &#39;1&#39;} and on the user side you</span>
 <span class="sd">            only see 1 and 10, never the coded &#39;0&#39; and &#39;1&#39;</span>
@@ -591,21 +597,29 @@
 <span class="sd">            NOTE: only applies to get if get_cmd is a string, and to set if</span>
 <span class="sd">            set_cmd is a string.</span>
 
+<span class="sd">            You can use ``val_mapping`` with ``get_parser``, in which case</span>
+<span class="sd">            ``get_parser`` acts on the return value from the instrument first,</span>
+<span class="sd">            then ``val_mapping`` is applied (in reverse).</span>
+
+<span class="sd">            You CANNOT use ``val_mapping`` and ``set_parser`` together - that</span>
+<span class="sd">            would just provide too many ways to do the same thing.</span>
+
 <span class="sd">        vals (Optional[Validator]): a Validator object for this parameter</span>
 
-<span class="sd">        delay (Optional[Union[int, float]]): time (in seconds) to wait after the *start* of each set,</span>
-<span class="sd">            whether part of a sweep or not. Can be set 0 to go maximum speed with</span>
-<span class="sd">            no errors.</span>
+<span class="sd">        delay (Optional[Union[int, float]]): time (in seconds) to wait after</span>
+<span class="sd">            the *start* of each set, whether part of a sweep or not. Can be</span>
+<span class="sd">            set to 0 to go maximum speed with no errors.</span>
 
-<span class="sd">        max_delay (Optional[Union[int, float]]): If &gt; delay, we don&#39;t emit a warning unless the time</span>
-<span class="sd">            taken during a single set is greater than this, even though we aim for</span>
-<span class="sd">            delay. If delay</span>
+<span class="sd">        max_delay (Optional[Union[int, float]]): If &gt; delay, we don&#39;t emit a</span>
+<span class="sd">            warning unless the time taken during a single set is greater than</span>
+<span class="sd">            this, even though we aim for delay.</span>
 
-<span class="sd">        step (Optional[Union[int, float]]): max increment of parameter value - larger changes</span>
-<span class="sd">            are broken into steps this size</span>
+<span class="sd">        step (Optional[Union[int, float]]): max increment of parameter value.</span>
+<span class="sd">            Larger changes are broken into multiple steps this size.</span>
 
-<span class="sd">        max_val_age (Optional[Union[int, float]]): max time (in seconds) to trust a saved value from</span>
-<span class="sd">            this parameter as the starting point of a sweep</span>
+<span class="sd">        max_val_age (Optional[Union[int, float]]): max time (in seconds) to</span>
+<span class="sd">            trust a saved value from this parameter as the starting point of</span>
+<span class="sd">            a sweep.</span>
 
 <span class="sd">        **kwargs: Passed to Parameter parent class</span>
 
@@ -623,13 +637,22 @@
             <span class="k">if</span> <span class="n">vals</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
                 <span class="n">vals</span> <span class="o">=</span> <span class="n">Enum</span><span class="p">(</span><span class="o">*</span><span class="n">val_mapping</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
 
+            <span class="bp">self</span><span class="o">.</span><span class="n">_get_mapping</span> <span class="o">=</span> <span class="p">{</span><span class="n">v</span><span class="p">:</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">val_mapping</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
             <span class="k">if</span> <span class="n">get_parser</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_get_mapping</span> <span class="o">=</span> <span class="p">{</span><span class="n">v</span><span class="p">:</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">val_mapping</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
                 <span class="n">get_parser</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_valmapping_get_parser</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># First run get_parser, then run the result through</span>
+                <span class="c1"># val_mapping</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_get_preparser</span> <span class="o">=</span> <span class="n">get_parser</span>
+                <span class="n">get_parser</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_valmapping_with_preparser</span>
 
             <span class="k">if</span> <span class="n">set_parser</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_set_mapping</span> <span class="o">=</span> <span class="n">val_mapping</span>
                 <span class="n">set_parser</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_set_mapping</span><span class="o">.</span><span class="n">__getitem__</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                    <span class="s1">&#39;You cannot use set_parser and val_mapping together.&#39;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">get_parser</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">get_cmd</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
             <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;get_parser is set, but will not be used &#39;</span> <span class="o">+</span>
@@ -680,13 +703,16 @@
         <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
             <span class="k">pass</span>
 
-        <span class="c1"># If there is no match, we can try to convert the parameter into a numeric</span>
-        <span class="c1"># value</span>
+        <span class="c1"># If there is no match, we can try to convert the parameter into a</span>
+        <span class="c1"># numeric value</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">val</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_mapping</span><span class="p">[</span><span class="n">val</span><span class="p">]</span>
         <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s2">&quot;Unmapped value from instrument: {!r}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">val</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_valmapping_with_preparser</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_valmapping_get_parser</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_preparser</span><span class="p">(</span><span class="n">val</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">_set_get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">get_cmd</span><span class="p">,</span> <span class="n">get_parser</span><span class="p">):</span>
         <span class="n">exec_str</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">ask</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span> <span class="k">else</span> <span class="bp">None</span>
@@ -791,14 +817,15 @@
 <span class="sd">        calls to the hardware if the starting value is far from the target.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            step (Union[int, float]): a positive number, the largest change allowed in one call</span>
-<span class="sd">                all but the final change will attempt to change by +/- step</span>
-<span class="sd">                exactly</span>
+<span class="sd">            step (Union[int, float]): A positive number, the largest change</span>
+<span class="sd">                allowed in one call. All but the final change will attempt to</span>
+<span class="sd">                change by +/- step exactly</span>
 
-<span class="sd">            max_val_age (Optional[int]): Only used with stepping, the max time (in seconds) to</span>
-<span class="sd">                trust a saved value. If this parameter has not been set or measured</span>
-<span class="sd">                more recently than this, it will be measured before starting to</span>
-<span class="sd">                step, so we&#39;re confident in the value we&#39;re starting from.</span>
+<span class="sd">            max_val_age (Optional[int]): Only used with stepping, the max time</span>
+<span class="sd">                (in seconds) to trust a saved value. If this parameter has not</span>
+<span class="sd">                been set or measured more recently than this, it will be</span>
+<span class="sd">                measured before starting to step, so we&#39;re confident in the</span>
+<span class="sd">                value we&#39;re starting from.</span>
 
 <span class="sd">        Raises:</span>
 <span class="sd">            TypeError: if step is not numeric</span>
@@ -851,12 +878,12 @@
 <span class="sd">        no matter how long the set takes.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            delay(Union[int, float]): the target time between set calls. The actual time will not be</span>
-<span class="sd">                shorter than this, but may be longer if the underlying set call</span>
-<span class="sd">                takes longer.</span>
+<span class="sd">            delay(Union[int, float]): the target time between set calls. The</span>
+<span class="sd">                actual time will not be shorter than this, but may be longer</span>
+<span class="sd">                if the underlying set call takes longer.</span>
 
-<span class="sd">            max_delay(Optional[Union[int, float]]): if given, the longest time allowed for the underlying set</span>
-<span class="sd">                call before we emit a warning.</span>
+<span class="sd">            max_delay(Optional[Union[int, float]]): if given, the longest time</span>
+<span class="sd">                allowed for the underlying set call before we emit a warning.</span>
 
 <span class="sd">        Raises:</span>
 <span class="sd">            TypeError: If delay is not int nor float</span>
@@ -895,7 +922,8 @@
 <span class="sd">    Args:</span>
 <span class="sd">        name (string): the local name of this parameter</span>
 
-<span class="sd">        instrument (Optional[Instrument]): the instrument this applies to, if any.</span>
+<span class="sd">        instrument (Optional[Instrument]): the instrument this applies to,</span>
+<span class="sd">            if any.</span>
 
 <span class="sd">        initial_value (Optional[string]): starting value, the</span>
 <span class="sd">            only invalid value allowed, and None is only allowed as an initial</span>

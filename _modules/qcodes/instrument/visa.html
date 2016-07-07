@@ -147,8 +147,13 @@
 <span class="sd">    Args:</span>
 <span class="sd">        name (str): What this instrument is called locally.</span>
 
-<span class="sd">        address (str): The visa resource name. see eg:</span>
-<span class="sd">            http://pyvisa.readthedocs.org/en/stable/names.html</span>
+<span class="sd">        address (str): The visa resource name to use to connect.</span>
+<span class="sd">             Optionally includes &#39;@&lt;backend&gt;&#39; at the end. For example,</span>
+<span class="sd">            &#39;ASRL2&#39; will open COM2 with the default NI backend, but</span>
+<span class="sd">            &#39;ASRL2@py&#39; will open COM2 using pyvisa-py. Note that qcodes</span>
+<span class="sd">            does not install (or even require) ANY backends, it is up to</span>
+<span class="sd">            the user to do that.</span>
+<span class="sd">            see eg: http://pyvisa.readthedocs.org/en/stable/names.html</span>
 
 <span class="sd">        timeout (number): seconds to allow for responses. Default 5.</span>
 
@@ -205,50 +210,29 @@
 
         <span class="k">return</span> <span class="s1">&#39;VisaServer&#39;</span></div>
 
-<div class="viewcode-block" id="VisaInstrument.get_idn"><a class="viewcode-back" href="../../../api/generated/qcodes.VisaInstrument.html#qcodes.VisaInstrument.get_idn">[docs]</a>    <span class="k">def</span> <span class="nf">get_idn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Parse a standard VISA &#39;*IDN?&#39; response into an ID dict.</span>
-
-<span class="sd">        Override this if your instrument returns a nonstandard IDN string.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            A dict containing vendor, model, serial, and firmware.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">idstr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;*IDN?&#39;</span><span class="p">)</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="c1"># form is supposed to be comma-separated, but we&#39;ve seen</span>
-            <span class="c1"># other separators occasionally</span>
-            <span class="k">for</span> <span class="n">separator</span> <span class="ow">in</span> <span class="s1">&#39;,;:&#39;</span><span class="p">:</span>
-                <span class="c1"># split into no more than 4 parts, so we don&#39;t lose info</span>
-                <span class="n">idparts</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">idstr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">separator</span><span class="p">,</span> <span class="mi">3</span><span class="p">)]</span>
-                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">idparts</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-                    <span class="k">break</span>
-            <span class="c1"># in case parts at the end are missing, fill in None</span>
-            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">idparts</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">4</span><span class="p">:</span>
-                <span class="n">idparts</span> <span class="o">+=</span> <span class="p">[</span><span class="bp">None</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">4</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">idparts</span><span class="p">))</span>
-        <span class="k">except</span><span class="p">:</span>
-            <span class="n">logging</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Error interpreting *IDN? response &#39;</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="n">idstr</span><span class="p">))</span>
-            <span class="n">idparts</span> <span class="o">=</span> <span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">]</span>
-
-        <span class="c1"># some strings include the word &#39;model&#39; at the front of model</span>
-        <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">idparts</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;model&#39;</span><span class="p">):</span>
-            <span class="n">idparts</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">idparts</span><span class="p">[</span><span class="mi">1</span><span class="p">])[</span><span class="mi">5</span><span class="p">:]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-
-        <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">((</span><span class="s1">&#39;vendor&#39;</span><span class="p">,</span> <span class="s1">&#39;model&#39;</span><span class="p">,</span> <span class="s1">&#39;serial&#39;</span><span class="p">,</span> <span class="s1">&#39;firmware&#39;</span><span class="p">),</span> <span class="n">idparts</span><span class="p">))</span></div>
-
 <div class="viewcode-block" id="VisaInstrument.set_address"><a class="viewcode-back" href="../../../api/generated/qcodes.VisaInstrument.html#qcodes.VisaInstrument.set_address">[docs]</a>    <span class="k">def</span> <span class="nf">set_address</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">address</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Change the address for this instrument.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            address: The visa resource name to use to connect.</span>
+<span class="sd">                Optionally includes &#39;@&lt;backend&gt;&#39; at the end. For example,</span>
+<span class="sd">                &#39;ASRL2&#39; will open COM2 with the default NI backend, but</span>
+<span class="sd">                &#39;ASRL2@py&#39; will open COM2 using pyvisa-py. Note that qcodes</span>
+<span class="sd">                does not install (or even require) ANY backends, it is up to</span>
+<span class="sd">                the user to do that.</span>
 <span class="sd">                see eg: http://pyvisa.readthedocs.org/en/stable/names.html</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># in case we&#39;re changing the address - close the old handle first</span>
         <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;visa_handle&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 
-        <span class="n">resource_manager</span> <span class="o">=</span> <span class="n">visa</span><span class="o">.</span><span class="n">ResourceManager</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">address</span> <span class="ow">and</span> <span class="s1">&#39;@&#39;</span> <span class="ow">in</span> <span class="n">address</span><span class="p">:</span>
+            <span class="n">address</span><span class="p">,</span> <span class="n">visa_library</span> <span class="o">=</span> <span class="n">address</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;@&#39;</span><span class="p">)</span>
+            <span class="n">resource_manager</span> <span class="o">=</span> <span class="n">visa</span><span class="o">.</span><span class="n">ResourceManager</span><span class="p">(</span><span class="s1">&#39;@&#39;</span> <span class="o">+</span> <span class="n">visa_library</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">resource_manager</span> <span class="o">=</span> <span class="n">visa</span><span class="o">.</span><span class="n">ResourceManager</span><span class="p">()</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span> <span class="o">=</span> <span class="n">resource_manager</span><span class="o">.</span><span class="n">open_resource</span><span class="p">(</span><span class="n">address</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>

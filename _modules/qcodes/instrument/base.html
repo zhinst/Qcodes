@@ -134,6 +134,7 @@
 <span></span><span class="sd">&quot;&quot;&quot;Instrument base class.&quot;&quot;&quot;</span>
 <span class="kn">import</span> <span class="nn">weakref</span>
 <span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">logging</span>
 
 <span class="kn">from</span> <span class="nn">qcodes.utils.metadata</span> <span class="kn">import</span> <span class="n">Metadatable</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.helpers</span> <span class="kn">import</span> <span class="n">DelegateAttributes</span><span class="p">,</span> <span class="n">strip_attrs</span><span class="p">,</span> <span class="n">full_class</span>
@@ -230,19 +231,43 @@
 
 <div class="viewcode-block" id="Instrument.get_idn"><a class="viewcode-back" href="../../../api/generated/qcodes.Instrument.html#qcodes.Instrument.get_idn">[docs]</a>    <span class="k">def</span> <span class="nf">get_idn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Placeholder for instrument ID parameter getter.</span>
+<span class="sd">        Parse a standard VISA &#39;*IDN?&#39; response into an ID dict.</span>
 
-<span class="sd">        Subclasses should override this.</span>
+<span class="sd">        Even though this is the VISA standard, it applies to various other</span>
+<span class="sd">        types as well, such as IPInstruments, so it is included here in the</span>
+<span class="sd">        Instrument base class.</span>
+
+<span class="sd">        Override this if your instrument does not support &#39;*IDN?&#39; or</span>
+<span class="sd">        returns a nonstandard IDN string. This string is supposed to be a</span>
+<span class="sd">        comma-separated list of vendor, model, serial, and firmware, but</span>
+<span class="sd">        semicolon and colon are also common separators so we accept them here</span>
+<span class="sd">        as well.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            A dict containing (at least) these 4 fields:</span>
-<span class="sd">                vendor</span>
-<span class="sd">                model</span>
-<span class="sd">                serial</span>
-<span class="sd">                firmware</span>
+<span class="sd">            A dict containing vendor, model, serial, and firmware.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;vendor&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span> <span class="s1">&#39;model&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
-                <span class="s1">&#39;serial&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span> <span class="s1">&#39;firmware&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">}</span></div>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">idstr</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>  <span class="c1"># in case self.ask fails</span>
+            <span class="n">idstr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;*IDN?&#39;</span><span class="p">)</span>
+            <span class="c1"># form is supposed to be comma-separated, but we&#39;ve seen</span>
+            <span class="c1"># other separators occasionally</span>
+            <span class="k">for</span> <span class="n">separator</span> <span class="ow">in</span> <span class="s1">&#39;,;:&#39;</span><span class="p">:</span>
+                <span class="c1"># split into no more than 4 parts, so we don&#39;t lose info</span>
+                <span class="n">idparts</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">idstr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">separator</span><span class="p">,</span> <span class="mi">3</span><span class="p">)]</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">idparts</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="k">break</span>
+            <span class="c1"># in case parts at the end are missing, fill in None</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">idparts</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">4</span><span class="p">:</span>
+                <span class="n">idparts</span> <span class="o">+=</span> <span class="p">[</span><span class="bp">None</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">4</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">idparts</span><span class="p">))</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Error getting or interpreting *IDN?: &#39;</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="n">idstr</span><span class="p">))</span>
+            <span class="n">idparts</span> <span class="o">=</span> <span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">]</span>
+
+        <span class="c1"># some strings include the word &#39;model&#39; at the front of model</span>
+        <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">idparts</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;model&#39;</span><span class="p">):</span>
+            <span class="n">idparts</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">idparts</span><span class="p">[</span><span class="mi">1</span><span class="p">])[</span><span class="mi">5</span><span class="p">:]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">((</span><span class="s1">&#39;vendor&#39;</span><span class="p">,</span> <span class="s1">&#39;model&#39;</span><span class="p">,</span> <span class="s1">&#39;serial&#39;</span><span class="p">,</span> <span class="s1">&#39;firmware&#39;</span><span class="p">),</span> <span class="n">idparts</span><span class="p">))</span></div>
 
     <span class="nd">@classmethod</span>
 <div class="viewcode-block" id="Instrument.default_server_name"><a class="viewcode-back" href="../../../api/generated/qcodes.Instrument.html#qcodes.Instrument.default_server_name">[docs]</a>    <span class="k">def</span> <span class="nf">default_server_name</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
