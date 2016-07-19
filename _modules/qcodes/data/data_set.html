@@ -457,7 +457,8 @@
 
     <span class="k">def</span> <span class="nf">init_on_server</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Configure this DataSet as the DataServer copy</span>
+<span class="sd">        Configure this DataSet as the DataServer copy.</span>
+
 <span class="sd">        Should be run only by the DataServer itself.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">arrays</span><span class="p">:</span>
@@ -478,15 +479,17 @@
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">is_live_mode</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        indicate whether this DataSet thinks it is live in the DataServer</span>
-<span class="sd">        without actually talking to the DataServer or syncing with it</span>
+<span class="sd">        Indicate whether this DataSet thinks it is live in the DataServer.</span>
+
+<span class="sd">        Does not actually talk to the DataServer or sync with it.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="ow">in</span> <span class="n">SERVER_MODES</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_manager</span> <span class="ow">and</span> <span class="bp">True</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">is_on_server</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Check whether this DataSet is being mirrored in the DataServer</span>
+<span class="sd">        Check whether this DataSet is actually live in the DataServer.</span>
+
 <span class="sd">        If it thought it was but isn&#39;t, convert it to mode=LOCAL</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_live_mode</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">location</span> <span class="ow">is</span> <span class="bp">False</span><span class="p">:</span>
@@ -498,10 +501,13 @@
 
     <span class="k">def</span> <span class="nf">sync</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        synchronize this data set with a possibly newer version either</span>
-<span class="sd">        in storage or on the DataServer, depending on its mode</span>
+<span class="sd">        Synchronize this DataSet with the DataServer or storage.</span>
 
-<span class="sd">        returns: boolean, is this DataSet live on the server</span>
+<span class="sd">        If this DataSet is on the server, asks the server for changes.</span>
+<span class="sd">        If not, reads the entire DataSet from disk.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: True if this DataSet is live on the server</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># TODO: sync implies bidirectional... and it could be!</span>
         <span class="c1"># we should keep track of last sync timestamp and last modification</span>
@@ -612,10 +618,25 @@
 
         <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;DataSet &lt;{}&gt; is complete&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">location</span><span class="p">))</span>
 
-    <span class="k">def</span> <span class="nf">get_changes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">synced_index</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">get_changes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">synced_indices</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Find changes since the last sync of this DataSet.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            synced_indices (dict): ``{array_id: synced_index}`` where</span>
+<span class="sd">                synced_index is the last flat index which has already</span>
+<span class="sd">                been synced, for any (usually all) arrays in the DataSet.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Dict[dict]: keys are ``array_id`` for each array with changes,</span>
+<span class="sd">                values are dicts as returned by ``DataArray.get_changes``</span>
+<span class="sd">                and required as kwargs to ``DataArray.apply_changes``.</span>
+<span class="sd">                Note that not all arrays in ``synced_indices`` need be</span>
+<span class="sd">                present in the return, only those with changes.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">changes</span> <span class="o">=</span> <span class="p">{}</span>
 
-        <span class="k">for</span> <span class="n">array_id</span><span class="p">,</span> <span class="n">synced_index</span> <span class="ow">in</span> <span class="n">synced_index</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">array_id</span><span class="p">,</span> <span class="n">synced_index</span> <span class="ow">in</span> <span class="n">synced_indices</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
             <span class="n">array_changes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">arrays</span><span class="p">[</span><span class="n">array_id</span><span class="p">]</span><span class="o">.</span><span class="n">get_changes</span><span class="p">(</span><span class="n">synced_index</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">array_changes</span><span class="p">:</span>
                 <span class="n">changes</span><span class="p">[</span><span class="n">array_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">array_changes</span>
@@ -624,15 +645,20 @@
 
     <span class="k">def</span> <span class="nf">add_array</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_array</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        add one DataArray to this DataSet</span>
+<span class="sd">        Add one DataArray to this DataSet, and mark it as part of this DataSet.</span>
 
-<span class="sd">        note: DO NOT just set data_set.arrays[id] = data_array</span>
-<span class="sd">        because this will not check for overriding, nor set the</span>
-<span class="sd">        reference back to this DataSet. It would also allow you to</span>
-<span class="sd">        load the array in with different id than it holds itself.</span>
+<span class="sd">        Note: DO NOT just set ``data_set.arrays[id] = data_array``, because</span>
+<span class="sd">        this will not check if we are overwriting another array, nor set the</span>
+<span class="sd">        reference back to this DataSet, nor that the ``array_id`` in the array</span>
+<span class="sd">        matches how you&#39;re storing it here.</span>
 
+<span class="sd">        Args:</span>
+<span class="sd">            data_array (DataArray): the new array to add</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: if there is already an array with this id here.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># TODO: mask self.arrays so you *can&#39;t* set it directly</span>
+        <span class="c1"># TODO: mask self.arrays so you *can&#39;t* set it directly?</span>
 
         <span class="k">if</span> <span class="n">data_array</span><span class="o">.</span><span class="n">array_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">arrays</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;array_id {} already exists in this &#39;</span>
@@ -680,13 +706,20 @@
 
     <span class="k">def</span> <span class="nf">store</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">loop_indices</span><span class="p">,</span> <span class="n">ids_values</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Set some collection of data points</span>
+<span class="sd">        Insert data into one or more of our DataArrays.</span>
 
-<span class="sd">        loop_indices: the indices within whatever loops we are inside</span>
-<span class="sd">        values: a dict of action_index:value or array_id:value</span>
-<span class="sd">            where value may be an arbitrarily nested list, to record</span>
-<span class="sd">            many values at once into one array</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        If in ``PUSH_TO_SERVER`` mode, this is where we do that!</span>
+<span class="sd">        Otherwise we also periodically trigger a write to storage.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            loop_indices (tuple): the indices within whatever loops we are</span>
+<span class="sd">                inside. May have fewer dimensions than some of the arrays</span>
+<span class="sd">                we are inserting into, if the corresponding value makes up</span>
+<span class="sd">                the remaining dimensionality.</span>
+<span class="sd">            values (Dict[Union[float, sequence]]): a dict whose keys are</span>
+<span class="sd">                array_ids, and values are single numbers or entire slices</span>
+<span class="sd">                to insert into that array.</span>
+<span class="sd">         &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="n">DataMode</span><span class="o">.</span><span class="n">PUSH_TO_SERVER</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data_manager</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;store_data&#39;</span><span class="p">,</span> <span class="n">loop_indices</span><span class="p">,</span> <span class="n">ids_values</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
@@ -776,7 +809,13 @@
                 <span class="n">array</span><span class="o">.</span><span class="n">modified_range</span> <span class="o">=</span> <span class="n">mr_cache</span><span class="p">[</span><span class="n">array_id</span><span class="p">]</span>
 
     <span class="k">def</span> <span class="nf">add_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_metadata</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Update DataSet.metadata with additional data.&quot;&quot;&quot;</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Update DataSet.metadata with additional data.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            new_metadata (dict): new data to be deep updated into</span>
+<span class="sd">                the existing metadata</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">deep_update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="p">,</span> <span class="n">new_metadata</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">save_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -786,7 +825,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">write_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">io</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">location</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">finalize</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Mark the DataSet as complete.&quot;&quot;&quot;</span>
+        <span class="sd">&quot;&quot;&quot;Mark the DataSet complete and write any remaining modifications.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="n">DataMode</span><span class="o">.</span><span class="n">PUSH_TO_SERVER</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data_manager</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;end_data&#39;</span><span class="p">)</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="n">DataMode</span><span class="o">.</span><span class="n">LOCAL</span><span class="p">:</span>
@@ -812,12 +851,22 @@
         <span class="k">return</span> <span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">get_array_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">array_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the metadata for a single contained DataArray.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            array_id (str): the array to get metadata for.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict: metadata for this array.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;arrays&#39;</span><span class="p">][</span><span class="n">array_id</span><span class="p">]</span>
-        <span class="k">except</span><span class="p">:</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">AttributeError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">):</span>
             <span class="k">return</span> <span class="bp">None</span>
 
     <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Rich information about the DataSet and contained arrays.&quot;&quot;&quot;</span>
         <span class="n">out</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__name__</span> <span class="o">+</span> <span class="s1">&#39;:&#39;</span>
 
         <span class="n">attrs</span> <span class="o">=</span> <span class="p">[[</span><span class="s1">&#39;mode&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="p">],</span>

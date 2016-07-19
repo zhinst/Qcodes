@@ -158,6 +158,58 @@
 
 <span class="sd">    Once the array is initialized, a DataArray acts a lot like a numpy array,</span>
 <span class="sd">    because we delegate attributes through to the numpy array</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        parameter (Optional[Parameter]): The parameter whose values will</span>
+<span class="sd">            populate this array, if any. Will copy ``name``, ``full_name``,</span>
+<span class="sd">            ``label``, ``units``, and ``snapshot`` from here unless you</span>
+<span class="sd">            provide them explicitly.</span>
+
+<span class="sd">        name (Optional[str]): The short name of this array.</span>
+<span class="sd">            TODO: use full_name as name, and get rid of short name</span>
+
+<span class="sd">        full_name (Optional[str]): The complete name of this array. If the</span>
+<span class="sd">            array is based on a parameter linked to an instrument, this is</span>
+<span class="sd">            typically &#39;&lt;instrument_name&gt;_&lt;param_name&gt;&#39;</span>
+
+<span class="sd">        label (Optional[str]): A description of the values in this array to</span>
+<span class="sd">            use for axis and colorbar labels on plots.</span>
+
+<span class="sd">        snapshot (Optional[dict]): Metadata snapshot to save with this array.</span>
+
+<span class="sd">        array_id (Optional[str]): A name for this array that&#39;s unique within</span>
+<span class="sd">            its ``DataSet``. Typically the full_name, but when the ``DataSet``</span>
+<span class="sd">            is constructed we will append &#39;_&lt;i&gt;&#39; (``i`` is an integer starting</span>
+<span class="sd">            from 1) if necessary to differentiate arrays with the same id.</span>
+<span class="sd">            TODO: this only happens for arrays provided to the DataSet</span>
+<span class="sd">            constructor, not those added with add_array. Fix this!</span>
+<span class="sd">            Also, do we really need array_id *and* full_name (let alone name</span>
+<span class="sd">            but I&#39;ve already said we should remove this)?</span>
+
+<span class="sd">        set_arrays (Optional[Tuple[DataArray]]): If this array is being</span>
+<span class="sd">            created with shape already, you can provide one setpoint array</span>
+<span class="sd">            per dimension. The first should have one dimension, the second</span>
+<span class="sd">            two dimensions, etc.</span>
+
+<span class="sd">        shape (Optional[Tuple[int]]): The shape (as in numpy) of the array.</span>
+<span class="sd">            Will be prepended with new dimensions by any calls to ``nest``.</span>
+
+<span class="sd">        action_indices (Optional[Tuple[int]]): If used within a ``Loop``,</span>
+<span class="sd">            these are the indices at each level of nesting within the</span>
+<span class="sd">            ``Loop`` of the loop action that&#39;s populating this array.</span>
+<span class="sd">            TODO: this shouldn&#39;t be in DataArray at all, the loop should</span>
+<span class="sd">            handle converting this to array_id internally (maybe it</span>
+<span class="sd">            already does?)</span>
+
+<span class="sd">        units (Optional[str]): The units of the values stored in this array.</span>
+
+<span class="sd">        is_setpoint (bool): True if this is a setpoint array, False if it</span>
+<span class="sd">            is measured. Default False.</span>
+
+<span class="sd">        preset_data (Optional[Union[ndarray, sequence]]): Contents of the</span>
+<span class="sd">            array, if already known (for example if this is a setpoint</span>
+<span class="sd">            array). ``shape`` will be inferred from this array instead of</span>
+<span class="sd">            from the ``shape`` argument.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="c1"># attributes of self to include in the snapshot</span>
@@ -223,6 +275,7 @@
             <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">parameter</span><span class="p">,</span> <span class="s1">&#39;snapshot&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">snapshot</span><span class="p">:</span>
                 <span class="n">snapshot</span> <span class="o">=</span> <span class="n">parameter</span><span class="o">.</span><span class="n">snapshot</span><span class="p">()</span>
             <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># TODO: why is this in an else clause?</span>
                 <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">COPY_ATTRS_FROM_INPUT</span><span class="p">:</span>
                     <span class="k">if</span> <span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="n">parameter</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span> <span class="ow">and</span>
                             <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="bp">None</span><span class="p">)):</span>
@@ -246,6 +299,12 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">data_set</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The DataSet this array belongs to.</span>
+
+<span class="sd">        A DataArray can belong to at most one DataSet.</span>
+<span class="sd">        TODO: make this a weakref</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data_set</span>
 
     <span class="nd">@data_set.setter</span>
@@ -258,14 +317,28 @@
 
     <span class="k">def</span> <span class="nf">nest</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">action_index</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">set_array</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        nest this array inside a new outer loop</span>
+<span class="sd">        Nest this array inside a new outer loop.</span>
 
-<span class="sd">        size: length of the new loop</span>
-<span class="sd">        action_index: within the outer loop, which action is this in?</span>
-<span class="sd">        set_array: a DataArray listing the setpoints of the outer loop</span>
-<span class="sd">            if this DataArray *is* a setpoint array, you should omit both</span>
-<span class="sd">            action_index and set_array, and it will reference itself as the</span>
-<span class="sd">            set_array</span>
+<span class="sd">        You cannot call ``nest`` after ``init_data`` unless this is a</span>
+<span class="sd">        setpoint array.</span>
+<span class="sd">        TODO: is this restriction really useful? And should we maintain</span>
+<span class="sd">        a distinction between _preset and is_setpoint, or can wejust use</span>
+<span class="sd">        is_setpoint?</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            size (int): Length of the new loop.</span>
+
+<span class="sd">            action_index (Optional[int]): Within the outer loop at this</span>
+<span class="sd">                nesting level, which action does this array derive from?</span>
+
+<span class="sd">            set_array (Optional[DataArray]): The setpoints of the new outer</span>
+<span class="sd">                loop. If this DataArray *is* a setpoint array, you should</span>
+<span class="sd">                omit both ``action_index`` and ``set_array``, and it will</span>
+<span class="sd">                reference itself as the inner setpoint array.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            DataArray: self, in case you want to construct the array with</span>
+<span class="sd">                chained method calls.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ndarray</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_preset</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Only preset arrays can be nested after data &#39;</span>
@@ -299,9 +372,26 @@
 
     <span class="k">def</span> <span class="nf">init_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        create a data array (if one doesn&#39;t exist)</span>
-<span class="sd">        if data is provided, this array is marked as a preset</span>
+<span class="sd">        Create the actual numpy array to hold data.</span>
+
+<span class="sd">        The array will be sized based on either ``self.shape`` or</span>
+<span class="sd">        data provided here.</span>
+
+<span class="sd">        Idempotent: will do nothing if the array already exists.</span>
+
+<span class="sd">        If data is provided, this array is marked as a preset</span>
 <span class="sd">        meaning it can still be nested around this data.</span>
+<span class="sd">        TODO: per above, perhaps remove this distinction entirely?</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            data (Optional[Union[ndarray, sequence]]): If provided,</span>
+<span class="sd">                we fill the array with this data. Otherwise the new</span>
+<span class="sd">                array will be filled with NaN.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: if ``self.shape`` does not match ``data.shape``</span>
+<span class="sd">            ValueError: if the array was already initialized with a</span>
+<span class="sd">                different shape than we&#39;re about to create</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
@@ -339,9 +429,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_max_indices</span> <span class="o">=</span> <span class="p">[</span><span class="n">d</span> <span class="o">-</span> <span class="mi">1</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">]</span>
 
     <span class="k">def</span> <span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Fill the (already existing) data array with nan</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="sd">&quot;&quot;&quot;Fill the (already existing) data array with nan.&quot;&quot;&quot;</span>
         <span class="c1"># only floats can hold nan values. I guess we could</span>
         <span class="c1"># also raise an error in this case? But generally float is</span>
         <span class="c1"># what people want anyway.</span>
@@ -351,11 +439,13 @@
 
     <span class="k">def</span> <span class="nf">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">loop_indices</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        set data values. Follows numpy syntax, allowing indices of lower</span>
-<span class="sd">        dimensionality than the array, if value makes up the extra dimension(s)</span>
+<span class="sd">        Set data values.</span>
 
-<span class="sd">        Also updates the record of modifications to the array. If you don&#39;t</span>
-<span class="sd">        want this overhead, you can access self.ndarray directly.</span>
+<span class="sd">        Follows numpy syntax, allowing indices of lower dimensionality than</span>
+<span class="sd">        the array, if value makes up the extra dimension(s)</span>
+
+<span class="sd">        Also update the record of modifications to the array. If you don&#39;t</span>
+<span class="sd">        want this overhead, you can access ``self.ndarray`` directly.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">loop_indices</span><span class="p">,</span> <span class="n">collections</span><span class="o">.</span><span class="n">Iterable</span><span class="p">):</span>
             <span class="n">min_indices</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">loop_indices</span><span class="p">)</span>
@@ -384,8 +474,10 @@
 
     <span class="k">def</span> <span class="nf">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        must be explicitly delegated, because len() will look for this</span>
-<span class="sd">        attribute to already exist</span>
+<span class="sd">        Array length.</span>
+
+<span class="sd">        Must be explicitly delegated, because len() will look for this</span>
+<span class="sd">        attribute to already exist.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span>
 
@@ -421,8 +513,14 @@
 
     <span class="k">def</span> <span class="nf">mark_saved</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">last_saved_index</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        after saving data, mark outstanding modifications up to</span>
-<span class="sd">        last_saved_index as saved</span>
+<span class="sd">        Mark certain outstanding modifications as saved.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            last_saved_index (int): The flat index of the last point</span>
+<span class="sd">                saved. If ``modified_range`` extends beyond this, the</span>
+<span class="sd">                data past ``last_saved_index`` will still be marked</span>
+<span class="sd">                modified, otherwise ``modified_range`` is cleared</span>
+<span class="sd">                entirely.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">modified_range</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">last_saved_index</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">modified_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
@@ -435,8 +533,10 @@
 
     <span class="k">def</span> <span class="nf">clear_save</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        make this array look unsaved, so we can force overwrite</span>
-<span class="sd">        or rewrite, like if we&#39;re moving or copying the DataSet</span>
+<span class="sd">        Make previously saved parts of this array look unsaved (modified).</span>
+
+<span class="sd">        This can be used to force overwrite or rewrite, like if we&#39;re</span>
+<span class="sd">        moving or copying the ``DataSet``.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_saved_index</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_update_modified_range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_saved_index</span><span class="p">)</span>
@@ -444,6 +544,16 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">last_saved_index</span> <span class="o">=</span> <span class="bp">None</span>
 
     <span class="k">def</span> <span class="nf">get_synced_index</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the last index which has been synced from the server.</span>
+
+<span class="sd">        Will also initialize the array if this hasn&#39;t happened already.</span>
+<span class="sd">        TODO: seems hacky to init_data here.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            int: the last flat index which has been synced from the server,</span>
+<span class="sd">                or -1 if no data has been synced.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;synced_index&#39;</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">init_data</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">synced_index</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
@@ -451,6 +561,20 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">synced_index</span>
 
     <span class="k">def</span> <span class="nf">get_changes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">synced_index</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Find changes since the last sync of this array.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            synced_index (int): The last flat index which has already</span>
+<span class="sd">                been synced.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Union[dict, None]: None if there is no new data. If there is,</span>
+<span class="sd">                returns a dict with keys:</span>
+<span class="sd">                    start (int): the flat index of the first returned value.</span>
+<span class="sd">                    stop (int): the flat index of the last returned value.</span>
+<span class="sd">                    vals (List[float]): the new values</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">latest_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_saved_index</span>
         <span class="k">if</span> <span class="n">latest_index</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
             <span class="n">latest_index</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
@@ -470,6 +594,19 @@
             <span class="p">}</span>
 
     <span class="k">def</span> <span class="nf">apply_changes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">stop</span><span class="p">,</span> <span class="n">vals</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Insert new synced values into the array.</span>
+
+<span class="sd">        To be be called in a ``PULL_FROM_SERVER`` ``DataSet`` using results</span>
+<span class="sd">        returned by ``get_changes`` from the ``DataServer``.</span>
+
+<span class="sd">        TODO: check that vals has the right length?</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            start (int): the flat index of the first new value.</span>
+<span class="sd">            stop (int): the flat index of the last new value.</span>
+<span class="sd">            vals (List[float]): the new values</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">vals</span><span class="p">):</span>
             <span class="n">index</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unravel_index</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="n">start</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ndarray</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">ndarray</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
