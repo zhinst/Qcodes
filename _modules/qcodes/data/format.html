@@ -132,7 +132,6 @@
             
   <h1>Source code for qcodes.data.format</h1><div class="highlight"><pre>
 <span></span><span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">namedtuple</span>
-<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">traceback</span> <span class="kn">import</span> <span class="n">format_exc</span>
 <span class="kn">from</span> <span class="nn">operator</span> <span class="kn">import</span> <span class="n">attrgetter</span>
 <span class="kn">import</span> <span class="nn">logging</span>
@@ -144,22 +143,27 @@
 
 <span class="sd">    Formatters translate between DataSets and data files.</span>
 
-<span class="sd">    Each Formatter is expected to implement a write method:</span>
-<span class="sd">        write(self, data_set)</span>
+<span class="sd">    Each Formatter is expected to implement writing methods:</span>
+<span class="sd">    - ``write``: to write the ``DataArray``s</span>
+<span class="sd">    - ``write_metadata``: to write the metadata JSON structure</span>
 
-<span class="sd">    and either read or read_one_file:</span>
-<span class="sd">        read(self, data_set)</span>
-<span class="sd">        read_one_file(data_set, f, ids_read)</span>
-<span class="sd">            f: a file-like object supporting .readline() and for ... in</span>
-<span class="sd">            ids_read: a set of array_id&#39;s we&#39;ve already encountered, so</span>
-<span class="sd">                read_one_file can check for duplication and consistency</span>
+<span class="sd">    and reading methods:</span>
+<span class="sd">    - ``read`` or ``read_one_file`` to reconstruct the ``DataArray``s, either</span>
+<span class="sd">      all at once (``read``) or one file at a time, supplied by the base class</span>
+<span class="sd">      ``read`` method that loops over all data files at the correct location.</span>
 
-<span class="sd">    data_set is a DataSet object, which is expected to have attributes:</span>
-<span class="sd">        io: an IO manager (see qcodes.io)</span>
+<span class="sd">    - ``read_metadata``: to reload saved metadata. If a subclass overrides</span>
+<span class="sd">      ``read``, this method should call ``read_metadata``, but keep it also</span>
+<span class="sd">      as a separate method because it occasionally gets called independently.</span>
+
+<span class="sd">    All of these methods accept a ``data_set`` argument, which should be a</span>
+<span class="sd">    ``DataSet`` object. Even if you are loading a new data set from disk, this</span>
+<span class="sd">    object should already have attributes:</span>
+<span class="sd">        io: an IO manager (see qcodes.data.io)</span>
 <span class="sd">        location: a string, like a file path, that identifies the DataSet and</span>
 <span class="sd">            tells the IO manager where to store it</span>
-<span class="sd">        arrays: a dict of {array_id:DataArray} to read into.</span>
-<span class="sd">            - read will create DataArrays that don&#39;t yet exist.</span>
+<span class="sd">        arrays: a dict of ``{array_id:DataArray}`` to read into.</span>
+<span class="sd">            - read will create entries that don&#39;t yet exist.</span>
 <span class="sd">            - write will write ALL DataArrays in the DataSet, using</span>
 <span class="sd">              last_saved_index and modified_range, as well as whether or not</span>
 <span class="sd">              it found the specified file, to determine how much to write.</span>
@@ -184,9 +188,20 @@
 
     <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_set</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Read the entire DataSet by finding all files matching its location</span>
-<span class="sd">        (using io_manager.list) and calling read_one_file from the Formatter</span>
-<span class="sd">        subclass. Subclasses may alternatively override this entire method.</span>
+<span class="sd">        Read the entire ``DataSet``.</span>
+
+<span class="sd">        Find all files matching ``data_set.location`` (using io_manager.list)</span>
+<span class="sd">        and call ``read_one_file`` on each. Subclasses may either override</span>
+<span class="sd">        this method (if they use only one file or want to do their own</span>
+<span class="sd">        searching) or override ``read_one_file`` to use the search and</span>
+<span class="sd">        initialization functionality defined here.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            data_set (DataSet): the data to read into. Should already have</span>
+<span class="sd">                attributes ``io`` (an io manager), ``location`` (string),</span>
+<span class="sd">                and ``arrays`` (dict of ``{array_id: array}``, can be empty</span>
+<span class="sd">                or can already have some or all of the arrays present, they</span>
+<span class="sd">                expect to be overwritten)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">io_manager</span> <span class="o">=</span> <span class="n">data_set</span><span class="o">.</span><span class="n">io</span>
         <span class="n">location</span> <span class="o">=</span> <span class="n">data_set</span><span class="o">.</span><span class="n">location</span>
@@ -228,100 +243,163 @@
         <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 
     <span class="k">def</span> <span class="nf">read_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_set</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Read the metadata from this DataSet from storage.&quot;&quot;&quot;</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Read the metadata from this DataSet from storage.</span>
+
+<span class="sd">        Subclasses must override this method.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            data_set (DataSet): the data to read metadata into</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 
     <span class="k">def</span> <span class="nf">read_one_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_set</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">ids_read</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Formatter subclasses that handle multiple data files may choose to</span>
-<span class="sd">        override this method, which handles one file at a time.</span>
+<span class="sd">        Read data from a single file into a ``DataSet``.</span>
 
-<span class="sd">        data_set: the DataSet we are reading into</span>
-<span class="sd">        f: a file-like object to read from</span>
-<span class="sd">        ids_read: a `set` of array_ids that we have already read.</span>
-<span class="sd">            when you read an array, check that it&#39;s not in this set (except</span>
-<span class="sd">            setpoints, which can be in several files with different inner loop)</span>
-<span class="sd">            then add it to the set so other files know not to read it again</span>
+<span class="sd">        Formatter subclasses that break a DataSet into multiple data files may</span>
+<span class="sd">        choose to override either this method, which handles one file at a</span>
+<span class="sd">        time, or ``read`` which finds matching files on its own.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            data_set (DataSet): the data we are reading into.</span>
+
+<span class="sd">            f (file-like): a file-like object to read from, as provided by</span>
+<span class="sd">                ``io_manager.open``.</span>
+
+<span class="sd">            ids_read (set): ``array_id``s that we have already read.</span>
+<span class="sd">                When you read an array, check that it&#39;s not in this set (except</span>
+<span class="sd">                setpoints, which can be in several files with different inner</span>
+<span class="sd">                loops) then add it to the set so other files know it should not</span>
+<span class="sd">                be read again.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: if a duplicate array_id of measured data is found</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 
     <span class="k">def</span> <span class="nf">match_save_range</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">group</span><span class="p">,</span> <span class="n">file_exists</span><span class="p">,</span> <span class="n">only_complete</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Find the save range that will capture all changes in an array group.</span>
-<span class="sd">        matches all full-sized arrays: the data arrays plus the inner loop</span>
-<span class="sd">        setpoint array</span>
+<span class="sd">        Find the save range that will joins all changes in an array group.</span>
 
-<span class="sd">        note: if an outer loop has changed values (without the inner</span>
-<span class="sd">        loop or measured data changing) we won&#39;t notice it here</span>
+<span class="sd">        Matches all full-sized arrays: the data arrays plus the inner loop</span>
+<span class="sd">        setpoint array.</span>
 
-<span class="sd">        use the inner setpoint as a base and look for differences</span>
-<span class="sd">        in last_saved_index and modified_range in the data arrays</span>
+<span class="sd">        Note: if an outer loop has changed values (without the inner</span>
+<span class="sd">        loop or measured data changing) we won&#39;t notice it here. We assume</span>
+<span class="sd">        that before an iteration of the inner loop starts, the outer loop</span>
+<span class="sd">        setpoint gets set and then does not change later.</span>
 
-<span class="sd">        if `only_complete` is True (default), will not mark any range to be</span>
-<span class="sd">        saved unless it contains no NaN values</span>
+<span class="sd">        Args:</span>
+<span class="sd">            group (Formatter.ArrayGroup): a ``namedtuple`` containing the</span>
+<span class="sd">                arrays that go together in one file, as tuple ``group.data``.</span>
+
+<span class="sd">            file_exists (bool): Does this file already exist? If True, and</span>
+<span class="sd">                all arrays in the group agree on ``last_saved_index``, we</span>
+<span class="sd">                assume the file has been written up to this index and we can</span>
+<span class="sd">                append to it. Otherwise we will set the returned range to start</span>
+<span class="sd">                from zero (so if the file does exist, it gets completely</span>
+<span class="sd">                overwritten).</span>
+
+<span class="sd">            only_complete (bool): Should we write all available new data,</span>
+<span class="sd">                or only complete rows? If True, we write only the range of</span>
+<span class="sd">                array indices which all arrays in the group list as modified,</span>
+<span class="sd">                so that future writes will be able to do a clean append to</span>
+<span class="sd">                the data file as more data arrives.</span>
+<span class="sd">                Default True.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Tuple(int, int): the first and last raveled indices that should</span>
+<span class="sd">                be saved.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">inner_setpoint</span> <span class="o">=</span> <span class="n">group</span><span class="o">.</span><span class="n">set_arrays</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-        <span class="n">last_saved_index</span> <span class="o">=</span> <span class="p">(</span><span class="n">inner_setpoint</span><span class="o">.</span><span class="n">last_saved_index</span> <span class="k">if</span> <span class="n">file_exists</span>
-                            <span class="k">else</span> <span class="bp">None</span><span class="p">)</span>
-        <span class="n">modified_range</span> <span class="o">=</span> <span class="n">inner_setpoint</span><span class="o">.</span><span class="n">modified_range</span>
-        <span class="k">for</span> <span class="n">array</span> <span class="ow">in</span> <span class="n">group</span><span class="o">.</span><span class="n">data</span><span class="p">:</span>
-            <span class="c1"># force overwrite if inconsistent last_saved_index</span>
-            <span class="k">if</span> <span class="n">array</span><span class="o">.</span><span class="n">last_saved_index</span> <span class="o">!=</span> <span class="n">last_saved_index</span><span class="p">:</span>
-                <span class="n">last_saved_index</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="n">full_dim_data</span> <span class="o">=</span> <span class="p">(</span><span class="n">inner_setpoint</span><span class="p">,</span> <span class="p">)</span> <span class="o">+</span> <span class="n">group</span><span class="o">.</span><span class="n">data</span>
 
-            <span class="c1"># find the modified_range that encompasses all modifications</span>
-            <span class="n">amr</span> <span class="o">=</span> <span class="n">array</span><span class="o">.</span><span class="n">modified_range</span>
-            <span class="k">if</span> <span class="n">amr</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">modified_range</span><span class="p">:</span>
-                    <span class="n">modified_range</span> <span class="o">=</span> <span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">modified_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">amr</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
-                                      <span class="nb">max</span><span class="p">(</span><span class="n">modified_range</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">amr</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">modified_range</span> <span class="o">=</span> <span class="n">amr</span>
-
-        <span class="k">if</span> <span class="n">only_complete</span> <span class="ow">and</span> <span class="n">modified_range</span><span class="p">:</span>
-            <span class="n">modified_range</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_completed_range</span><span class="p">(</span><span class="n">modified_range</span><span class="p">,</span>
-                                                       <span class="n">inner_setpoint</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
-                                                       <span class="n">group</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">modified_range</span><span class="p">:</span>
-                <span class="k">return</span> <span class="bp">None</span>
-
-        <span class="c1"># calculate the range to save</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">modified_range</span><span class="p">:</span>
-            <span class="c1"># nothing to save</span>
-            <span class="k">return</span> <span class="bp">None</span>
-        <span class="k">if</span> <span class="n">last_saved_index</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">or</span> <span class="n">last_saved_index</span> <span class="o">&gt;=</span> <span class="n">modified_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
-            <span class="c1"># need to overwrite - start save from 0</span>
-            <span class="k">return</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">modified_range</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="c1"># always return None if there are no modifications,</span>
+        <span class="c1"># even if there are last_saved_index inconsistencies</span>
+        <span class="c1"># so we don&#39;t do extra writing just to reshape the file</span>
+        <span class="k">for</span> <span class="n">array</span> <span class="ow">in</span> <span class="n">full_dim_data</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">array</span><span class="o">.</span><span class="n">modified_range</span><span class="p">:</span>
+                <span class="k">break</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># we can append! save only from last save to end of mods</span>
-            <span class="k">return</span> <span class="p">(</span><span class="n">last_saved_index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">modified_range</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">return</span> <span class="bp">None</span>
 
-    <span class="k">def</span> <span class="nf">_get_completed_range</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">modified_range</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">arrays</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        check the last data point to see if it&#39;s complete.</span>
+        <span class="n">last_saved_index</span> <span class="o">=</span> <span class="n">inner_setpoint</span><span class="o">.</span><span class="n">last_saved_index</span>
 
-<span class="sd">        If it&#39;s not complete, back up one point so that we don&#39;t need</span>
-<span class="sd">        to rewrite this point later on when it *is* complete</span>
+        <span class="k">if</span> <span class="n">last_saved_index</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">file_exists</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_match_save_range_whole_file</span><span class="p">(</span>
+                <span class="n">full_dim_data</span><span class="p">,</span> <span class="n">only_complete</span><span class="p">)</span>
 
-<span class="sd">        This should work for regular `Loop` data that comes in sequentially.</span>
-<span class="sd">        But if you have non-sequential data, such as a parallel simulation,</span>
-<span class="sd">        then you would want to look farther back.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">last_pt</span> <span class="o">=</span> <span class="n">modified_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-        <span class="n">indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unravel_index</span><span class="p">(</span><span class="n">last_pt</span><span class="p">,</span> <span class="n">shape</span><span class="p">)</span>
+        <span class="c1"># force overwrite if inconsistent last_saved_index</span>
+        <span class="k">for</span> <span class="n">array</span> <span class="ow">in</span> <span class="n">group</span><span class="o">.</span><span class="n">data</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">array</span><span class="o">.</span><span class="n">last_saved_index</span> <span class="o">!=</span> <span class="n">last_saved_index</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_match_save_range_whole_file</span><span class="p">(</span>
+                    <span class="n">full_dim_data</span><span class="p">,</span> <span class="n">only_complete</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_match_save_range_incremental</span><span class="p">(</span>
+            <span class="n">full_dim_data</span><span class="p">,</span> <span class="n">last_saved_index</span><span class="p">,</span> <span class="n">only_complete</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_match_save_range_whole_file</span><span class="p">(</span><span class="n">arrays</span><span class="p">,</span> <span class="n">only_complete</span><span class="p">):</span>
+        <span class="n">max_save</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="n">agg</span> <span class="o">=</span> <span class="p">(</span><span class="nb">min</span> <span class="k">if</span> <span class="n">only_complete</span> <span class="k">else</span> <span class="nb">max</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">array</span> <span class="ow">in</span> <span class="n">arrays</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">array</span><span class="p">[</span><span class="n">indices</span><span class="p">]):</span>
-                <span class="k">if</span> <span class="n">last_pt</span> <span class="o">==</span> <span class="n">modified_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="n">array_max</span> <span class="o">=</span> <span class="n">array</span><span class="o">.</span><span class="n">last_saved_index</span>
+            <span class="k">if</span> <span class="n">array_max</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">array_max</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+            <span class="n">mr</span> <span class="o">=</span> <span class="n">array</span><span class="o">.</span><span class="n">modified_range</span>
+            <span class="k">if</span> <span class="n">mr</span><span class="p">:</span>
+                <span class="n">array_max</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">array_max</span><span class="p">,</span> <span class="n">mr</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">max_save</span> <span class="o">=</span> <span class="p">(</span><span class="n">array_max</span> <span class="k">if</span> <span class="n">max_save</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span>
+                        <span class="n">agg</span><span class="p">(</span><span class="n">max_save</span><span class="p">,</span> <span class="n">array_max</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">max_save</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">max_save</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">None</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_match_save_range_incremental</span><span class="p">(</span><span class="n">arrays</span><span class="p">,</span> <span class="n">last_saved_index</span><span class="p">,</span> <span class="n">only_complete</span><span class="p">):</span>
+        <span class="n">mod_ranges</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">array</span> <span class="ow">in</span> <span class="n">arrays</span><span class="p">:</span>
+            <span class="n">mr</span> <span class="o">=</span> <span class="n">array</span><span class="o">.</span><span class="n">modified_range</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">mr</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">only_complete</span><span class="p">:</span>
                     <span class="k">return</span> <span class="bp">None</span>
                 <span class="k">else</span><span class="p">:</span>
-                    <span class="k">return</span> <span class="p">(</span><span class="n">modified_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">last_pt</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">modified_range</span>
+                    <span class="k">continue</span>
+            <span class="n">mod_ranges</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mr</span><span class="p">)</span>
+
+        <span class="n">mod_range</span> <span class="o">=</span> <span class="n">mod_ranges</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">agg</span> <span class="o">=</span> <span class="p">(</span><span class="nb">min</span> <span class="k">if</span> <span class="n">only_complete</span> <span class="k">else</span> <span class="nb">max</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">mr</span> <span class="ow">in</span> <span class="n">mod_ranges</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+            <span class="n">mod_range</span> <span class="o">=</span> <span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">mod_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">mr</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+                         <span class="n">agg</span><span class="p">(</span><span class="n">mod_range</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">mr</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+
+        <span class="k">if</span> <span class="n">last_saved_index</span> <span class="o">&gt;=</span> <span class="n">mod_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="k">return</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">last_saved_index</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">last_saved_index</span> <span class="o">&gt;=</span> <span class="n">mod_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="k">return</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">mod_range</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">last_saved_index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">mod_range</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
 
     <span class="k">def</span> <span class="nf">group_arrays</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arrays</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        find the sets of arrays which share all the same setpoint arrays</span>
-<span class="sd">        so each set can be grouped together into one file</span>
-<span class="sd">        returns ArrayGroup namedtuples</span>
+<span class="sd">        Find the sets of arrays which share all the same setpoint arrays.</span>
+
+<span class="sd">        Some Formatters use this grouping to determine which arrays to save</span>
+<span class="sd">        together in one file.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            arrays (Dict[DataArray]): all the arrays in a DataSet</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List[Formatter.ArrayGroup]: namedtuples giving:</span>
+<span class="sd">                shape (Tuple[int]): dimensions as in numpy</span>
+<span class="sd">                set_arrays (Tuple[DataArray]): the setpoints of this group</span>
+<span class="sd">                data (Tuple[DataArray]): measured arrays in this group</span>
+<span class="sd">                name (str): a unique name of this group, obtained by joining</span>
+<span class="sd">                    the setpoint array ids.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="n">set_array_sets</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">set_arrays</span>
