@@ -137,6 +137,7 @@
 
 <span class="kn">from</span> <span class="nn">.base</span> <span class="kn">import</span> <span class="n">Instrument</span>
 <span class="kn">from</span> <span class="nn">qcodes.process.server</span> <span class="kn">import</span> <span class="n">ServerManager</span><span class="p">,</span> <span class="n">BaseServer</span>
+<span class="kn">from</span> <span class="nn">qcodes.utils.nested_attrs</span> <span class="kn">import</span> <span class="n">_NoDefault</span>
 
 
 <div class="viewcode-block" id="MockInstrument"><a class="viewcode-back" href="../../../api/generated/qcodes.MockInstrument.html#qcodes.MockInstrument">[docs]</a><span class="k">class</span> <span class="nc">MockInstrument</span><span class="p">(</span><span class="n">Instrument</span><span class="p">):</span>
@@ -320,10 +321,23 @@
 <span class="sd">    methods you shouldn&#39;t call: the extras (&lt;instrument&gt;_(set|get)) should</span>
 <span class="sd">    only be called on the server copy. Normally this should only be called via</span>
 <span class="sd">    the attached instruments anyway.</span>
+
+<span class="sd">    The model supports ``NestedAttrAccess`` calls ``getattr``, ``setattr``,</span>
+<span class="sd">    ``callattr``, and ``delattr`` Because the manager and server are the same</span>
+<span class="sd">    object, we override these methods with proxy methods after the server has</span>
+<span class="sd">    been started.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
 <div class="viewcode-block" id="MockModel.__init__"><a class="viewcode-back" href="../../../api/generated/qcodes.MockModel.html#qcodes.MockModel.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;Model-{:.7s}&#39;</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">server_class</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span></div>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">server_class</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+
+        <span class="c1"># now that the server has started, we can remap attribute access</span>
+        <span class="c1"># from the private methods (_getattr) to the public ones (getattr)</span>
+        <span class="c1"># but the server copy will still have the NestedAttrAccess ones</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">getattr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_getattr</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setattr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_setattr</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">callattr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_callattr</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">delattr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_delattr</span></div>
 
     <span class="k">def</span> <span class="nf">_run_server</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">run_event_loop</span><span class="p">()</span>
@@ -362,7 +376,39 @@
             <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instrument</span> <span class="o">+</span> <span class="s1">&#39;_set&#39;</span><span class="p">)(</span><span class="n">param</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
 
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">()</span></div>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">_NoDefault</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get a (possibly nested) attribute of this model on its server.</span>
+
+<span class="sd">        See NestedAttrAccess for details.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;method_call&#39;</span><span class="p">,</span> <span class="s1">&#39;getattr&#39;</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="n">default</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set a (possibly nested) attribute of this model on its server.</span>
+
+<span class="sd">        See NestedAttrAccess for details.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;method_call&#39;</span><span class="p">,</span> <span class="s1">&#39;setattr&#39;</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_callattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Call a (possibly nested) method of this model on its server.</span>
+
+<span class="sd">        See NestedAttrAccess for details.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;method_call&#39;</span><span class="p">,</span> <span class="s1">&#39;callattr&#39;</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_delattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Delete a (possibly nested) attribute of this model on its server.</span>
+
+<span class="sd">        See NestedAttrAccess for details.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;method_call&#39;</span><span class="p">,</span> <span class="s1">&#39;delattr&#39;</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span></div>
 </pre></div>
 
            </div>
