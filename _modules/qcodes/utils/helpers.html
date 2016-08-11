@@ -131,16 +131,18 @@
            <div itemprop="articleBody">
             
   <h1>Source code for qcodes.utils.helpers</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">Iterator</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Mapping</span>
-<span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">deepcopy</span>
-<span class="kn">import</span> <span class="nn">time</span>
+<span></span><span class="kn">import</span> <span class="nn">io</span>
+<span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">math</span>
-<span class="kn">import</span> <span class="nn">sys</span>
-<span class="kn">import</span> <span class="nn">io</span>
-<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
-<span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">numbers</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">Iterator</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Mapping</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">deepcopy</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
 
 <span class="n">_tprint_times</span> <span class="o">=</span> <span class="p">{}</span>
 
@@ -160,6 +162,7 @@
             <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;__dtype__&#39;</span><span class="p">:</span> <span class="s1">&#39;complex&#39;</span><span class="p">,</span> <span class="s1">&#39;re&#39;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">real</span><span class="p">),</span> <span class="s1">&#39;im&#39;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">imag</span><span class="p">)}</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">NumpyJSONEncoder</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">default</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+
 
 <span class="k">def</span> <span class="nf">tprint</span><span class="p">(</span><span class="n">string</span><span class="p">,</span> <span class="n">dt</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="s1">&#39;default&#39;</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot; Print progress of a loop every dt seconds &quot;&quot;&quot;</span>
@@ -251,7 +254,7 @@
 <span class="c1"># a) we don&#39;t want to require that as a dep so low level</span>
 <span class="c1"># b) I&#39;d like to be more flexible with the sign of step</span>
 <span class="k">def</span> <span class="nf">permissive_range</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">stop</span><span class="p">,</span> <span class="n">step</span><span class="p">):</span>
-    <span class="sd">&#39;&#39;&#39;</span>
+    <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    returns range (as a list of values) with floating point step</span>
 
 <span class="sd">    inputs:</span>
@@ -259,7 +262,7 @@
 
 <span class="sd">    always starts at start and moves toward stop,</span>
 <span class="sd">    regardless of the sign of step</span>
-<span class="sd">    &#39;&#39;&#39;</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">signed_step</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">step</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="k">if</span> <span class="n">stop</span> <span class="o">&gt;</span> <span class="n">start</span> <span class="k">else</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
     <span class="c1"># take off a tiny bit for rounding errors</span>
     <span class="n">step_count</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">((</span><span class="n">stop</span> <span class="o">-</span> <span class="n">start</span><span class="p">)</span> <span class="o">/</span> <span class="n">signed_step</span> <span class="o">-</span> <span class="mf">1e-10</span><span class="p">)</span>
@@ -319,11 +322,11 @@
 
 
 <span class="k">def</span> <span class="nf">wait_secs</span><span class="p">(</span><span class="n">finish_clock</span><span class="p">):</span>
-    <span class="sd">&#39;&#39;&#39;</span>
+    <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    calculate the number of seconds until a given clock time</span>
 <span class="sd">    The clock time should be the result of time.perf_counter()</span>
 <span class="sd">    Does NOT wait for this time.</span>
-<span class="sd">    &#39;&#39;&#39;</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">delay</span> <span class="o">=</span> <span class="n">finish_clock</span> <span class="o">-</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
     <span class="k">if</span> <span class="n">delay</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
         <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;negative delay {:.6f} sec&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">delay</span><span class="p">))</span>
@@ -332,7 +335,8 @@
 
 
 <span class="k">class</span> <span class="nc">LogCapture</span><span class="p">():</span>
-    <span class="sd">&#39;&#39;&#39;</span>
+
+    <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    context manager to grab all log messages, optionally</span>
 <span class="sd">    from a specific logger</span>
 
@@ -341,7 +345,8 @@
 <span class="sd">    with LogCapture() as logs:</span>
 <span class="sd">        code_that_makes_logs(...)</span>
 <span class="sd">    log_str = logs.value</span>
-<span class="sd">    &#39;&#39;&#39;</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">logger</span>
 
@@ -359,10 +364,10 @@
 
 
 <span class="k">def</span> <span class="nf">make_unique</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">existing</span><span class="p">):</span>
-    <span class="sd">&#39;&#39;&#39;</span>
+    <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    make string s unique, able to be added to a sequence `existing` of</span>
 <span class="sd">    existing names without duplication, by appending _&lt;int&gt; to it if needed</span>
-<span class="sd">    &#39;&#39;&#39;</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">n</span> <span class="o">=</span> <span class="mi">1</span>
     <span class="n">s_out</span> <span class="o">=</span> <span class="n">s</span>
     <span class="n">existing</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">existing</span><span class="p">)</span>
@@ -383,7 +388,7 @@
 <span class="sd">    in dir() and autocomplete</span>
 
 
-<span class="sd">   Attributes:</span>
+<span class="sd">    Attributes:</span>
 <span class="sd">        delegate_attr_dicts (list): a list of names (strings) of dictionaries which are</span>
 <span class="sd">            (or will be) attributes of self, whose keys should be treated as</span>
 <span class="sd">            attributes of self</span>
@@ -455,20 +460,24 @@
         <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">names</span><span class="p">))</span>
 
 
-<span class="k">def</span> <span class="nf">strip_attrs</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">strip_attrs</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">whitelist</span><span class="o">=</span><span class="p">()):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Irreversibly remove all direct instance attributes of obj, to help with</span>
 <span class="sd">    disposal, breaking circular references.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        obj:  object to be stripped</span>
+<span class="sd">        whitelist (list): list of names that are not stripped from the object</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+        <span class="n">lst</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="n">whitelist</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">lst</span><span class="p">:</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="k">del</span> <span class="n">obj</span><span class="o">.</span><span class="n">__dict__</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="c1"># TODO (giulioungaretti) fix bare-except</span>
             <span class="k">except</span><span class="p">:</span>
                 <span class="k">pass</span>
+        <span class="c1"># TODO (giulioungaretti) fix bare-except</span>
     <span class="k">except</span><span class="p">:</span>
         <span class="k">pass</span>
 </pre></div>

@@ -91,6 +91,10 @@
 <li class="toctree-l3"><a class="reference internal" href="#writing-a-driver">Writing a Driver</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#measuring">Measuring</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#simulation">Simulation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#meta-instruments">Meta Instruments</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#async-meta">Async Meta</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#avanced">Avanced</a></li>
 </ul>
 </li>
@@ -181,6 +185,175 @@ with commented code</p>
 <p class="last">missing</p>
 </div>
 </div>
+<div class="section" id="meta-instruments">
+<h2>Meta Instruments<a class="headerlink" href="#meta-instruments" title="Permalink to this headline">¶</a></h2>
+<p>The concept of a meta instrument is that of having
+two separate Instrument, real or virtual, whose actions can
+the be controlled from the meta instrument.
+In the following example we will create two dummy instruments and a meta instruments.
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; docs: add Meta instrument.
+All the instruments will live on a InstrumentServer.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">this is rather non-trival due to the limitation of the
+current multiprocessing architecture</p>
+</div>
+<p>First we create an instrument:</p>
+<div class="code python highlight-default"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">MyInstrument</span><span class="p">(</span><span class="n">Instrument</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="o">=</span><span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span>  <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">getx</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">setx</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">getx</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">x</span>
+
+    <span class="k">def</span> <span class="nf">setx</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="o">=</span><span class="n">val</span>
+</pre></div>
+</div>
+<p>Then we create the meta instrument, this will hold any of the base
+instruments.
+Since we want the meta instrument to be able to talk to the base instruments
+we need to include a list of them as shared_kwargs.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Every InstrumentServer needs to have identical shared_kwargs among all the instruments loaded there. That&#8217;s because these args get loaded into the server when it&#8217;s created, then passed on to each instrument that&#8217;s loaded there during its construction on the server side.</p>
+</div>
+<div class="code python highlight-default"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Meta</span><span class="p">(</span><span class="n">Instrument</span><span class="p">):</span>
+    <span class="n">shared_kwargs</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;instruments&#39;</span><span class="p">]</span>
+
+    <span class="c1"># Instruments will be a list of RemoteInstrument objects, which can be</span>
+    <span class="c1"># given to a server on creation but not later on, so it needs to be</span>
+    <span class="c1"># listed in shared_kwargs</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">instruments</span><span class="o">=</span><span class="p">(),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_list</span> <span class="o">=</span> <span class="n">instruments</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">no_instruments</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">instruments</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">gate</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_instrument_list</span><span class="p">)):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;c</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">gate</span><span class="p">,</span>
+                               <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">,</span> <span class="n">gate</span><span class="o">=</span><span class="n">gate</span><span class="p">),</span>
+                               <span class="n">set_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">,</span> <span class="n">gate</span><span class="o">=</span><span class="n">gate</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s2">&quot;setBoth&quot;</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_both</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s2">&quot;setBothAsync&quot;</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_async</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_set_both</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_list</span><span class="p">:</span>
+            <span class="n">i</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gate</span><span class="p">):</span>
+        <span class="n">value</span> <span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_instrument_list</span><span class="p">[</span><span class="n">gate</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Meta get gate </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">value</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">value</span>
+
+    <span class="k">def</span> <span class="nf">_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">gate</span><span class="p">):</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Meta set gate </span><span class="si">%s</span><span class="s1"> @ value </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">gate</span><span class="p">,</span> <span class="n">value</span><span class="p">))</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_list</span><span class="p">[</span><span class="n">gate</span><span class="p">]</span>
+        <span class="n">i</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Let&#8217;s put these babies on servers:</p>
+<div class="code python highlight-default"><div class="highlight"><pre><span></span><span class="n">BASESERVER</span> <span class="o">=</span> <span class="s2">&quot;foo&quot;</span>
+<span class="n">base1</span> <span class="o">=</span> <span class="n">VirtualIVVI</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;one&#39;</span><span class="p">,</span> <span class="n">server_name</span><span class="o">=</span><span class="n">BASESERVER</span><span class="p">)</span>
+<span class="n">base2</span> <span class="o">=</span> <span class="n">VirtualIVVI</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;two&#39;</span><span class="p">,</span> <span class="n">server_name</span><span class="o">=</span><span class="n">BASESERVER</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Instruments with no shared_kwargs  can go on the same or different servers.
+That means that base1 and base2 don&#8217;t know about eachoter.</p>
+</div>
+<div class="code python highlight-default"><div class="highlight"><pre><span></span><span class="n">meta_server_name</span> <span class="o">=</span> <span class="s2">&quot;meta_server&quot;</span>
+<span class="n">meta</span> <span class="o">=</span> <span class="n">Meta</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;meta&#39;</span><span class="p">,</span> <span class="n">server_name</span><span class="o">=</span><span class="n">meta_server_name</span><span class="p">,</span>
+                  <span class="n">instruments</span><span class="o">=</span><span class="p">[</span><span class="n">base1</span><span class="p">,</span> <span class="n">base2</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>And now one case use the meta as expected:</p>
+<div class="code python highlight-default"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;--- set meta --- &quot;</span><span class="p">)</span>
+<span class="n">meta</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="mi">25</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">get</span><span class="p">())</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="mi">25</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">base1</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">get</span><span class="p">())</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="mi">25</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;--- set base --- &quot;</span><span class="p">)</span>
+<span class="n">base1</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">c1</span><span class="o">.</span><span class="n">get</span><span class="p">())</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="mi">1</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">base1</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">get</span><span class="p">())</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="mi">1</span>
+
+<span class="n">meta</span><span class="o">.</span><span class="n">setBoth</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">base1</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">get</span><span class="p">())</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="mi">0</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">base0</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">get</span><span class="p">())</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="mi">0</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="async-meta">
+<h1>Async Meta<a class="headerlink" href="#async-meta" title="Permalink to this headline">¶</a></h1>
+<p>Say you want to set two instruments at the same time.
+You can use the following:</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">the curernt architecture is so that you MUST one  server per base instrument</p>
+</div>
+<p>The base instrument class stays the same, meta gets a new method f.ex:</p>
+<div class="code python highlight-default"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Meta</span><span class="p">(</span><span class="n">Instrument</span><span class="p">):</span>
+    <span class="n">shared_kwargs</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;instruments&#39;</span><span class="p">]</span>
+
+    <span class="c1"># Instruments will be a list of RemoteInstrument objects, which can be</span>
+    <span class="c1"># given to a server on creation but not later on, so it needs to be</span>
+    <span class="c1"># listed in shared_kwargs</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">instruments</span><span class="o">=</span><span class="p">(),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_list</span> <span class="o">=</span> <span class="n">instruments</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">no_instruments</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">instruments</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">gate</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_instrument_list</span><span class="p">)):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;c</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">gate</span><span class="p">,</span>
+                               <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">,</span> <span class="n">gate</span><span class="o">=</span><span class="n">gate</span><span class="p">),</span>
+                               <span class="n">set_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">,</span> <span class="n">gate</span><span class="o">=</span><span class="n">gate</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s2">&quot;setBoth&quot;</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_both</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s2">&quot;setBothAsync&quot;</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_async</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_set_both</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_list</span><span class="p">:</span>
+            <span class="n">i</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_set_async</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">with</span> <span class="n">futures</span><span class="o">.</span><span class="n">ThreadPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">no_instruments</span><span class="p">)</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
+            <span class="n">jobs</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_list</span><span class="p">:</span>
+                <span class="n">job</span> <span class="o">=</span> <span class="n">executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">partial</span><span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">set</span><span class="p">,</span> <span class="s1">&#39;x&#39;</span><span class="p">),</span> <span class="n">value</span><span class="p">)</span>
+                <span class="n">jobs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">job</span><span class="p">)</span>
+            <span class="n">futures</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">jobs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gate</span><span class="p">):</span>
+        <span class="n">value</span> <span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_instrument_list</span><span class="p">[</span><span class="n">gate</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Meta get gate </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">value</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">value</span>
+
+    <span class="k">def</span> <span class="nf">_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">gate</span><span class="p">):</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Meta set gate </span><span class="si">%s</span><span class="s1"> @ value </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">gate</span><span class="p">,</span> <span class="n">value</span><span class="p">))</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_list</span><span class="p">[</span><span class="n">gate</span><span class="p">]</span>
+        <span class="n">i</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="docutils">
+<dt>This way:</dt>
+<dd><div class="first last highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">meta</span><span class="o">.</span><span class="n">setBothAsync</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+<p>will set both instrument at the same time, say it takes 10 seconds per set,
+then setting two things will take 10 seconds, not 20 seconds.</p>
+<p>For a complete working example see <a class="reference download internal" href="../_downloads/meta.py" download=""><code class="xref download docutils literal"><span class="pre">this</span> <span class="pre">example</span> <span class="pre">script</span></code></a>.</p>
 <div class="section" id="avanced">
 <h2>Avanced<a class="headerlink" href="#avanced" title="Permalink to this headline">¶</a></h2>
 <div class="admonition-todo admonition" id="index-3">
