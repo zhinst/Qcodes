@@ -590,13 +590,17 @@
 
         <span class="n">failing</span> <span class="o">=</span> <span class="p">{</span><span class="n">key</span><span class="p">:</span> <span class="bp">False</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">background_functions</span><span class="p">}</span>
 
-        <span class="n">nloops</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">completed</span> <span class="o">=</span> <span class="bp">False</span>
         <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
             <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;DataSet: {:.0f}</span><span class="si">% c</span><span class="s1">omplete&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">fraction_complete</span><span class="p">()</span> <span class="o">*</span> <span class="mi">100</span><span class="p">))</span>
 
-            <span class="n">nloops</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="c1"># first check if we&#39;re done</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span> <span class="ow">is</span> <span class="bp">False</span><span class="p">:</span>
+                <span class="n">completed</span> <span class="o">=</span> <span class="bp">True</span>
 
+            <span class="c1"># then even if we *are* done, execute the background functions</span>
+            <span class="c1"># because we want things like live plotting to get the final data</span>
             <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">fn</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">background_functions</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
                 <span class="k">try</span><span class="p">:</span>
                     <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;calling {}: {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">repr</span><span class="p">(</span><span class="n">fn</span><span class="p">)))</span>
@@ -611,9 +615,10 @@
                         <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">background_functions</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
                     <span class="n">failing</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
 
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span> <span class="ow">is</span> <span class="bp">False</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">completed</span><span class="p">:</span>
                 <span class="k">break</span>
 
+            <span class="c1"># but only sleep if we&#39;re not already finished</span>
             <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">delay</span><span class="p">)</span>
 
         <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;DataSet &lt;{}&gt; is complete&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">location</span><span class="p">))</span>
