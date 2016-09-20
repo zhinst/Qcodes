@@ -206,6 +206,8 @@
 
     <span class="n">shared_kwargs</span> <span class="o">=</span> <span class="p">()</span>
 
+    <span class="n">_all_instruments</span> <span class="o">=</span> <span class="p">{}</span>
+
     <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">server_name</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Figure out whether to create a base instrument or proxy.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">server_name</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
@@ -340,16 +342,35 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Record (a weak ref to) an instance in a class&#39;s instance list.</span>
 
+<span class="sd">        Also records the instance in list of *all* instruments, and verifies</span>
+<span class="sd">        that there are no other instruments with the same name.</span>
+
 <span class="sd">        Args:</span>
 <span class="sd">            instance (Union[Instrument, RemoteInstrument]): Note: we *do not*</span>
 <span class="sd">                check that instance is actually an instance of ``cls``. This is</span>
 <span class="sd">                important, because a ``RemoteInstrument`` should function as an</span>
 <span class="sd">                instance of the instrument it proxies.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            KeyError: if another instance with the same name is already present</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">wr</span> <span class="o">=</span> <span class="n">weakref</span><span class="o">.</span><span class="n">ref</span><span class="p">(</span><span class="n">instance</span><span class="p">)</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="n">instance</span><span class="o">.</span><span class="n">name</span>
+
+        <span class="c1"># First insert this instrument in the record of *all* instruments</span>
+        <span class="c1"># making sure its name is unique</span>
+        <span class="n">existing_wr</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">_all_instruments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">existing_wr</span> <span class="ow">and</span> <span class="n">existing_wr</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s1">&#39;Another instrument has the name: {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+
+        <span class="n">cls</span><span class="o">.</span><span class="n">_all_instruments</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">wr</span>
+
+        <span class="c1"># Then add it to the record for this specific subclass, using ``_type``</span>
+        <span class="c1"># to make sure we&#39;re not recording it in a base class instance list</span>
         <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="s1">&#39;_type&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">cls</span><span class="p">:</span>
             <span class="n">cls</span><span class="o">.</span><span class="n">_type</span> <span class="o">=</span> <span class="n">cls</span>
             <span class="n">cls</span><span class="o">.</span><span class="n">_instances</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">cls</span><span class="o">.</span><span class="n">_instances</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">weakref</span><span class="o">.</span><span class="n">ref</span><span class="p">(</span><span class="n">instance</span><span class="p">))</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">_instances</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">wr</span><span class="p">)</span>
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">instances</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
@@ -383,6 +404,74 @@
         <span class="n">wr</span> <span class="o">=</span> <span class="n">weakref</span><span class="o">.</span><span class="n">ref</span><span class="p">(</span><span class="n">instance</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">wr</span> <span class="ow">in</span> <span class="n">cls</span><span class="o">.</span><span class="n">_instances</span><span class="p">:</span>
             <span class="n">cls</span><span class="o">.</span><span class="n">_instances</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">wr</span><span class="p">)</span>
+
+        <span class="c1"># remove from all_instruments too, but don&#39;t depend on the</span>
+        <span class="c1"># name to do it, in case name has changed or been deleted</span>
+        <span class="n">all_ins</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">_all_instruments</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">ref</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">all_ins</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+            <span class="k">if</span> <span class="n">ref</span> <span class="ow">is</span> <span class="n">wr</span><span class="p">:</span>
+                <span class="k">del</span> <span class="n">all_ins</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">find_instrument</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">instrument_class</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Find an existing instrument by name.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name (str)</span>
+<span class="sd">            instrument_class (Optional[class]): The type of instrument</span>
+<span class="sd">                you are looking for.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Union[Instrument, RemoteInstrument]</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            KeyError: if no instrument of that name was found, or if its</span>
+<span class="sd">                reference is invalid (dead).</span>
+<span class="sd">            TypeError: if a specific class was requested but a different</span>
+<span class="sd">                type was found</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ins</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">_all_instruments</span><span class="p">[</span><span class="n">name</span><span class="p">]()</span>
+
+        <span class="k">if</span> <span class="n">ins</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">del</span> <span class="n">cls</span><span class="o">.</span><span class="n">_all_instruments</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s1">&#39;Instrument {} has been removed&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">instrument_class</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ins</span><span class="p">,</span> <span class="n">instrument_class</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                    <span class="s1">&#39;Instrument {} is {} but {} was requested&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">name</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="n">ins</span><span class="p">),</span> <span class="n">instrument_class</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">ins</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">find_component</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">name_attr</span><span class="p">,</span> <span class="n">instrument_class</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Find a component of an existing instrument by name and attribute.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name_attr (str): A string in nested attribute format:</span>
+<span class="sd">                &lt;name&gt;.&lt;attribute&gt;[.&lt;subattribute&gt;] and so on.</span>
+<span class="sd">                For example, &lt;attribute&gt; can be a parameter name,</span>
+<span class="sd">                or a method name.</span>
+<span class="sd">            instrument_class (Optional[class]): The type of instrument</span>
+<span class="sd">                you are looking for this component within.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Any: The component requested.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="s1">&#39;.&#39;</span> <span class="ow">in</span> <span class="n">name_attr</span><span class="p">:</span>
+            <span class="n">name</span><span class="p">,</span> <span class="n">attr</span> <span class="o">=</span> <span class="n">name_attr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">ins</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">find_instrument</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">instrument_class</span><span class="o">=</span><span class="n">instrument_class</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">ins</span><span class="o">.</span><span class="n">getattr</span><span class="p">(</span><span class="n">attr</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># allow find_component to return the whole instrument,</span>
+            <span class="c1"># if no attribute was specified, for maximum generality.</span>
+            <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">find_instrument</span><span class="p">(</span><span class="n">name_attr</span><span class="p">,</span>
+                                       <span class="n">instrument_class</span><span class="o">=</span><span class="n">instrument_class</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">add_parameter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">parameter_class</span><span class="o">=</span><span class="n">StandardParameter</span><span class="p">,</span>
                       <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
