@@ -404,6 +404,7 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">write_period</span> <span class="o">=</span> <span class="n">write_period</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">last_write</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_store</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span> <span class="o">=</span> <span class="p">{}</span>
 
@@ -517,7 +518,9 @@
         <span class="c1"># version on the DataServer from the main copy)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_live_mode</span><span class="p">:</span>
             <span class="c1"># LOCAL DataSet - just read it in</span>
-            <span class="c1"># TODO: compare timestamps to know if we need to read?</span>
+            <span class="c1"># Compare timestamps to avoid overwriting unsaved data</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_store</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_write</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">True</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
             <span class="k">except</span> <span class="ne">IOError</span><span class="p">:</span>
@@ -729,15 +732,19 @@
             <span class="c1"># Defers to the copy on the dataserver to call this identical</span>
             <span class="c1"># function</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data_manager</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;store_data&#39;</span><span class="p">,</span> <span class="n">loop_indices</span><span class="p">,</span> <span class="n">ids_values</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="n">DataMode</span><span class="o">.</span><span class="n">LOCAL</span><span class="p">:</span>
             <span class="c1"># You will always end up in this block, either in the copy</span>
             <span class="c1"># on the server (if you hit the if statement above) or else here</span>
             <span class="k">for</span> <span class="n">array_id</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">ids_values</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">arrays</span><span class="p">[</span><span class="n">array_id</span><span class="p">][</span><span class="n">loop_indices</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">last_store</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
             <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">write_period</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span>
                     <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_write</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">write_period</span><span class="p">):</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">last_write</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span> <span class="c1"># in PULL_FROM_SERVER mode; store() isn&#39;t legal</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;This object is pulling from a DataServer, &#39;</span>
+                               <span class="s1">&#39;so data insertion is not allowed.&#39;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Read the whole DataSet from storage, overwriting the local data.&quot;&quot;&quot;</span>

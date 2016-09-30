@@ -308,6 +308,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">nested_loop</span> <span class="o">=</span> <span class="bp">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">actions</span> <span class="o">=</span> <span class="bp">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">then_actions</span> <span class="o">=</span> <span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bg_task</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bg_min_delay</span> <span class="o">=</span> <span class="bp">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">progress_interval</span> <span class="o">=</span> <span class="n">progress_interval</span></div>
 
     <span class="k">def</span> <span class="nf">loop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sweep_values</span><span class="p">,</span> <span class="n">delay</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
@@ -375,7 +377,23 @@
 
         <span class="k">return</span> <span class="n">ActiveLoop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sweep_values</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">delay</span><span class="p">,</span> <span class="o">*</span><span class="n">actions</span><span class="p">,</span>
                           <span class="n">then_actions</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">then_actions</span><span class="p">,</span> <span class="n">station</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">station</span><span class="p">,</span>
-                          <span class="n">progress_interval</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">progress_interval</span><span class="p">)</span>
+                          <span class="n">progress_interval</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">progress_interval</span><span class="p">,</span>
+                          <span class="n">bg_task</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bg_task</span><span class="p">,</span> <span class="n">bg_min_delay</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bg_min_delay</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">with_bg_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">,</span> <span class="n">min_delay</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Attaches a background task to this loop.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            task: A callable object with no parameters. This object will be</span>
+<span class="sd">                invoked periodically during the measurement loop.</span>
+
+<span class="sd">            min_delay (default 1): The minimum number of seconds to wait</span>
+<span class="sd">                between task invocations. Note that the actual time between</span>
+<span class="sd">                task invocations may be much longer than this, as the task is</span>
+<span class="sd">                only run between passes through the loop.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">_attach_bg_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">,</span> <span class="n">min_delay</span><span class="p">)</span>
 
     <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">validate_actions</span><span class="p">(</span><span class="o">*</span><span class="n">actions</span><span class="p">):</span>
@@ -471,6 +489,15 @@
 
     <span class="k">return</span> <span class="n">loop</span>
 
+<span class="k">def</span> <span class="nf">_attach_bg_task</span><span class="p">(</span><span class="n">loop</span><span class="p">,</span> <span class="n">task</span><span class="p">,</span> <span class="n">min_delay</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Inner code for both Loop and ActiveLoop.bg_task&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">loop</span><span class="o">.</span><span class="n">bg_task</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">loop</span><span class="o">.</span><span class="n">bg_task</span> <span class="o">=</span> <span class="n">task</span>
+        <span class="n">loop</span><span class="o">.</span><span class="n">bg_min_delay</span> <span class="o">=</span> <span class="n">min_delay</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Only one background task is allowed per loop&#39;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">loop</span>
 
 <span class="k">class</span> <span class="nc">ActiveLoop</span><span class="p">(</span><span class="n">Metadatable</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -489,7 +516,7 @@
     <span class="n">signal_period</span> <span class="o">=</span> <span class="mi">1</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sweep_values</span><span class="p">,</span> <span class="n">delay</span><span class="p">,</span> <span class="o">*</span><span class="n">actions</span><span class="p">,</span> <span class="n">then_actions</span><span class="o">=</span><span class="p">(),</span>
-                 <span class="n">station</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">progress_interval</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+                 <span class="n">station</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">progress_interval</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">bg_task</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">bg_min_delay</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sweep_values</span> <span class="o">=</span> <span class="n">sweep_values</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">delay</span> <span class="o">=</span> <span class="n">delay</span>
@@ -497,6 +524,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">progress_interval</span> <span class="o">=</span> <span class="n">progress_interval</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">then_actions</span> <span class="o">=</span> <span class="n">then_actions</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">station</span> <span class="o">=</span> <span class="n">station</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bg_task</span> <span class="o">=</span> <span class="n">bg_task</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bg_min_delay</span> <span class="o">=</span> <span class="n">bg_min_delay</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span> <span class="o">=</span> <span class="bp">None</span>
 
         <span class="c1"># compile now, but don&#39;t save the results</span>
         <span class="c1"># just used for preemptive error checking</span>
@@ -536,6 +566,21 @@
         <span class="n">loop</span> <span class="o">=</span> <span class="n">ActiveLoop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sweep_values</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">delay</span><span class="p">,</span> <span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">actions</span><span class="p">,</span>
                           <span class="n">then_actions</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">then_actions</span><span class="p">,</span> <span class="n">station</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">station</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">_attach_then_actions</span><span class="p">(</span><span class="n">loop</span><span class="p">,</span> <span class="n">actions</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">with_bg_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">,</span> <span class="n">min_delay</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Attaches a background task to this loop.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            task: A callable object with no parameters. This object will be</span>
+<span class="sd">                invoked periodically during the measurement loop.</span>
+
+<span class="sd">            min_delay (default 1): The minimum number of seconds to wait</span>
+<span class="sd">                between task invocations. Note that the actual time between</span>
+<span class="sd">                task invocations may be much longer than this, as the task is</span>
+<span class="sd">                only run between passes through the loop.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">_attach_bg_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">,</span> <span class="n">min_delay</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">snapshot_base</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Snapshot of this ActiveLoop&#39;s definition.&quot;&quot;&quot;</span>
@@ -728,6 +773,45 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;unknown signal&#39;</span><span class="p">,</span> <span class="n">signal_</span><span class="p">)</span>
 
+    <span class="k">def</span> <span class="nf">get_data_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_manager</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the data set for this loop.</span>
+<span class="sd">        If no data set has been created yet, a new one will be created and returned.</span>
+<span class="sd">        Note that all arguments are ignored if the data set has already been created.</span>
+
+<span class="sd">        data_manager: a DataManager instance (omit to use default,</span>
+<span class="sd">            False to store locally)</span>
+
+<span class="sd">        kwargs are passed along to data_set.new_data. The key ones are:</span>
+<span class="sd">        location: the location of the DataSet, a string whose meaning</span>
+<span class="sd">            depends on formatter and io, or False to only keep in memory.</span>
+<span class="sd">            May be a callable to provide automatic locations. If omitted, will</span>
+<span class="sd">            use the default DataSet.location_provider</span>
+<span class="sd">        name: if location is default or another provider function, name is</span>
+<span class="sd">            a string to add to location to make it more readable/meaningful</span>
+<span class="sd">            to users</span>
+<span class="sd">        formatter: knows how to read and write the file format</span>
+<span class="sd">            default can be set in DataSet.default_formatter</span>
+<span class="sd">        io: knows how to connect to the storage (disk vs cloud etc)</span>
+<span class="sd">        write_period: how often to save to storage during the loop.</span>
+<span class="sd">            default 5 sec, use None to write only at the end</span>
+
+<span class="sd">        returns:</span>
+<span class="sd">            a DataSet object that we can use to plot</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">data_manager</span> <span class="ow">is</span> <span class="bp">False</span><span class="p">:</span>
+                <span class="n">data_mode</span> <span class="o">=</span> <span class="n">DataMode</span><span class="o">.</span><span class="n">LOCAL</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">data_mode</span> <span class="o">=</span> <span class="n">DataMode</span><span class="o">.</span><span class="n">PUSH_TO_SERVER</span>
+
+            <span class="n">data_set</span> <span class="o">=</span> <span class="n">new_data</span><span class="p">(</span><span class="n">arrays</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">containers</span><span class="p">(),</span> <span class="n">mode</span><span class="o">=</span><span class="n">data_mode</span><span class="p">,</span>
+                                <span class="n">data_manager</span><span class="o">=</span><span class="n">data_manager</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span> <span class="o">=</span> <span class="n">data_set</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span>
+
     <span class="k">def</span> <span class="nf">run_temp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        wrapper to run this loop in the foreground as a temporary data set,</span>
@@ -785,13 +869,7 @@
                       <span class="n">flush</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
             <span class="n">prev_loop</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
 
-        <span class="k">if</span> <span class="n">data_manager</span> <span class="ow">is</span> <span class="bp">False</span><span class="p">:</span>
-            <span class="n">data_mode</span> <span class="o">=</span> <span class="n">DataMode</span><span class="o">.</span><span class="n">LOCAL</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">data_mode</span> <span class="o">=</span> <span class="n">DataMode</span><span class="o">.</span><span class="n">PUSH_TO_SERVER</span>
-
-        <span class="n">data_set</span> <span class="o">=</span> <span class="n">new_data</span><span class="p">(</span><span class="n">arrays</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">containers</span><span class="p">(),</span> <span class="n">mode</span><span class="o">=</span><span class="n">data_mode</span><span class="p">,</span>
-                            <span class="n">data_manager</span><span class="o">=</span><span class="n">data_manager</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">data_set</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_data_set</span><span class="p">(</span><span class="n">data_manager</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">set_common_attrs</span><span class="p">(</span><span class="n">data_set</span><span class="o">=</span><span class="n">data_set</span><span class="p">,</span> <span class="n">use_threads</span><span class="o">=</span><span class="n">use_threads</span><span class="p">,</span>
                               <span class="n">signal_queue</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">signal_queue</span><span class="p">)</span>
 
@@ -843,7 +921,9 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="n">quiet</span><span class="p">:</span>
             <span class="k">print</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_set</span><span class="p">))</span>
             <span class="k">print</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;started at %Y-%m-</span><span class="si">%d</span><span class="s1"> %H:%M:%S&#39;</span><span class="p">))</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span>
+        <span class="n">ds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="k">return</span> <span class="n">ds</span>
 
     <span class="k">def</span> <span class="nf">_compile_actions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">actions</span><span class="p">,</span> <span class="n">action_indices</span><span class="o">=</span><span class="p">()):</span>
         <span class="n">callables</span> <span class="o">=</span> <span class="p">[]</span>
@@ -910,12 +990,15 @@
         <span class="n">callables</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compile_actions</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">actions</span><span class="p">,</span> <span class="n">action_indices</span><span class="p">)</span>
 
         <span class="n">t0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="n">last_task</span> <span class="o">=</span> <span class="n">t0</span>
+        <span class="n">last_task_failed</span> <span class="o">=</span> <span class="bp">False</span>
         <span class="n">imax</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sweep_values</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sweep_values</span><span class="p">):</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress_interval</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
                 <span class="n">tprint</span><span class="p">(</span><span class="s1">&#39;loop </span><span class="si">%s</span><span class="s1">: </span><span class="si">%d</span><span class="s1">/</span><span class="si">%d</span><span class="s1"> (</span><span class="si">%.1f</span><span class="s1"> [s])&#39;</span> <span class="o">%</span> <span class="p">(</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">sweep_values</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">imax</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">t0</span><span class="p">),</span>
                     <span class="n">dt</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">progress_interval</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="s1">&#39;outerloop&#39;</span><span class="p">)</span>
+
             <span class="bp">self</span><span class="o">.</span><span class="n">sweep_values</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
             <span class="n">new_indices</span> <span class="o">=</span> <span class="n">loop_indices</span> <span class="o">+</span> <span class="p">(</span><span class="n">i</span><span class="p">,)</span>
             <span class="n">new_values</span> <span class="o">=</span> <span class="n">current_values</span> <span class="o">+</span> <span class="p">(</span><span class="n">value</span><span class="p">,)</span>
@@ -939,11 +1022,34 @@
 
             <span class="c1"># after the first setpoint, delay reverts to the loop delay</span>
             <span class="n">delay</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">delay</span>
+
+            <span class="c1"># now check for a background task and execute it if it&#39;s</span>
+            <span class="c1"># been long enough since the last time</span>
+            <span class="c1"># don&#39;t let exceptions in the background task interrupt</span>
+            <span class="c1"># the loop</span>
+            <span class="c1"># if the background task fails twice consecutively, stop</span>
+            <span class="c1"># executing it</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bg_task</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">t</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">t</span> <span class="o">-</span> <span class="n">last_task</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bg_min_delay</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">bg_task</span><span class="p">()</span>
+                        <span class="n">last_task_failed</span> <span class="o">=</span> <span class="bp">False</span>
+                    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">last_task_failed</span><span class="p">:</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">bg_task</span> <span class="o">=</span> <span class="bp">None</span>
+                        <span class="n">last_task_failed</span> <span class="o">=</span> <span class="bp">True</span>
+                    <span class="n">last_task</span> <span class="o">=</span> <span class="n">t</span>
+
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress_interval</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
             <span class="c1"># final progress note: set dt=-1 so it *always* prints</span>
             <span class="n">tprint</span><span class="p">(</span><span class="s1">&#39;loop </span><span class="si">%s</span><span class="s1"> DONE: </span><span class="si">%d</span><span class="s1">/</span><span class="si">%d</span><span class="s1"> (</span><span class="si">%.1f</span><span class="s1"> [s])&#39;</span> <span class="o">%</span> <span class="p">(</span>
                    <span class="bp">self</span><span class="o">.</span><span class="n">sweep_values</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">imax</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">t0</span><span class="p">),</span>
                    <span class="n">dt</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="s1">&#39;outerloop&#39;</span><span class="p">)</span>
+
+        <span class="c1"># run the background task one last time to catch the last setpoint(s)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bg_task</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">bg_task</span><span class="p">()</span>
 
         <span class="c1"># the loop is finished - run the .then actions</span>
         <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compile_actions</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">then_actions</span><span class="p">,</span> <span class="p">()):</span>
