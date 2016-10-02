@@ -183,6 +183,7 @@
 <span class="kn">import</span> <span class="nn">multiprocessing</span> <span class="kn">as</span> <span class="nn">mp</span>
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
 
 <span class="kn">from</span> <span class="nn">qcodes.station</span> <span class="kn">import</span> <span class="n">Station</span>
 <span class="kn">from</span> <span class="nn">qcodes.data.data_set</span> <span class="kn">import</span> <span class="n">new_data</span><span class="p">,</span> <span class="n">DataMode</span>
@@ -195,7 +196,10 @@
 <span class="kn">from</span> <span class="nn">.actions</span> <span class="kn">import</span> <span class="p">(</span><span class="n">_actions_snapshot</span><span class="p">,</span> <span class="n">Task</span><span class="p">,</span> <span class="n">Wait</span><span class="p">,</span> <span class="n">_Measure</span><span class="p">,</span> <span class="n">_Nest</span><span class="p">,</span>
                       <span class="n">BreakIf</span><span class="p">,</span> <span class="n">_QcodesBreak</span><span class="p">)</span>
 
+<span class="c1"># Switches off multiprocessing by default, cant&#39; be altered after module import.</span>
+<span class="c1"># TODO(giulioungaretti) use config.</span>
 
+<span class="n">USE_MP</span> <span class="o">=</span> <span class="bp">False</span>
 <span class="n">MP_NAME</span> <span class="o">=</span> <span class="s1">&#39;Measurement&#39;</span>
 
 
@@ -773,7 +777,7 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;unknown signal&#39;</span><span class="p">,</span> <span class="n">signal_</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">get_data_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_manager</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">get_data_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_manager</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Return the data set for this loop.</span>
 <span class="sd">        If no data set has been created yet, a new one will be created and returned.</span>
@@ -803,6 +807,7 @@
             <span class="k">if</span> <span class="n">data_manager</span> <span class="ow">is</span> <span class="bp">False</span><span class="p">:</span>
                 <span class="n">data_mode</span> <span class="o">=</span> <span class="n">DataMode</span><span class="o">.</span><span class="n">LOCAL</span>
             <span class="k">else</span><span class="p">:</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Multiprocessing is in beta, use at own risk&quot;</span><span class="p">,</span> <span class="ne">UserWarning</span><span class="p">)</span>
                 <span class="n">data_mode</span> <span class="o">=</span> <span class="n">DataMode</span><span class="o">.</span><span class="n">PUSH_TO_SERVER</span>
 
             <span class="n">data_set</span> <span class="o">=</span> <span class="n">new_data</span><span class="p">(</span><span class="n">arrays</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">containers</span><span class="p">(),</span> <span class="n">mode</span><span class="o">=</span><span class="n">data_mode</span><span class="p">,</span>
@@ -821,20 +826,19 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">background</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">quiet</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
                         <span class="n">data_manager</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">use_threads</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">quiet</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
-            <span class="n">data_manager</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">station</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">progress_interval</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="n">USE_MP</span><span class="p">,</span> <span class="n">use_threads</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">quiet</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+            <span class="n">data_manager</span><span class="o">=</span><span class="n">USE_MP</span><span class="p">,</span> <span class="n">station</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">progress_interval</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
             <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Execute this loop.</span>
 
-<span class="sd">        background: (default True) run this sweep in a separate process</span>
+<span class="sd">        background: (default False) run this sweep in a separate process</span>
 <span class="sd">            so we can have live plotting and other analysis in the main process</span>
 <span class="sd">        use_threads: (default True): whenever there are multiple `get` calls</span>
 <span class="sd">            back-to-back, execute them in separate threads so they run in</span>
 <span class="sd">            parallel (as long as they don&#39;t block each other)</span>
 <span class="sd">        quiet: (default False): set True to not print anything except errors</span>
-<span class="sd">        data_manager: a DataManager instance (omit to use default,</span>
-<span class="sd">            False to store locally)</span>
+<span class="sd">        data_manager: set to True to use a DataManager. Default to False.</span>
 <span class="sd">        station: a Station instance for snapshots (omit to use a previously</span>
 <span class="sd">            provided Station, or the default Station)</span>
 <span class="sd">        progress_interval (default None): show progress of the loop every x</span>
@@ -870,6 +874,7 @@
             <span class="n">prev_loop</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
 
         <span class="n">data_set</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_data_set</span><span class="p">(</span><span class="n">data_manager</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">set_common_attrs</span><span class="p">(</span><span class="n">data_set</span><span class="o">=</span><span class="n">data_set</span><span class="p">,</span> <span class="n">use_threads</span><span class="o">=</span><span class="n">use_threads</span><span class="p">,</span>
                               <span class="n">signal_queue</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">signal_queue</span><span class="p">)</span>
 
@@ -895,6 +900,7 @@
                   <span class="n">flush</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">background</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Multiprocessing is in beta, use at own risk&quot;</span><span class="p">,</span> <span class="ne">UserWarning</span><span class="p">)</span>
             <span class="n">p</span> <span class="o">=</span> <span class="n">QcodesProcess</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_run_wrapper</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">MP_NAME</span><span class="p">)</span>
             <span class="n">p</span><span class="o">.</span><span class="n">is_sweep</span> <span class="o">=</span> <span class="bp">True</span>
             <span class="n">p</span><span class="o">.</span><span class="n">signal_queue</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">signal_queue</span>
