@@ -777,11 +777,14 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;unknown signal&#39;</span><span class="p">,</span> <span class="n">signal_</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">get_data_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_manager</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">get_data_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_manager</span><span class="o">=</span><span class="n">USE_MP</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Return the data set for this loop.</span>
-<span class="sd">        If no data set has been created yet, a new one will be created and returned.</span>
-<span class="sd">        Note that all arguments are ignored if the data set has already been created.</span>
+
+<span class="sd">        If no data set has been created yet, a new one will be created and</span>
+<span class="sd">        returned. Note that all arguments can only be provided when the</span>
+<span class="sd">        `DataSet` is first created; giving these during `run` when</span>
+<span class="sd">        `get_data_set` has already been called on its own is an error.</span>
 
 <span class="sd">        data_manager: a DataManager instance (omit to use default,</span>
 <span class="sd">            False to store locally)</span>
@@ -807,13 +810,24 @@
             <span class="k">if</span> <span class="n">data_manager</span> <span class="ow">is</span> <span class="bp">False</span><span class="p">:</span>
                 <span class="n">data_mode</span> <span class="o">=</span> <span class="n">DataMode</span><span class="o">.</span><span class="n">LOCAL</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Multiprocessing is in beta, use at own risk&quot;</span><span class="p">,</span> <span class="ne">UserWarning</span><span class="p">)</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Multiprocessing is in beta, use at own risk&quot;</span><span class="p">,</span>
+                              <span class="ne">UserWarning</span><span class="p">)</span>
                 <span class="n">data_mode</span> <span class="o">=</span> <span class="n">DataMode</span><span class="o">.</span><span class="n">PUSH_TO_SERVER</span>
 
             <span class="n">data_set</span> <span class="o">=</span> <span class="n">new_data</span><span class="p">(</span><span class="n">arrays</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">containers</span><span class="p">(),</span> <span class="n">mode</span><span class="o">=</span><span class="n">data_mode</span><span class="p">,</span>
                                 <span class="n">data_manager</span><span class="o">=</span><span class="n">data_manager</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span> <span class="o">=</span> <span class="n">data_set</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">has_args</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+            <span class="n">uses_data_manager</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_set</span><span class="o">.</span><span class="n">mode</span> <span class="o">!=</span> <span class="n">DataMode</span><span class="o">.</span><span class="n">LOCAL</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">has_args</span> <span class="ow">or</span> <span class="p">(</span><span class="n">uses_data_manager</span> <span class="o">!=</span> <span class="n">data_manager</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                    <span class="s1">&#39;The DataSet for this loop already exists. &#39;</span>
+                    <span class="s1">&#39;You can only provide DataSet attributes, such as &#39;</span>
+                    <span class="s1">&#39;data_manager, location, name, formatter, io, &#39;</span>
+                    <span class="s1">&#39;write_period, when the DataSet is first created.&#39;</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span>
 
@@ -845,7 +859,11 @@
 <span class="sd">            seconds. If provided here, will override any interval provided</span>
 <span class="sd">            with the Loop definition</span>
 
-<span class="sd">        kwargs are passed along to data_set.new_data. The key ones are:</span>
+<span class="sd">        kwargs are passed along to data_set.new_data. These can only be</span>
+<span class="sd">        provided when the `DataSet` is first created; giving these during `run`</span>
+<span class="sd">        when `get_data_set` has already been called on its own is an error.</span>
+<span class="sd">        The key ones are:</span>
+
 <span class="sd">        location: the location of the DataSet, a string whose meaning</span>
 <span class="sd">            depends on formatter and io, or False to only keep in memory.</span>
 <span class="sd">            May be a callable to provide automatic locations. If omitted, will</span>
