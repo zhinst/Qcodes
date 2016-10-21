@@ -170,10 +170,13 @@
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">copy</span>
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">collections</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span>
 
 <span class="kn">from</span> <span class="nn">qcodes.utils.deferred_operations</span> <span class="kn">import</span> <span class="n">DeferredOperations</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.helpers</span> <span class="kn">import</span> <span class="p">(</span><span class="n">permissive_range</span><span class="p">,</span> <span class="n">wait_secs</span><span class="p">,</span> <span class="n">is_sequence_of</span><span class="p">,</span>
@@ -431,8 +434,9 @@
 <span class="sd">        State of the parameter as a JSON-compatible dict.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            update (bool): If True, update the state by calling parameter.get().</span>
-<span class="sd">             If False, just use the latest values in memory.</span>
+<span class="sd">            update (bool): If True, update the state by calling</span>
+<span class="sd">                    parameter.get().</span>
+<span class="sd">                    If False, just use the latest values in memory.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            dict: base snapshot</span>
@@ -978,6 +982,156 @@
 
     <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="combine"><a class="viewcode-back" href="../../../api/generated/qcodes.combine.html#qcodes.combine">[docs]</a><span class="k">def</span> <span class="nf">combine</span><span class="p">(</span><span class="o">*</span><span class="n">parameters</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">aggregator</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Combine parameters into one swepable parameter</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        *paramters (qcodes.Parameter): the parameters to combine</span>
+<span class="sd">        name (str): the name of the paramter</span>
+<span class="sd">        label (Optional[str]): the label of the combined parameter</span>
+<span class="sd">        unit (Optional[str]): the unit of the combined parameter</span>
+<span class="sd">        aggregator (Optional[Callable[list[any]]]): a function to aggregate</span>
+<span class="sd">            the set values into one</span>
+
+<span class="sd">    A combined parameter sets all the combined parameters at every point of the</span>
+<span class="sd">    sweep.</span>
+<span class="sd">    The sets are called in the same order the parameters are, and</span>
+<span class="sd">    sequantially.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">parameters</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+    <span class="n">multi_par</span> <span class="o">=</span> <span class="n">CombinedParameter</span><span class="p">(</span><span class="n">parameters</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">units</span><span class="p">,</span> <span class="n">aggregator</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">multi_par</span></div>
+
+
+<span class="k">class</span> <span class="nc">CombinedParameter</span><span class="p">(</span><span class="n">Metadatable</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; A combined parameter</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        *paramters (qcodes.Parameter): the parameters to combine</span>
+<span class="sd">        name (str): the name of the paramter</span>
+<span class="sd">        label (Optional[str]): the label of the combined parameter</span>
+<span class="sd">        unit (Optional[str]): the unit of the combined parameter</span>
+<span class="sd">        aggregator (Optional[Callable[list[any]]]): a function to aggregate</span>
+<span class="sd">            the set values into one</span>
+
+<span class="sd">    A combined parameter sets all the combined parameters at every point of the</span>
+<span class="sd">    sweep.</span>
+<span class="sd">    The sets are called in the same order the parameters are, and</span>
+<span class="sd">    sequantially.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                 <span class="n">units</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">aggregator</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+        <span class="c1"># TODO(giulioungaretti)temporary hack</span>
+        <span class="c1"># starthack</span>
+        <span class="c1"># this is a dummy parameter</span>
+        <span class="c1"># that mimicks the api that a normal parameter has</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span> <span class="o">=</span> <span class="k">lambda</span><span class="p">:</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span><span class="o">.</span><span class="n">full_name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">label</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span><span class="o">.</span><span class="n">units</span> <span class="o">=</span> <span class="n">units</span>
+        <span class="c1"># endhack</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span> <span class="o">=</span> <span class="n">parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sets</span> <span class="o">=</span> <span class="p">[</span><span class="n">parameter</span><span class="o">.</span><span class="n">set</span> <span class="k">for</span> <span class="n">parameter</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dimensionality</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sets</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">aggregator</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">f</span> <span class="o">=</span> <span class="n">aggregator</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;aggregate&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_aggregate</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set multiple parameters.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            index (int): the index of the setpoints one wants to set</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            list: values that where actually set</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">values</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">setpoints</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">setFunction</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sets</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+            <span class="n">setFunction</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">values</span>
+
+    <span class="k">def</span> <span class="nf">sweep</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">array</span><span class="p">:</span> <span class="n">numpy</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Creates a new combined parameter to be iterated over.</span>
+<span class="sd">        One can sweep over either:</span>
+<span class="sd">             - n array of lenght m</span>
+<span class="sd">             - one nxm array</span>
+
+<span class="sd">        where n is the number of combined parameters</span>
+<span class="sd">        and m is the number of setpoints</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            *array(numpy.ndarray): array(s) of setopoints</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            MultiPar: combined parameter</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># if it&#39;s a list of arrays, convert to one array</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">array</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">dim</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">array</span><span class="p">])</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Arrays have different number of setpoints&quot;</span><span class="p">)</span>
+            <span class="n">array</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">array</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># cast to array in case users</span>
+            <span class="c1"># decide to not read docstring</span>
+            <span class="c1"># and pass a 2d list</span>
+            <span class="n">array</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">array</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">new</span> <span class="o">=</span> <span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="n">_error_msg</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot; Dimensionality of array does not match</span><span class="se">\</span>
+<span class="s2">                        the number of parameter combined. Expected a </span><span class="se">\</span>
+<span class="s2">                        {} dimensional array, got a {} dimensional array. </span><span class="se">\</span>
+<span class="s2">                        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dimensionality</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">_error_msg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dimensionality</span><span class="p">,</span>
+                                                   <span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="c1"># this means the array is 1d</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">_error_msg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dimensionality</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+
+        <span class="n">new</span><span class="o">.</span><span class="n">setpoints</span> <span class="o">=</span> <span class="n">array</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">new</span>
+
+    <span class="k">def</span> <span class="nf">_aggregate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">vals</span><span class="p">):</span>
+        <span class="c1"># check f args</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">f</span><span class="p">(</span><span class="o">*</span><span class="n">vals</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">setpoints</span><span class="p">)))</span>
+
+    <span class="k">def</span> <span class="nf">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># dimension of the sweep_values</span>
+        <span class="c1"># i.e. how many setpoint</span>
+        <span class="k">return</span> <span class="n">numpy</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">setpoints</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">snapshot_base</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        State of the combined parameter as a JSON-compatible dict.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            update (bool):</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict: base snapshot</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">meta_data</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="n">meta_data</span><span class="p">[</span><span class="s1">&#39;__class__&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">full_class</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="n">meta_data</span><span class="p">[</span><span class="s2">&quot;units&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span><span class="o">.</span><span class="n">units</span>
+        <span class="n">meta_data</span><span class="p">[</span><span class="s2">&quot;label&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span><span class="o">.</span><span class="n">label</span>
+        <span class="n">meta_data</span><span class="p">[</span><span class="s2">&quot;full_name&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span><span class="o">.</span><span class="n">full_name</span>
+        <span class="n">meta_data</span><span class="p">[</span><span class="s2">&quot;aggreagator&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">repr</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;f&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">:</span>
+            <span class="n">meta_data</span><span class="p">[</span><span class="n">param</span><span class="o">.</span><span class="n">full_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">snapshot</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">meta_data</span>
 </pre></div>
 
            </div>

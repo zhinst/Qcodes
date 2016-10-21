@@ -91,6 +91,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#writing-a-driver">Writing a Driver</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#measuring">Measuring</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#simulation">Simulation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#combined-parameters-sweep">Combined Parameters Sweep</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#meta-instruments">Meta Instruments</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#async-meta">Async Meta</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#avanced">Avanced</a></li>
@@ -183,6 +184,126 @@ with commented code</p>
 <p class="last">missing</p>
 </div>
 </div>
+<div class="section" id="combined-parameters-sweep">
+<h2>Combined Parameters Sweep<a class="headerlink" href="#combined-parameters-sweep" title="Permalink to this headline">¶</a></h2>
+<p>If you want to sweep multiple parameters at once qcodes offers the combine function.
+You can combine any number of any kind paramter.
+We&#8217;ll use a ManualParameter for this example.
+One can use both an array, or a set of arrays to pass the setpoint.
+We&#8217;ll cover both cases in this example.</p>
+<div class="code python highlight-default"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">qcodes.instrument.parameter</span> <span class="k">import</span> <span class="n">ManualParameter</span>
+<span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="k">import</span> <span class="n">Numbers</span>
+
+<span class="n">gate</span> <span class="o">=</span> <span class="n">ManualParameter</span><span class="p">(</span><span class="s1">&#39;gate&#39;</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+<span class="n">frequency</span> <span class="o">=</span> <span class="n">ManualParameter</span><span class="p">(</span><span class="s1">&#39;frequency&#39;</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+<span class="n">amplitude</span> <span class="o">=</span> <span class="n">ManualParameter</span><span class="p">(</span><span class="s1">&#39;amplitude&#39;</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+<span class="c1"># a manual parameter returns a value that has been set</span>
+<span class="c1"># so fix it to a value for this example</span>
+<span class="n">amplitude</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+<span class="n">combined</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">combine</span><span class="p">(</span><span class="n">gate</span><span class="p">,</span> <span class="n">frequency</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;gate_frequency&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>A name is required, and the combined parameter can now be swept
+over, but we have to pass a list of values.</p>
+<div class="code python highlight-default"><div class="highlight"><pre><span></span><span class="c1"># use an array with number_of_parameters x number of setpoints</span>
+<span class="n">sweep_vals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]])</span>
+
+<span class="n">loop</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">Loop</span><span class="p">(</span><span class="n">combined</span><span class="o">.</span><span class="n">sweep</span><span class="p">(</span><span class="n">sweep_vals</span><span class="p">),</span> <span class="n">delay</span><span class="o">=</span><span class="mf">0.001</span><span class="p">)</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="n">amplitude</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">the set operations are done sequentially, in this case first gate and then frequency is set.
+If the operations are blocking, then the set will block.
+Delay is counted for a step, not for a set. In this case set gate, set frequency and wait 0.0001</p>
+</div>
+<p>This will return this data:</p>
+<dl class="docutils">
+<dt>DataSet:</dt>
+<dd><blockquote class="first">
+<div>mode     = DataMode.LOCAL
+location = &#8216;2016-10-19/23-05-10&#8217;</div></blockquote>
+<table border="1" class="last docutils">
+<colgroup>
+<col width="17%" />
+<col width="33%" />
+<col width="27%" />
+<col width="23%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">&lt;Type&gt;</th>
+<th class="head">&lt;array_id&gt;</th>
+<th class="head">&lt;array.name&gt;</th>
+<th class="head">&lt;array.shape&gt;</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>Setpoint</td>
+<td>gate_frequency_set</td>
+<td>gate_frequency</td>
+<td>(2,)</td>
+</tr>
+<tr class="row-odd"><td>Measured</td>
+<td>amplitude</td>
+<td>amplitude</td>
+<td>(2,)</td>
+</tr>
+<tr class="row-even"><td>Measured</td>
+<td>gate</td>
+<td>gate</td>
+<td>(2,)</td>
+</tr>
+<tr class="row-odd"><td>Measured</td>
+<td>frequency</td>
+<td>frequency</td>
+<td>(2,)</td>
+</tr>
+</tbody>
+</table>
+</dd>
+</dl>
+<p>Where  gate_frequency_set contains just the sweep indices and the, perhaps confusingly
+named measured gate and frequency contain the set data.</p>
+<p>One can decide to save an aggregated version of the set values, instead of the setpoints
+indices.
+To do so one must define an aggregator. In the next example we sweep over x,y,z
+and we save the sum of them.</p>
+<div class="code python highlight-default"><div class="highlight"><pre><span></span> <span class="n">x</span> <span class="o">=</span> <span class="n">ManualParameter</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+ <span class="n">y</span> <span class="o">=</span> <span class="n">ManualParameter</span><span class="p">(</span><span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+ <span class="n">z</span> <span class="o">=</span> <span class="n">ManualParameter</span><span class="p">(</span><span class="s1">&#39;z&#39;</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+ <span class="n">p4</span> <span class="o">=</span> <span class="n">ManualParameter</span><span class="p">(</span><span class="s1">&#39;p4&#39;</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+ <span class="c1"># set so we can get a value back</span>
+ <span class="n">p4</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+
+ <span class="k">def</span> <span class="nf">linear</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">z</span><span class="p">):</span>
+     <span class="k">return</span> <span class="n">x</span><span class="o">+</span><span class="n">y</span><span class="o">+</span><span class="n">z</span>
+
+ <span class="n">magnet</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">combine</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span>
+                      <span class="n">name</span><span class="o">=</span><span class="s2">&quot;myvector&quot;</span><span class="p">,</span>
+                      <span class="n">units</span><span class="o">=</span><span class="s2">&quot;T&quot;</span><span class="p">,</span>
+                      <span class="n">label</span><span class="o">=</span><span class="s2">&quot;magnetic field&quot;</span><span class="p">,</span>
+                      <span class="n">aggregator</span><span class="o">=</span><span class="n">linear</span><span class="p">)</span>
+
+ <span class="c1"># use number_of_parameters arrays with a length of number of setpoints</span>
+ <span class="c1"># note that it will error if the length of the arrays are different</span>
+ <span class="n">x_vals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+ <span class="n">y_vals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+ <span class="n">z_vals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+
+ <span class="n">loop</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">Loop</span><span class="p">(</span><span class="n">magnet</span><span class="o">.</span><span class="n">sweep</span><span class="p">(</span><span class="n">x_vals</span><span class="p">,</span> <span class="n">y_vals</span><span class="p">,</span> <span class="n">z_vals</span><span class="p">),</span> <span class="n">delay</span><span class="o">=</span><span class="mf">0.001</span><span class="p">)</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="n">p4</span><span class="p">)</span>
+ <span class="n">data</span> <span class="o">=</span><span class="n">loop</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+
+
+<span class="n">data</span><span class="o">.</span><span class="n">myvector_set</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">array</span><span class="p">([</span> <span class="mf">3.</span><span class="p">,</span>  <span class="mf">6.</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
 <div class="section" id="meta-instruments">
 <h2>Meta Instruments<a class="headerlink" href="#meta-instruments" title="Permalink to this headline">¶</a></h2>
 <p>The concept of a meta instrument is that of having
@@ -267,6 +388,11 @@ That means that base1 and base2 don&#8217;t know about eachoter.</p>
 <span class="n">meta</span> <span class="o">=</span> <span class="n">Meta</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;meta&#39;</span><span class="p">,</span> <span class="n">server_name</span><span class="o">=</span><span class="n">meta_server_name</span><span class="p">,</span>
                   <span class="n">instruments</span><span class="o">=</span><span class="p">[</span><span class="n">base1</span><span class="p">,</span> <span class="n">base2</span><span class="p">])</span>
 </pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Meta instruments go on a different server from the
+low-level instruments it references, because reasons.</p>
 </div>
 <p>And now one case use the meta as expected:</p>
 <div class="code python highlight-default"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;--- set meta --- &quot;</span><span class="p">)</span>

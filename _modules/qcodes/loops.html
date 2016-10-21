@@ -196,7 +196,8 @@
 <span class="kn">from</span> <span class="nn">.actions</span> <span class="kn">import</span> <span class="p">(</span><span class="n">_actions_snapshot</span><span class="p">,</span> <span class="n">Task</span><span class="p">,</span> <span class="n">Wait</span><span class="p">,</span> <span class="n">_Measure</span><span class="p">,</span> <span class="n">_Nest</span><span class="p">,</span>
                       <span class="n">BreakIf</span><span class="p">,</span> <span class="n">_QcodesBreak</span><span class="p">)</span>
 
-<span class="c1"># Switches off multiprocessing by default, cant&#39; be altered after module import.</span>
+<span class="c1"># Switches off multiprocessing by default, cant&#39; be altered after module</span>
+<span class="c1"># import.</span>
 <span class="c1"># TODO(giulioungaretti) use config.</span>
 
 <span class="n">USE_MP</span> <span class="o">=</span> <span class="bp">False</span>
@@ -211,7 +212,8 @@
 <span class="sd">    Todo:</span>
 <span class="sd">        RuntimeError message is really hard to understand.</span>
 <span class="sd">    Args:</span>
-<span class="sd">        return_first(bool): if there are multiple loops running return the first anyway.</span>
+<span class="sd">        return_first(bool): if there are multiple loops running return the</span>
+<span class="sd">        first anyway.</span>
 <span class="sd">    Raises:</span>
 <span class="sd">        RuntimeError: if multiple loops are active and return_first is False.</span>
 <span class="sd">    Returns:</span>
@@ -493,6 +495,7 @@
 
     <span class="k">return</span> <span class="n">loop</span>
 
+
 <span class="k">def</span> <span class="nf">_attach_bg_task</span><span class="p">(</span><span class="n">loop</span><span class="p">,</span> <span class="n">task</span><span class="p">,</span> <span class="n">min_delay</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Inner code for both Loop and ActiveLoop.bg_task&quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">loop</span><span class="o">.</span><span class="n">bg_task</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
@@ -502,6 +505,7 @@
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Only one background task is allowed per loop&#39;</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">loop</span>
+
 
 <span class="k">class</span> <span class="nc">ActiveLoop</span><span class="p">(</span><span class="n">Metadatable</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -520,11 +524,13 @@
     <span class="n">signal_period</span> <span class="o">=</span> <span class="mi">1</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sweep_values</span><span class="p">,</span> <span class="n">delay</span><span class="p">,</span> <span class="o">*</span><span class="n">actions</span><span class="p">,</span> <span class="n">then_actions</span><span class="o">=</span><span class="p">(),</span>
-                 <span class="n">station</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">progress_interval</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">bg_task</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">bg_min_delay</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+                 <span class="n">station</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">progress_interval</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">bg_task</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                 <span class="n">bg_min_delay</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sweep_values</span> <span class="o">=</span> <span class="n">sweep_values</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">delay</span> <span class="o">=</span> <span class="n">delay</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">actions</span> <span class="o">=</span> <span class="n">actions</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">actions</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">actions</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_new_actions</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">progress_interval</span> <span class="o">=</span> <span class="n">progress_interval</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">then_actions</span> <span class="o">=</span> <span class="n">then_actions</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">station</span> <span class="o">=</span> <span class="n">station</span>
@@ -604,13 +610,19 @@
 <span class="sd">        Recursively calls `.containers` on any enclosed actions.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">loop_size</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sweep_values</span><span class="p">)</span>
+        <span class="n">data_arrays</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">loop_array</span> <span class="o">=</span> <span class="n">DataArray</span><span class="p">(</span><span class="n">parameter</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sweep_values</span><span class="o">.</span><span class="n">parameter</span><span class="p">,</span>
                                <span class="n">is_setpoint</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
         <span class="n">loop_array</span><span class="o">.</span><span class="n">nest</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="n">loop_size</span><span class="p">)</span>
 
         <span class="n">data_arrays</span> <span class="o">=</span> <span class="p">[</span><span class="n">loop_array</span><span class="p">]</span>
+        <span class="c1"># hack set_data into actions</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_new_actions</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">actions</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sweep_values</span><span class="p">,</span> <span class="s2">&quot;parameters&quot;</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">parameter</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sweep_values</span><span class="o">.</span><span class="n">parameters</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_new_actions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">parameter</span><span class="p">)</span>
 
-        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">action</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">actions</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">action</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_new_actions</span><span class="p">):</span>
             <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">action</span><span class="p">,</span> <span class="s1">&#39;containers&#39;</span><span class="p">):</span>
                 <span class="n">action_arrays</span> <span class="o">=</span> <span class="n">action</span><span class="o">.</span><span class="n">containers</span><span class="p">()</span>
 
@@ -918,7 +930,8 @@
                   <span class="n">flush</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">background</span><span class="p">:</span>
-            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Multiprocessing is in beta, use at own risk&quot;</span><span class="p">,</span> <span class="ne">UserWarning</span><span class="p">)</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Multiprocessing is in beta, use at own risk&quot;</span><span class="p">,</span>
+                          <span class="ne">UserWarning</span><span class="p">)</span>
             <span class="n">p</span> <span class="o">=</span> <span class="n">QcodesProcess</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_run_wrapper</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">MP_NAME</span><span class="p">)</span>
             <span class="n">p</span><span class="o">.</span><span class="n">is_sweep</span> <span class="o">=</span> <span class="bp">True</span>
             <span class="n">p</span><span class="o">.</span><span class="n">signal_queue</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">signal_queue</span>
@@ -1023,11 +1036,26 @@
                     <span class="bp">self</span><span class="o">.</span><span class="n">sweep_values</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">imax</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">t0</span><span class="p">),</span>
                     <span class="n">dt</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">progress_interval</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="s1">&#39;outerloop&#39;</span><span class="p">)</span>
 
-            <span class="bp">self</span><span class="o">.</span><span class="n">sweep_values</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="n">set_val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sweep_values</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
             <span class="n">new_indices</span> <span class="o">=</span> <span class="n">loop_indices</span> <span class="o">+</span> <span class="p">(</span><span class="n">i</span><span class="p">,)</span>
             <span class="n">new_values</span> <span class="o">=</span> <span class="n">current_values</span> <span class="o">+</span> <span class="p">(</span><span class="n">value</span><span class="p">,)</span>
-            <span class="n">set_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span><span class="o">.</span><span class="n">action_id_map</span><span class="p">[</span><span class="n">action_indices</span><span class="p">]</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">new_indices</span><span class="p">,</span> <span class="p">{</span><span class="n">set_name</span><span class="p">:</span> <span class="n">value</span><span class="p">})</span>
+            <span class="n">data_to_store</span> <span class="o">=</span> <span class="p">{}</span>
+
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sweep_values</span><span class="p">,</span> <span class="s2">&quot;parameters&quot;</span><span class="p">):</span>
+                <span class="n">set_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span><span class="o">.</span><span class="n">action_id_map</span><span class="p">[</span><span class="n">action_indices</span><span class="p">]</span>
+                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sweep_values</span><span class="p">,</span> <span class="s1">&#39;aggregate&#39;</span><span class="p">):</span>
+                    <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sweep_values</span><span class="o">.</span><span class="n">aggregate</span><span class="p">(</span><span class="o">*</span><span class="n">set_val</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">new_indices</span><span class="p">,</span> <span class="p">{</span><span class="n">set_name</span><span class="p">:</span> <span class="n">value</span><span class="p">})</span>
+                <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">set_val</span><span class="p">):</span>
+                    <span class="n">set_index</span> <span class="o">=</span> <span class="n">action_indices</span> <span class="o">+</span> <span class="p">(</span><span class="n">j</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="p">)</span>
+                    <span class="n">set_name</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_set</span><span class="o">.</span><span class="n">action_id_map</span><span class="p">[</span><span class="n">set_index</span><span class="p">])</span>
+                    <span class="n">data_to_store</span><span class="p">[</span><span class="n">set_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">set_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span><span class="o">.</span><span class="n">action_id_map</span><span class="p">[</span><span class="n">action_indices</span><span class="p">]</span>
+                <span class="n">data_to_store</span><span class="p">[</span><span class="n">set_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">new_indices</span><span class="p">,</span> <span class="n">data_to_store</span><span class="p">)</span>
 
             <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nest_first</span><span class="p">:</span>
                 <span class="c1"># only wait the delay time if an inner loop will not inherit it</span>
