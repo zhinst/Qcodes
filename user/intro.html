@@ -85,8 +85,13 @@
                 <ul class="current">
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">User Guide</a><ul class="current">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Introduction</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#overview">Overview</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#instrument">Instrument</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#parameter">Parameter</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#parameter">Parameter</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#responsibilities">Responsibilities</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#examples">Examples</a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="#loop">Loop</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#dataset">DataSet</a></li>
 </ul>
@@ -154,6 +159,15 @@
 </div>
 <p>The framework is designed for extreme modularity. Don&#8217;t panic when looking at the source code.
 Read the following descriptions of the <em>pillars</em> of the framework first.</p>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>A QCoDeS experiment typically consists of a <a class="reference internal" href="#loop">Loop</a> that sweeps over one or more <a class="reference internal" href="#parameter">Parameters</a> of one or more <a class="reference internal" href="#instrument">Instruments</a>,
+measures other <a class="reference internal" href="#parameter">Parameters</a> at each sweep point, and stores all of the results into a <a class="reference internal" href="#dataset">DataSet</a>.</p>
+<p>While the simple case is quite straightforward, it is possible to create a very general experiment by defining richer Parameters and
+by performing additional Loop actions at each sweep point.
+The overview on this page provides a high-level picture of the general capabilities;
+consult the detailed API references and the samples to see some of the complex procedures that can be described and run.</p>
+</div>
 <div class="section" id="instrument">
 <h2>Instrument<a class="headerlink" href="#instrument" title="Permalink to this headline">¶</a></h2>
 <p>An instrument is first and most fundamental pillar of qcodes as it represent the hardware you would want to talk to, either to control your system, collect data, or both.</p>
@@ -196,11 +210,15 @@ Read the following descriptions of the <em>pillars</em> of the framework first.<
 </div>
 <div class="section" id="parameter">
 <h2>Parameter<a class="headerlink" href="#parameter" title="Permalink to this headline">¶</a></h2>
-<p>A Parameter represents a state variable of your system. Parameters may be settable, gettable, or both. Most of the time a Parameter is part of a single <a class="reference internal" href="#instrument">instrument</a>. These Parameters are created using <code class="docutils literal"><span class="pre">instrument.add_parameter()</span></code> and use the Instrument&#8217;s low-level communication methods for execution. But a Parameter does not <em>need</em> to be part of an Instrument; Any object with <code class="docutils literal"><span class="pre">get</span></code> and/or <code class="docutils literal"><span class="pre">set</span></code> methods and a couple of descriptive attributes may be used as a Parameter.</p>
-<p>A settable Parameter typically represents a configuration setting of an instrument, or some controlled characteristic of your system. If a settable Parameter is also gettable, getting it typically just reads back what was previously set (through QCoDeS or by some other means) but there can be differences due to rounding, clipping, feedback loops, etc. Note that a settable Parameter of a <span class="xref std std-ref">metainstrument</span> may involve setting several lower-level Parameters of the underlying Instruments, or even getting the values of other Parameters to inform the value(s) to set.</p>
-<p>A Parameter that is only gettable typically maps to a single measurement command or sequence. Often this returns a single value, like one voltage measurement, but it can also return multiple distinct values (for example magnitude and phase or the x/y/z components of a vector) or a sequence of values (for example an entire sampled waveform, or a power spectrum) or even multiple sequences (for example waveforms sampled on several channels).</p>
-<p>Most Parameters that you would use as setpoints and measurements in a loop accept or return numbers, but configuration Parameters can use strings or any other data type (although it should generally be JSON-compatible for snapshots and logging).</p>
-<p>When a RemoteInstrument is created, the Parameters contained in the Instrument are mirrored as RemoteParameters, which connect to the original Parameter via the associated InstrumentServer.</p>
+<p>A Parameter represents a state variable of your system.
+Parameters may be settable, gettable, or both.
+While many Parameters represent a setting or measurement for a particular Instrument,
+it is possible to define Parameters that represent more powerful abstractions.</p>
+<p>The variable represented by a Parameter may be a simple number or string.
+It may also be a complicated data structure that contains numerical, textual, or other information.
+More information is available in the API documentation on the Parameter type.</p>
+<div class="section" id="responsibilities">
+<h3>Responsibilities<a class="headerlink" href="#responsibilities" title="Permalink to this headline">¶</a></h3>
 <dl class="docutils">
 <dt>Parameters are responsible for:</dt>
 <dd><ul class="first last simple">
@@ -215,8 +233,54 @@ Read the following descriptions of the <em>pillars</em> of the framework first.<
 </ul>
 </dd>
 </dl>
-<p>Parameters hold onto their latest set or measured value, as well as when this happened. So that snapshots need not always query the hardware for this information but can update it intelligently when it has gotten stale.</p>
-<p>A Parameter that is part of an Instrument, even though it can be used as an independent object without directly referencing the Instrument, is subject to the same local/remote limitations as the Instrument.</p>
+<p>Parameters hold onto their latest set or measured value, as well as the timestamp of the latest update.
+Thus, snapshots need not always query the hardware for this information, but can update it intelligently when it has gotten stale.</p>
+<p>A Parameter that is part of an Instrument, even though it can be used as an independent object without directly referencing the Instrument,
+is subject to the same local/remote limitations as the Instrument.</p>
+</div>
+<div class="section" id="examples">
+<h3>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h3>
+<p>We list some common types of Parameters here:</p>
+<p><strong>Instrument Parameters</strong></p>
+<p>The simplest Parameters are part of an <a class="reference internal" href="#instrument">Instrument</a>.
+These Parameters are created using <code class="docutils literal"><span class="pre">instrument.add_parameter()</span></code> and use the Instrument&#8217;s low-level communication methods for execution.</p>
+<p>A settable Parameter typically represents a configuration setting or other controlled characteristic of the Instrument.
+Most such Parameters have a simple numeric value, but the value can be a string or other data type if necessary.
+If a settable Parameter is also gettable, getting it typically just reads back what was previously set, through QCoDeS or by some other means,
+but there can be differences due to rounding, clipping, feedback loops, etc.
+Note that setting a Parameter of a <span class="xref std std-ref">metainstrument</span> may involve setting several lower-level Parameters of the underlying Instruments,
+or even getting the values of other Parameters to inform the value(s) to set.</p>
+<p>A Parameter that is only gettable typically represents a single measurement command or sequence.
+The value of such a Parameter may be of many types:</p>
+<blockquote>
+<div><ul class="simple">
+<li>A single numeric value, such as a voltage measurement</li>
+<li>A string that represents a discrete instrument setting, such as the orientation of a vector</li>
+<li>Multiple related values, such as the magnitude and phase or Cartesian components of a vector</li>
+<li>A sequence of values, such as a sampled waveform or a power spectrum</li>
+<li>Multiple sequences of values, such as waveforms sampled on multiple channels</li>
+<li>Any other shape that appropriately represents a characteristic of the Instrument.</li>
+</ul>
+</div></blockquote>
+<p>When a RemoteInstrument is created, the Parameters contained in the Instrument are mirrored as RemoteParameters,
+which connect to the original Parameter via the associated InstrumentServer.</p>
+<p><strong>Computed Measurements</strong></p>
+<p>In some cases the measurement value of interest is computed based on values read from more than one instrument.
+For example, you might want to track the power dissipation of a component, computed by multiplying the outputs from a voltmeter and an ammeter.
+QCoDeS allows you to define a Parameter that represents the result of such a computation and include it as part of your experimental results.</p>
+<p>A Parameter defined in this way is not associated with an Instrument.
+It is a Python object that encapsulates the computation to be performed and references the underlying Parameters it uses.
+It is gettable, but not settable.</p>
+<p><strong>Interdependent Settings</strong></p>
+<p>In some experiments, control values for one or more Instruments must be set together in order to maintain a condition.
+For example, you might want to measure the behavior of a component at different voltage levels,
+but always keeping the available power within a fixed bound.
+You can define a Parameter that gets initialized with the maximum power to allow, such that setting the Parameter value
+results in setting the voltage to the passed-in value and also adjusting the supplied current appropriately.</p>
+<p>Similarly to a Parameter that computes a measurement result, this type of Parameter is not associated with an Instrument.
+It encapsulates the way that the single setting impacts the related settings and references the underlying Parameters, one for each setting.
+It is settable, and may be gettable.</p>
+</div>
 </div>
 <div class="section" id="loop">
 <h2>Loop<a class="headerlink" href="#loop" title="Permalink to this headline">¶</a></h2>
