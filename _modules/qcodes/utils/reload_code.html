@@ -1,0 +1,295 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>qcodes.utils.reload_code &mdash; QCoDeS 0.1.1 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+    <link rel="top" title="QCoDeS 0.1.1 documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> QCoDeS
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1.1
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../start/index.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../help.html">Get Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../user/index.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../community/index.html">Community Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/index.html">Classes and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../auto/qcodes.instrument_drivers.html">qcodes.instrument_drivers package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../roadmap.html">Qcodes project plan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changes/index.html">Changelogs</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../../index.html">QCoDeS</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      
+    <li>qcodes.utils.reload_code</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for qcodes.utils.reload_code</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">imp</span>
+<span class="kn">from</span> <span class="nn">traceback</span> <span class="kn">import</span> <span class="n">format_exc</span>
+
+<span class="c1"># Routine to reload modules during execution, for development only.</span>
+<span class="c1"># This is finicky and SHOULD NOT be used in regular experiments,</span>
+<span class="c1"># as they can cause non-intuitive errors later on. It is not included in</span>
+<span class="c1"># the base qcodes import, nor tested; Use at your own risk.</span>
+
+
+<span class="c1"># see http://stackoverflow.com/questions/22195382/</span>
+<span class="c1"># how-to-check-if-a-module-library-package-is-part-of-the-python-standard-library</span>
+<span class="n">syspaths</span> <span class="o">=</span> <span class="p">[</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="p">]</span>
+<span class="n">stdlib</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">syspaths</span>
+               <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">startswith</span><span class="p">((</span><span class="n">sys</span><span class="o">.</span><span class="n">prefix</span><span class="p">,</span> <span class="n">sys</span><span class="o">.</span><span class="n">base_prefix</span><span class="p">))</span>
+               <span class="ow">and</span> <span class="s1">&#39;site-packages&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">p</span><span class="p">)</span>
+<span class="c1"># a few things in site-packages we will consider part of the standard lib</span>
+<span class="c1"># it causes problems if we reload some of these, others are just stable</span>
+<span class="c1"># dependencies - this is mainly for reloading our own code.</span>
+<span class="c1"># could even whitelist site-packages items to allow, rather than to ignore?</span>
+<span class="n">otherlib</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;jupyter&#39;</span><span class="p">,</span> <span class="s1">&#39;ipy&#39;</span><span class="p">,</span> <span class="s1">&#39;IPy&#39;</span><span class="p">,</span> <span class="s1">&#39;matplotlib&#39;</span><span class="p">,</span> <span class="s1">&#39;numpy&#39;</span><span class="p">,</span> <span class="s1">&#39;scipy&#39;</span><span class="p">,</span> <span class="s1">&#39;pyvisa&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;traitlets&#39;</span><span class="p">,</span> <span class="s1">&#39;zmq&#39;</span><span class="p">,</span> <span class="s1">&#39;tornado&#39;</span><span class="p">,</span> <span class="s1">&#39;dateutil&#39;</span><span class="p">,</span> <span class="s1">&#39;six&#39;</span><span class="p">,</span> <span class="s1">&#39;pexpect&#39;</span><span class="p">)</span>
+<span class="n">otherpattern</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="s1">&#39;site-packages/&#39;</span> <span class="o">+</span> <span class="n">n</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">otherlib</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="reload_code"><a class="viewcode-back" href="../../../auto/qcodes.utils.html#qcodes.utils.reload_code.reload_code">[docs]</a><span class="k">def</span> <span class="nf">reload_code</span><span class="p">(</span><span class="n">pattern</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">lib</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">site</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    reload all modules matching a given pattern</span>
+<span class="sd">    or all (non-built-in) modules if pattern is omitted</span>
+<span class="sd">    if lib is False (default), ignore the standard library and major packages</span>
+<span class="sd">    if site is False (default), ignore everything in site-packages, only reload</span>
+<span class="sd">    files in nonstandard paths</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">reloaded_files</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">):</span>
+        <span class="c1"># sometimes we need to reload twice to propagate all links,</span>
+        <span class="c1"># even though we reload the deepest modules first. Not sure if</span>
+        <span class="c1"># twice is always sufficient, but we&#39;ll try it.</span>
+        <span class="k">for</span> <span class="n">module</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">pattern</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">or</span> <span class="n">pattern</span> <span class="ow">in</span> <span class="n">module</span><span class="o">.</span><span class="n">__name__</span><span class="p">):</span>
+                <span class="n">reload_recurse</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">reloaded_files</span><span class="p">,</span> <span class="n">lib</span><span class="p">,</span> <span class="n">site</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">reloaded_files</span></div>
+
+
+<div class="viewcode-block" id="is_good_module"><a class="viewcode-back" href="../../../auto/qcodes.utils.html#qcodes.utils.reload_code.is_good_module">[docs]</a><span class="k">def</span> <span class="nf">is_good_module</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">lib</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">site</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    is an object (module) a module we can reload?</span>
+<span class="sd">    if lib is False (default), ignore the standard library and major packages</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="c1"># take out non-modules and underscore modules</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="s1">&#39;__name__&#39;</span><span class="p">,</span> <span class="s1">&#39;_&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">name</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;_&#39;</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="n">sys</span><span class="p">)):</span>
+        <span class="k">return</span> <span class="bp">False</span>
+
+    <span class="c1"># take out modules we can&#39;t find and built-ins</span>
+    <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">builtin_module_names</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="s1">&#39;__file__&#39;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">False</span>
+
+    <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">module</span><span class="o">.</span><span class="n">__file__</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="s1">&#39;site-packages&#39;</span> <span class="ow">in</span> <span class="n">path</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">site</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">False</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">lib</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">stdlib</span><span class="p">)</span> <span class="ow">and</span> <span class="s1">&#39;site-packages&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">path</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">False</span>
+
+        <span class="k">for</span> <span class="n">pattern</span> <span class="ow">in</span> <span class="n">otherpattern</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">pattern</span> <span class="ow">in</span> <span class="n">path</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">False</span>
+
+    <span class="k">return</span> <span class="bp">True</span></div>
+
+
+<div class="viewcode-block" id="reload_recurse"><a class="viewcode-back" href="../../../auto/qcodes.utils.html#qcodes.utils.reload_code.reload_recurse">[docs]</a><span class="k">def</span> <span class="nf">reload_recurse</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">reloaded_files</span><span class="p">,</span> <span class="n">lib</span><span class="p">,</span> <span class="n">site</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    recursively search module for its own dependencies to reload,</span>
+<span class="sd">    ignoring those already in reloaded_files</span>
+<span class="sd">    if lib is False (default), ignore the standard library and major packages</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">is_good_module</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">lib</span><span class="p">,</span> <span class="n">site</span><span class="p">)</span> <span class="ow">or</span>
+            <span class="n">module</span><span class="o">.</span><span class="n">__file__</span> <span class="ow">in</span> <span class="n">reloaded_files</span><span class="p">):</span>
+        <span class="k">return</span>
+
+    <span class="n">reloaded_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">module</span><span class="o">.</span><span class="n">__file__</span><span class="p">)</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">dir</span><span class="p">(</span><span class="n">module</span><span class="p">):</span>
+            <span class="n">module2</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+            <span class="n">reload_recurse</span><span class="p">(</span><span class="n">module2</span><span class="p">,</span> <span class="n">reloaded_files</span><span class="p">,</span> <span class="n">lib</span><span class="p">,</span> <span class="n">site</span><span class="p">)</span>
+        <span class="n">imp</span><span class="o">.</span><span class="n">reload</span><span class="p">(</span><span class="n">module</span><span class="p">)</span>
+
+    <span class="k">except</span><span class="p">:</span>
+        <span class="k">print</span><span class="p">(</span><span class="s1">&#39;error reloading &quot;{}&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="s1">&#39;__name__&#39;</span><span class="p">,</span> <span class="s1">&#39;?&#39;</span><span class="p">)))</span>
+        <span class="k">print</span><span class="p">(</span><span class="n">format_exc</span><span class="p">())</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.1.1',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

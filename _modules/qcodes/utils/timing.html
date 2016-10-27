@@ -1,0 +1,286 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>qcodes.utils.timing &mdash; QCoDeS 0.1.1 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+    <link rel="top" title="QCoDeS 0.1.1 documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> QCoDeS
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1.1
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../start/index.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../help.html">Get Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../user/index.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../community/index.html">Community Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/index.html">Classes and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../auto/qcodes.instrument_drivers.html">qcodes.instrument_drivers package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../roadmap.html">Qcodes project plan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changes/index.html">Changelogs</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../../index.html">QCoDeS</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      
+    <li>qcodes.utils.timing</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for qcodes.utils.timing</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">multiprocessing</span> <span class="kn">as</span> <span class="nn">mp</span>
+
+
+<span class="n">sleep_time</span> <span class="o">=</span> <span class="mf">0.001</span>
+
+<span class="n">_calibration</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;sleep_delay&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+    <span class="s1">&#39;async_sleep_delay&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+    <span class="s1">&#39;mp_start_delay&#39;</span><span class="p">:</span> <span class="bp">None</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="calibrate"><a class="viewcode-back" href="../../../auto/qcodes.utils.html#qcodes.utils.timing.calibrate">[docs]</a><span class="k">def</span> <span class="nf">calibrate</span><span class="p">(</span><span class="n">quiet</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">_calibration</span><span class="p">[</span><span class="s1">&#39;mp_start_delay&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">quiet</span><span class="p">:</span>  <span class="c1"># pragma: no cover</span>
+            <span class="k">print</span><span class="p">(</span><span class="s1">&#39;multiprocessing startup delay and regular sleep delays:&#39;</span><span class="p">)</span>
+        <span class="n">mp_res</span> <span class="o">=</span> <span class="n">mptest</span><span class="p">(</span><span class="n">quiet</span><span class="o">=</span><span class="n">quiet</span><span class="p">)</span>
+        <span class="n">_calibration</span><span class="p">[</span><span class="s1">&#39;blocking_time&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">mp_res</span><span class="p">[</span><span class="s1">&#39;blocking_time&#39;</span><span class="p">])</span>
+        <span class="n">_calibration</span><span class="p">[</span><span class="s1">&#39;mp_start_delay&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">mp_res</span><span class="p">[</span><span class="s1">&#39;startup_time&#39;</span><span class="p">])</span>
+        <span class="n">_calibration</span><span class="p">[</span><span class="s1">&#39;mp_finish_delay&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">mp_res</span><span class="p">[</span><span class="s1">&#39;finish_time&#39;</span><span class="p">])</span>
+        <span class="n">_calibration</span><span class="p">[</span><span class="s1">&#39;sleep_delay&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">mp_res</span><span class="p">[</span><span class="s1">&#39;median&#39;</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="n">_calibration</span></div>
+
+
+<div class="viewcode-block" id="report"><a class="viewcode-back" href="../../../auto/qcodes.utils.html#qcodes.utils.timing.report">[docs]</a><span class="k">def</span> <span class="nf">report</span><span class="p">(</span><span class="n">startup_time</span><span class="p">,</span> <span class="n">deviations</span><span class="p">,</span>
+           <span class="n">queue</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">quiet</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>  <span class="c1"># pragma: no cover</span>
+    <span class="n">deviations</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+    <span class="n">mindev</span> <span class="o">=</span> <span class="n">deviations</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">avgdev</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">deviations</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">deviations</span><span class="p">)</span>
+    <span class="n">meddev</span> <span class="o">=</span> <span class="n">deviations</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">deviations</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span><span class="p">]</span>
+    <span class="n">maxdev</span> <span class="o">=</span> <span class="n">deviations</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">quiet</span><span class="p">:</span>
+        <span class="k">print</span><span class="p">(</span><span class="s1">&#39;startup time: {:.3e}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">startup_time</span><span class="p">))</span>
+        <span class="k">print</span><span class="p">(</span><span class="s1">&#39;min/med/avg/max dev: {:.3e}, {:.3e}, {:.3e}, {:.3e}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">mindev</span><span class="p">,</span> <span class="n">meddev</span><span class="p">,</span> <span class="n">avgdev</span><span class="p">,</span> <span class="n">maxdev</span><span class="p">))</span>
+
+    <span class="n">out</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;startup_time&#39;</span><span class="p">:</span> <span class="n">startup_time</span><span class="p">,</span>
+        <span class="s1">&#39;min&#39;</span><span class="p">:</span> <span class="n">mindev</span><span class="p">,</span>
+        <span class="s1">&#39;max&#39;</span><span class="p">:</span> <span class="n">maxdev</span><span class="p">,</span>
+        <span class="s1">&#39;avg&#39;</span><span class="p">:</span> <span class="n">avgdev</span><span class="p">,</span>
+        <span class="s1">&#39;median&#39;</span><span class="p">:</span> <span class="n">meddev</span><span class="p">,</span>
+        <span class="s1">&#39;finish_time&#39;</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="n">queue</span><span class="p">:</span>
+        <span class="n">queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out</span></div>
+
+
+<div class="viewcode-block" id="sleeper"><a class="viewcode-back" href="../../../auto/qcodes.utils.html#qcodes.utils.timing.sleeper">[docs]</a><span class="k">def</span> <span class="nf">sleeper</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">t0</span><span class="p">,</span> <span class="n">timer</span><span class="p">,</span> <span class="n">queue</span><span class="p">,</span> <span class="n">quiet</span><span class="p">):</span>  <span class="c1"># pragma: no cover</span>
+    <span class="n">times</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">startup_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">t0</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+        <span class="n">times</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">timer</span><span class="p">())</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+
+    <span class="n">deviations</span> <span class="o">=</span> <span class="p">[</span><span class="n">times</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">times</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">d</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">times</span><span class="p">))]</span>
+    <span class="k">return</span> <span class="n">report</span><span class="p">(</span><span class="n">startup_time</span><span class="p">,</span> <span class="n">deviations</span><span class="p">,</span> <span class="n">queue</span><span class="p">,</span> <span class="n">quiet</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="mptest"><a class="viewcode-back" href="../../../auto/qcodes.utils.html#qcodes.utils.timing.mptest">[docs]</a><span class="k">def</span> <span class="nf">mptest</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">d</span><span class="o">=</span><span class="mf">0.001</span><span class="p">,</span> <span class="n">timer</span><span class="o">=</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">,</span> <span class="n">quiet</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    test time.sleep performance, and the time to start a multiprocessing</span>
+<span class="sd">    Process. start time uses time.time() because some other timers start</span>
+<span class="sd">    from zero in each new process</span>
+
+<span class="sd">    n: how many asyncio.sleep calls to use</span>
+<span class="sd">        default 100</span>
+<span class="sd">    d: delay per sleep</span>
+<span class="sd">        default 0.001</span>
+<span class="sd">    timer: which system timer to use</span>
+<span class="sd">        default time.perf_counter</span>
+<span class="sd">    quiet: don&#39;t print anything</span>
+<span class="sd">        default False</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="n">q</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">Queue</span><span class="p">()</span>
+    <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">Process</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">sleeper</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">start_time</span><span class="p">,</span> <span class="n">timer</span><span class="p">,</span> <span class="n">q</span><span class="p">,</span> <span class="n">quiet</span><span class="p">))</span>
+    <span class="n">p</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+    <span class="n">blocking_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span>
+    <span class="n">p</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+
+    <span class="n">out</span> <span class="o">=</span> <span class="n">q</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+    <span class="n">out</span><span class="p">[</span><span class="s1">&#39;finish_time&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">out</span><span class="p">[</span><span class="s1">&#39;finish_time&#39;</span><span class="p">]</span>
+    <span class="n">out</span><span class="p">[</span><span class="s1">&#39;blocking_time&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">blocking_time</span>
+    <span class="k">return</span> <span class="n">out</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.1.1',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

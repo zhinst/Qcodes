@@ -1,0 +1,726 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>qcodes.instrument.remote &mdash; QCoDeS 0.1.1 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+    <link rel="top" title="QCoDeS 0.1.1 documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> QCoDeS
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1.1
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../start/index.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../help.html">Get Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../user/index.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../community/index.html">Community Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/index.html">Classes and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../auto/qcodes.instrument_drivers.html">qcodes.instrument_drivers package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../roadmap.html">Qcodes project plan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changes/index.html">Changelogs</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../../index.html">QCoDeS</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      
+    <li>qcodes.instrument.remote</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for qcodes.instrument.remote</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Proxies to interact with server-based instruments from another process.&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">multiprocessing</span> <span class="kn">as</span> <span class="nn">mp</span>
+
+<span class="kn">from</span> <span class="nn">qcodes.utils.deferred_operations</span> <span class="kn">import</span> <span class="n">DeferredOperations</span>
+<span class="kn">from</span> <span class="nn">qcodes.utils.helpers</span> <span class="kn">import</span> <span class="n">DelegateAttributes</span><span class="p">,</span> <span class="n">named_repr</span>
+<span class="kn">from</span> <span class="nn">.parameter</span> <span class="kn">import</span> <span class="n">Parameter</span><span class="p">,</span> <span class="n">GetLatest</span>
+<span class="kn">from</span> <span class="nn">.server</span> <span class="kn">import</span> <span class="n">get_instrument_server_manager</span>
+
+
+<div class="viewcode-block" id="RemoteInstrument"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteInstrument">[docs]</a><span class="k">class</span> <span class="nc">RemoteInstrument</span><span class="p">(</span><span class="n">DelegateAttributes</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A proxy for an instrument (of any class) running on a server process.</span>
+
+<span class="sd">    Creates the server if necessary, then loads this instrument onto it,</span>
+<span class="sd">    then mirrors the API to that instrument.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        *args: Passed along to the real instrument constructor.</span>
+
+<span class="sd">        instrument_class (type): The class of the real instrument to make.</span>
+
+<span class="sd">        server_name (str): The name of the server to create or use for this</span>
+<span class="sd">            instrument. If not provided (&#39;&#39;), gets a name from</span>
+<span class="sd">            ``instrument_class.default_server_name(**kwargs)`` using the</span>
+<span class="sd">            same kwargs passed to the instrument constructor.</span>
+
+<span class="sd">        **kwargs: Passed along to the real instrument constructor, also</span>
+<span class="sd">            to ``default_server_name`` as mentioned.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        name (str): an identifier for this instrument, particularly for</span>
+<span class="sd">            attaching it to a Station.</span>
+
+<span class="sd">        parameters (Dict[Parameter]): All the parameters supported by this</span>
+<span class="sd">            instrument. Usually populated via ``add_parameter``</span>
+
+<span class="sd">        functions (Dict[Function]): All the functions supported by this</span>
+<span class="sd">            instrument. Usually populated via ``add_function``</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">delegate_attr_dicts</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;_methods&#39;</span><span class="p">,</span> <span class="s1">&#39;parameters&#39;</span><span class="p">,</span> <span class="s1">&#39;functions&#39;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">instrument_class</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">server_name</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span>
+                 <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">server_name</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
+            <span class="n">server_name</span> <span class="o">=</span> <span class="n">instrument_class</span><span class="o">.</span><span class="n">default_server_name</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="n">shared_kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">kwname</span> <span class="ow">in</span> <span class="n">instrument_class</span><span class="o">.</span><span class="n">shared_kwargs</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">kwname</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+                <span class="n">shared_kwargs</span><span class="p">[</span><span class="n">kwname</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="n">kwname</span><span class="p">]</span>
+                <span class="k">del</span> <span class="n">kwargs</span><span class="p">[</span><span class="n">kwname</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_server_name</span> <span class="o">=</span> <span class="n">server_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_shared_kwargs</span> <span class="o">=</span> <span class="n">shared_kwargs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_manager</span> <span class="o">=</span> <span class="n">get_instrument_server_manager</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_server_name</span><span class="p">,</span>
+                                                      <span class="bp">self</span><span class="o">.</span><span class="n">_shared_kwargs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_class</span> <span class="o">=</span> <span class="n">instrument_class</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_args</span> <span class="o">=</span> <span class="n">args</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_kwargs</span> <span class="o">=</span> <span class="n">kwargs</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">connect</span><span class="p">()</span>
+
+<div class="viewcode-block" id="RemoteInstrument.connect"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteInstrument.connect">[docs]</a>    <span class="k">def</span> <span class="nf">connect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create the instrument on the server and replicate its API here.&quot;&quot;&quot;</span>
+
+        <span class="c1"># connection_attrs is created by instrument.connection_attrs(),</span>
+        <span class="c1"># called by InstrumentServer.handle_new after it creates the instrument</span>
+        <span class="c1"># on the server.</span>
+        <span class="n">connection_attrs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_manager</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_class</span><span class="p">,</span>
+                                                 <span class="bp">self</span><span class="o">.</span><span class="n">_args</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_kwargs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">connection_attrs</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_id</span> <span class="o">=</span> <span class="n">connection_attrs</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_methods</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">functions</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># bind all the different categories of actions we need</span>
+        <span class="c1"># to interface with the remote instrument</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_components</span><span class="p">(</span><span class="n">connection_attrs</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_update_components</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">connection_attrs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Update the three component dicts with new or updated connection attrs.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            connection_attrs (dict): as returned by</span>
+<span class="sd">                ``Instrument.connection_attrs``, should contain at least keys</span>
+<span class="sd">                ``_methods``, ``parameters``, and ``functions``, whose values</span>
+<span class="sd">                are themselves dicts of {component_name: list of attributes}.</span>
+<span class="sd">                These get translated into the corresponding dicts eg:</span>
+<span class="sd">                ``self.parameters = {parameter_name: RemoteParameter}``</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">component_types</span> <span class="o">=</span> <span class="p">((</span><span class="s1">&#39;_methods&#39;</span><span class="p">,</span> <span class="n">RemoteMethod</span><span class="p">),</span>
+                           <span class="p">(</span><span class="s1">&#39;parameters&#39;</span><span class="p">,</span> <span class="n">RemoteParameter</span><span class="p">),</span>
+                           <span class="p">(</span><span class="s1">&#39;functions&#39;</span><span class="p">,</span> <span class="n">RemoteFunction</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="n">container_name</span><span class="p">,</span> <span class="n">component_class</span> <span class="ow">in</span> <span class="n">component_types</span><span class="p">:</span>
+            <span class="n">container</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">container_name</span><span class="p">)</span>
+            <span class="n">components_spec</span> <span class="o">=</span> <span class="n">connection_attrs</span><span class="p">[</span><span class="n">container_name</span><span class="p">]</span>
+
+            <span class="c1"># first delete components that are gone and update those that</span>
+            <span class="c1"># have changed</span>
+            <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">container</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">components_spec</span><span class="p">:</span>
+                    <span class="n">container</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">components_spec</span><span class="p">[</span><span class="n">name</span><span class="p">])</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">del</span> <span class="n">container</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+
+            <span class="c1"># then add new components</span>
+            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">attrs</span> <span class="ow">in</span> <span class="n">components_spec</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">container</span><span class="p">:</span>
+                    <span class="n">container</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">component_class</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="n">attrs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="RemoteInstrument.update"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteInstrument.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Check with the server for updated components.&quot;&quot;&quot;</span>
+        <span class="n">connection_attrs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ask_server</span><span class="p">(</span><span class="s1">&#39;connection_attrs&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_components</span><span class="p">(</span><span class="n">connection_attrs</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_ask_server</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func_name</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Query the server copy of this instrument, expecting a response.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_manager</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;cmd&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_id</span><span class="p">,</span> <span class="n">func_name</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_write_server</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func_name</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Send a command to the server, without waiting for a response.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_manager</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;cmd&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_id</span><span class="p">,</span> <span class="n">func_name</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="RemoteInstrument.add_parameter"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteInstrument.add_parameter">[docs]</a>    <span class="k">def</span> <span class="nf">add_parameter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Proxy to add a new parameter to the server instrument.</span>
+
+<span class="sd">        This is only for adding parameters remotely to the server copy.</span>
+<span class="sd">        Normally parameters are added in the instrument constructor, rather</span>
+<span class="sd">        than via this method. This method is limited in that you can generally</span>
+<span class="sd">        only use the string form of a command, not the callable form.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name (str): How the parameter will be stored within</span>
+<span class="sd">                ``instrument.parameters`` and also how you address it using the</span>
+<span class="sd">                shortcut methods: ``instrument.set(param_name, value)`` etc.</span>
+
+<span class="sd">            parameter_class (Optional[type]): You can construct the parameter</span>
+<span class="sd">                out of any class. Default ``StandardParameter``.</span>
+
+<span class="sd">            **kwargs: constructor arguments for ``parameter_class``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">attrs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ask_server</span><span class="p">(</span><span class="s1">&#39;add_parameter&#39;</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">RemoteParameter</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="n">attrs</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RemoteInstrument.add_function"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteInstrument.add_function">[docs]</a>    <span class="k">def</span> <span class="nf">add_function</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Proxy to add a new Function to the server instrument.</span>
+
+<span class="sd">        This is only for adding functions remotely to the server copy.</span>
+<span class="sd">        Normally functions are added in the instrument constructor, rather</span>
+<span class="sd">        than via this method. This method is limited in that you can generally</span>
+<span class="sd">        only use the string form of a command, not the callable form.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name (str): how the function will be stored within</span>
+<span class="sd">            ``instrument.functions`` and also how you  address it using the</span>
+<span class="sd">            shortcut methods: ``instrument.call(func_name, *args)`` etc.</span>
+
+<span class="sd">            **kwargs: constructor kwargs for ``Function``</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">attrs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ask_server</span><span class="p">(</span><span class="s1">&#39;add_function&#39;</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">RemoteFunction</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="n">attrs</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RemoteInstrument.instances"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteInstrument.instances">[docs]</a>    <span class="k">def</span> <span class="nf">instances</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        A RemoteInstrument shows as an instance of its proxied class.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List[Union[Instrument, RemoteInstrument]]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_class</span><span class="o">.</span><span class="n">instances</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="RemoteInstrument.find_instrument"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteInstrument.find_instrument">[docs]</a>    <span class="k">def</span> <span class="nf">find_instrument</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">instrument_class</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Find an existing instrument by name.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name (str)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Union[Instrument, RemoteInstrument]</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            KeyError: if no instrument of that name was found, or if its</span>
+<span class="sd">                reference is invalid (dead).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_class</span><span class="o">.</span><span class="n">find_instrument</span><span class="p">(</span>
+            <span class="n">name</span><span class="p">,</span> <span class="n">instrument_class</span><span class="o">=</span><span class="n">instrument_class</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RemoteInstrument.close"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteInstrument.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Irreversibly close and tear down the server &amp; remote instruments.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_manager&#39;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_manager</span><span class="o">.</span><span class="n">_server</span> <span class="ow">in</span> <span class="n">mp</span><span class="o">.</span><span class="n">active_children</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_manager</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_id</span><span class="p">)</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_manager</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_class</span><span class="o">.</span><span class="n">remove_instance</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RemoteInstrument.restart"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteInstrument.restart">[docs]</a>    <span class="k">def</span> <span class="nf">restart</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Remove and recreate the server copy of this instrument.</span>
+
+<span class="sd">        All instrument state will be returned to the initial conditions,</span>
+<span class="sd">        including deleting any parameters you&#39;ve added after initialization,</span>
+<span class="sd">        or modifications to parameters etc.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_manager</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">connect</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="RemoteInstrument.__getitem__"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteInstrument.__getitem__">[docs]</a>    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Delegate instrument[&#39;name&#39;] to parameter or function &#39;name&#39;.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="p">[</span><span class="n">key</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="RemoteInstrument.__repr__"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteInstrument.__repr__">[docs]</a>    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;repr including the instrument name.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">named_repr</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="RemoteComponent"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteComponent">[docs]</a><span class="k">class</span> <span class="nc">RemoteComponent</span><span class="p">:</span>
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    An object that lives inside a RemoteInstrument.</span>
+
+<span class="sd">    Proxies all of its calls and specific listed attributes to the</span>
+<span class="sd">    corresponding object in the server instrument.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name (str): The name of this component.</span>
+
+<span class="sd">        instrument (RemoteInstrument): the instrument this is part of.</span>
+
+<span class="sd">        attrs (List[str]): instance attributes to proxy to the server</span>
+<span class="sd">            copy of this component.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        name (str): The name of this component.</span>
+
+<span class="sd">        _instrument (RemoteInstrument): the instrument this is part of.</span>
+
+<span class="sd">        _attrs (Set[str]): All the attributes we are allowed to proxy.</span>
+
+<span class="sd">        _delattrs (Set[str]): Attributes we&#39;ve deleted from the server,</span>
+<span class="sd">            a subset of ``_attrs``, but if you set them again, they will</span>
+<span class="sd">            still be set on the server.</span>
+
+<span class="sd">        _local_attrs (Set[str]): (class attribute only) Attributes that we</span>
+<span class="sd">            shouldn&#39;t look for on the server, even if they do not exist</span>
+<span class="sd">            locally. Mostly present to prevent infinite recursion in the</span>
+<span class="sd">            accessors.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_local_attrs</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;_attrs&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;name&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;_instrument&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;_local_attrs&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;__doc__&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;_delattrs&#39;</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">instrument</span><span class="p">,</span> <span class="n">attrs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span> <span class="o">=</span> <span class="n">instrument</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">attrs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="RemoteComponent.update"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteComponent.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attrs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Update the set of attributes proxied by this component.</span>
+
+<span class="sd">        The docstring is not proxied every time it is accessed, but it is</span>
+<span class="sd">        read and updated during this method.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            attrs (Sequence[str]): the new set of attributes to proxy.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_attrs</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">attrs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_delattrs</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_doc</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="RemoteComponent.__getattr__"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteComponent.__getattr__">[docs]</a>    <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get an attribute value from the server.</span>
+
+<span class="sd">        If there was a local attribute, we don&#39;t even get here.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">attr</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">_local_attrs</span> <span class="ow">and</span> <span class="n">attr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attrs</span><span class="p">:</span>
+            <span class="n">full_attr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="n">attr</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">_ask_server</span><span class="p">(</span><span class="s1">&#39;getattr&#39;</span><span class="p">,</span> <span class="n">full_attr</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s1">&#39;RemoteComponent has no local or remote &#39;</span>
+                                 <span class="s1">&#39;attribute: &#39;</span> <span class="o">+</span> <span class="n">attr</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RemoteComponent.__setattr__"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteComponent.__setattr__">[docs]</a>    <span class="k">def</span> <span class="nf">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set a new attribute value.</span>
+
+<span class="sd">        If the attribute is listed as remote, we&#39;ll set it on the server,</span>
+<span class="sd">        otherwise we&#39;ll set it locally.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">attr</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">_local_attrs</span> <span class="ow">and</span> <span class="n">attr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attrs</span><span class="p">:</span>
+            <span class="n">full_attr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="n">attr</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">_ask_server</span><span class="p">(</span><span class="s1">&#39;setattr&#39;</span><span class="p">,</span> <span class="n">full_attr</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">attr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_delattrs</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_delattrs</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">attr</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">object</span><span class="o">.</span><span class="n">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RemoteComponent.__delattr__"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteComponent.__delattr__">[docs]</a>    <span class="k">def</span> <span class="nf">__delattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Delete an attribute.</span>
+
+<span class="sd">        If the attribute is listed as remote, we&#39;ll delete it on the server,</span>
+<span class="sd">        otherwise we&#39;ll delete it locally.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">attr</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">_local_attrs</span> <span class="ow">and</span> <span class="n">attr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attrs</span><span class="p">:</span>
+            <span class="n">full_attr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="n">attr</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">_ask_server</span><span class="p">(</span><span class="s1">&#39;delattr&#39;</span><span class="p">,</span> <span class="n">full_attr</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_delattrs</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">attr</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">object</span><span class="o">.</span><span class="n">__delattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RemoteComponent.__dir__"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteComponent.__dir__">[docs]</a>    <span class="k">def</span> <span class="nf">__dir__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;dir listing including both local and server attributes.&quot;&quot;&quot;</span>
+        <span class="n">remote_attrs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attrs</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_delattrs</span>
+        <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">remote_attrs</span><span class="o">.</span><span class="n">union</span><span class="p">(</span><span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__dir__</span><span class="p">()))</span></div>
+
+    <span class="k">def</span> <span class="nf">_set_doc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Prepend a note about remoteness to the server docstring.</span>
+
+<span class="sd">        If no server docstring is found, we leave the class docstring.</span>
+
+<span class="sd">        __doc__, as a magic attribute, is handled differently from</span>
+<span class="sd">        other attributes so we won&#39;t make it dynamic (updating on the</span>
+<span class="sd">        server when you change it here)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">doc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">_ask_server</span><span class="p">(</span><span class="s1">&#39;getattr&#39;</span><span class="p">,</span>
+                                           <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;.__doc__&#39;</span><span class="p">)</span>
+
+        <span class="n">docbase</span> <span class="o">=</span> <span class="s1">&#39;{} {} in RemoteInstrument {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">__doc__</span> <span class="o">=</span> <span class="n">docbase</span> <span class="o">+</span> <span class="p">((</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">---</span><span class="se">\n\n</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="n">doc</span><span class="p">)</span> <span class="k">if</span> <span class="n">doc</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="RemoteComponent.__repr__"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteComponent.__repr__">[docs]</a>    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;repr including the component name.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">named_repr</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="RemoteMethod"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteMethod">[docs]</a><span class="k">class</span> <span class="nc">RemoteMethod</span><span class="p">(</span><span class="n">RemoteComponent</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot;Proxy for a method of the server instrument.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="RemoteMethod.__call__"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteMethod.__call__">[docs]</a>    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Call the method on the server, passing on any args and kwargs.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">_ask_server</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="RemoteParameter"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteParameter">[docs]</a><span class="k">class</span> <span class="nc">RemoteParameter</span><span class="p">(</span><span class="n">RemoteComponent</span><span class="p">,</span> <span class="n">DeferredOperations</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot;Proxy for a Parameter of the server instrument.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_latest</span> <span class="o">=</span> <span class="n">GetLatest</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+<div class="viewcode-block" id="RemoteParameter.__call__"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteParameter.__call__">[docs]</a>    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Shortcut to get (with no args) or set (with one arg) the parameter.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            *args: If empty, get the parameter. If one arg, set the parameter</span>
+<span class="sd">                to this value</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            any: The parameter value, if called with no args,</span>
+<span class="sd">                otherwise no return.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RemoteParameter.get"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteParameter.get">[docs]</a>    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Read the value of this parameter.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            any: the current value of the parameter.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">_ask_server</span><span class="p">(</span><span class="s1">&#39;get&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RemoteParameter.set"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteParameter.set">[docs]</a>    <span class="k">def</span> <span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set a new value of this parameter.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            value (any): the new value for the parameter.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO: sometimes we want set to block (as here) and sometimes</span>
+        <span class="c1"># we want it async... which would just be changing the &#39;_ask_server&#39;</span>
+        <span class="c1"># to &#39;_write_server&#39; below. how do we decide, and how do we let the</span>
+        <span class="c1"># user do it?</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">_ask_server</span><span class="p">(</span><span class="s1">&#39;set&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RemoteParameter.validate"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteParameter.validate">[docs]</a>    <span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Raise an error if the given value is not allowed for this Parameter.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            value (any): the proposed new parameter value.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            TypeError: if ``value`` has the wrong type for this Parameter.</span>
+<span class="sd">            ValueError: if the type is correct but the value is wrong.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">_ask_server</span><span class="p">(</span><span class="s1">&#39;callattr&#39;</span><span class="p">,</span>
+                                     <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;.validate&#39;</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span></div>
+
+    <span class="c1"># manually copy over sweep and __getitem__ so they execute locally</span>
+    <span class="c1"># and are still based off the RemoteParameter</span>
+<div class="viewcode-block" id="RemoteParameter.__getitem__"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteParameter.__getitem__">[docs]</a>    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">keys</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create a SweepValues from this parameter with slice notation.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">Parameter</span><span class="o">.</span><span class="n">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">keys</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RemoteParameter.sweep"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteParameter.sweep">[docs]</a>    <span class="k">def</span> <span class="nf">sweep</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create a SweepValues from this parameter. See Parameter.sweep.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">Parameter</span><span class="o">.</span><span class="n">sweep</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_latest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">_ask_server</span><span class="p">(</span><span class="s1">&#39;callattr&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;._latest&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="RemoteParameter.snapshot"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteParameter.snapshot">[docs]</a>    <span class="k">def</span> <span class="nf">snapshot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        State of the parameter as a JSON-compatible dict.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            update (bool): If True, update the state by querying the</span>
+<span class="sd">                instrument. If False, just use the latest value in memory.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict: snapshot</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">_ask_server</span><span class="p">(</span><span class="s1">&#39;callattr&#39;</span><span class="p">,</span>
+                                            <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;.snapshot&#39;</span><span class="p">,</span> <span class="n">update</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RemoteParameter.setattr"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteParameter.setattr">[docs]</a>    <span class="k">def</span> <span class="nf">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set an attribute of the parameter on the server.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            attr (str): the attribute name. Can be nested as in</span>
+<span class="sd">                ``NestedAttrAccess``.</span>
+<span class="sd">            value: The new value to set.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">_ask_server</span><span class="p">(</span><span class="s1">&#39;setattr&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="n">attr</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RemoteParameter.getattr"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteParameter.getattr">[docs]</a>    <span class="k">def</span> <span class="nf">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get an attribute of the parameter on the server.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            attr (str): the attribute name. Can be nested as in</span>
+<span class="sd">                ``NestedAttrAccess``.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            any: The attribute value.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">_ask_server</span><span class="p">(</span><span class="s1">&#39;getattr&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="n">attr</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RemoteParameter.callattr"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteParameter.callattr">[docs]</a>    <span class="k">def</span> <span class="nf">callattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Call arbitrary methods of the parameter on the server.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            attr (str): the method name. Can be nested as in</span>
+<span class="sd">                ``NestedAttrAccess``.</span>
+<span class="sd">            *args: positional args to the method</span>
+<span class="sd">            **kwargs: keyword args to the method</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            any: the return value of the called method.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">_ask_server</span><span class="p">(</span>
+            <span class="s1">&#39;callattr&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="n">attr</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="RemoteFunction"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteFunction">[docs]</a><span class="k">class</span> <span class="nc">RemoteFunction</span><span class="p">(</span><span class="n">RemoteComponent</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot;Proxy for a Function of the server instrument.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="RemoteFunction.__call__"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteFunction.__call__">[docs]</a>    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Call the Function.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            *args: The positional args to this Function. Functions only take</span>
+<span class="sd">                positional args, not kwargs.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            any: the return value of the function.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">_ask_server</span><span class="p">(</span><span class="s1">&#39;call&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RemoteFunction.call"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteFunction.call">[docs]</a>    <span class="k">def</span> <span class="nf">call</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;An alias for __call__.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__call__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RemoteFunction.validate"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.remote.RemoteFunction.validate">[docs]</a>    <span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Raise an error if the given args are not allowed for this Function.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            *args: the proposed arguments with which to call the Function.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">_ask_server</span><span class="p">(</span>
+            <span class="s1">&#39;callattr&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;.validate&#39;</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.1.1',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

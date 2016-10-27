@@ -1,0 +1,587 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>qcodes.instrument_drivers.QuTech.IVVI &mdash; QCoDeS 0.1.1 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+    <link rel="top" title="QCoDeS 0.1.1 documentation" href="../../../../index.html"/>
+        <link rel="up" title="Module code" href="../../../index.html"/> 
+
+  
+  <script src="../../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../../index.html" class="icon icon-home"> QCoDeS
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1.1
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../start/index.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../help.html">Get Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user/index.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../community/index.html">Community Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/index.html">Classes and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../auto/qcodes.instrument_drivers.html">qcodes.instrument_drivers package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../roadmap.html">Qcodes project plan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../changes/index.html">Changelogs</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../../../index.html">QCoDeS</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../../../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="../../../index.html">Module code</a> &raquo;</li>
+      
+    <li>qcodes.instrument_drivers.QuTech.IVVI</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for qcodes.instrument_drivers.QuTech.IVVI</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">visa</span>  <span class="c1"># used for the parity constant</span>
+<span class="kn">import</span> <span class="nn">traceback</span>
+
+<span class="kn">from</span> <span class="nn">qcodes</span> <span class="kn">import</span> <span class="n">VisaInstrument</span><span class="p">,</span> <span class="n">validators</span> <span class="k">as</span> <span class="n">vals</span>
+
+
+<div class="viewcode-block" id="IVVI"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.QuTech.html#qcodes.instrument_drivers.QuTech.IVVI.IVVI">[docs]</a><span class="k">class</span> <span class="nc">IVVI</span><span class="p">(</span><span class="n">VisaInstrument</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Status: Alpha version, tested for basic get-set commands</span>
+<span class="sd">        TODO:</span>
+<span class="sd">            - Add individual parameters for channel polarities</span>
+<span class="sd">            - Test polarities different from BIP</span>
+<span class="sd">            - Add adjustable range and rate protection per channel</span>
+<span class="sd">            - Add error handling for the specific error messages in the</span>
+<span class="sd">              protocol</span>
+<span class="sd">            - Remove/fine-tune manual sleep statements</span>
+
+<span class="sd">    This is the python driver for the D5 module of the IVVI-rack</span>
+<span class="sd">    see: http://qtwork.tudelft.nl/~schouten/ivvi/doc-d5/index-d5.htm</span>
+
+<span class="sd">    A descriptor for the data protocol can be found at</span>
+<span class="sd">    http://qtwork.tudelft.nl/~schouten/ivvi/doc-d5/rs232linkformat.txt</span>
+<span class="sd">    A copy of this file can be found at the bottom of this file.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">Fullrange</span> <span class="o">=</span> <span class="mi">4000</span>
+    <span class="n">Halfrange</span> <span class="o">=</span> <span class="n">Fullrange</span> <span class="o">/</span> <span class="mi">2</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">address</span><span class="p">,</span> <span class="n">reset</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">numdacs</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span> <span class="n">dac_step</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+                 <span class="n">dac_delay</span><span class="o">=.</span><span class="mi">1</span><span class="p">,</span> <span class="n">dac_max_delay</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+                 <span class="c1"># polarity=[&#39;BIP&#39;, &#39;BIP&#39;, &#39;BIP&#39;, &#39;BIP&#39;]):</span>
+                 <span class="c1"># commented because still on the todo list</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Initialzes the IVVI, and communicates with the wrapper</span>
+<span class="sd">        Input:</span>
+<span class="sd">            name (string)        : name of the instrument</span>
+<span class="sd">            address (string)     : ASRL address</span>
+<span class="sd">            reset (bool)         : resets to default values, default=false</span>
+<span class="sd">            numdacs (int)        : number of dacs, multiple of 4, default=16</span>
+<span class="sd">            polarity (string[4]) : list of polarities of each set of 4 dacs</span>
+<span class="sd">                                   choose from &#39;BIP&#39;, &#39;POS&#39;, &#39;NEG&#39;,</span>
+<span class="sd">                                   default=[&#39;BIP&#39;, &#39;BIP&#39;, &#39;BIP&#39;, &#39;BIP&#39;]</span>
+<span class="sd">            dac_step (float)         : max step size for dac parameter</span>
+<span class="sd">            dac_delay (float)        : delay (in seconds) for dac</span>
+<span class="sd">            dac_max_delay (float)    : maximum delay before emitting a warning</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">t0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">address</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">numdacs</span> <span class="o">%</span> <span class="mi">4</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">numdacs</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_numdacs</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">numdacs</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;numdacs must be a positive multiple of 4, &#39;</span>
+                             <span class="s1">&#39;not {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">numdacs</span><span class="p">))</span>
+
+        <span class="c1"># values based on descriptor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">baud_rate</span> <span class="o">=</span> <span class="mi">115200</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">parity</span> <span class="o">=</span> <span class="n">visa</span><span class="o">.</span><span class="n">constants</span><span class="o">.</span><span class="n">Parity</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># odd parity</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;version&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_version</span><span class="p">)</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;dac voltages&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Dac voltages&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_dacs</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">numdacs</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+                <span class="s1">&#39;dac{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">),</span>
+                <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Dac {} (mV)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">),</span>
+                <span class="n">units</span><span class="o">=</span><span class="s1">&#39;mV&#39;</span><span class="p">,</span>
+                <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_gen_ch_get_func</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_dac</span><span class="p">,</span> <span class="n">i</span><span class="p">),</span>
+                <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_gen_ch_set_func</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_dac</span><span class="p">,</span> <span class="n">i</span><span class="p">),</span>
+                <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">(</span><span class="o">-</span><span class="mi">2000</span><span class="p">,</span> <span class="mi">2000</span><span class="p">),</span>
+                <span class="n">step</span><span class="o">=</span><span class="n">dac_step</span><span class="p">,</span>
+                <span class="n">delay</span><span class="o">=</span><span class="n">dac_delay</span><span class="p">,</span>
+                <span class="n">max_delay</span><span class="o">=</span><span class="n">dac_max_delay</span><span class="p">,</span>
+                <span class="n">max_val_age</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_time</span> <span class="o">=</span> <span class="mi">5</span>  <span class="c1"># seconds</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_time_last_update</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># ensures first call will always update</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">pol_num</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_numdacs</span><span class="p">)</span>  <span class="c1"># corresponds to POS polarity</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_pol_dacrack</span><span class="p">(</span><span class="s1">&#39;BIP&#39;</span><span class="p">,</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_numdacs</span><span class="p">),</span> <span class="n">get_all</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+
+        <span class="n">t1</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+        <span class="c1"># basic test to confirm we are properly connected</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">get_all</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s1">&#39;IVVI: get_all() failed, maybe connected to wrong port?&#39;</span><span class="p">)</span>
+            <span class="k">print</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">())</span>
+
+        <span class="k">print</span><span class="p">(</span><span class="s1">&#39;Initialized IVVI-rack in </span><span class="si">%.2f</span><span class="s1">s&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">t1</span><span class="o">-</span><span class="n">t0</span><span class="p">))</span>
+
+<div class="viewcode-block" id="IVVI.get_idn"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.QuTech.html#qcodes.instrument_drivers.QuTech.IVVI.IVVI.get_idn">[docs]</a>    <span class="k">def</span> <span class="nf">get_idn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Overwrites the get_idn function using constants as the hardware</span>
+<span class="sd">        does not have a proper *IDN function.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">idparts</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;QuTech&#39;</span><span class="p">,</span> <span class="s1">&#39;IVVI&#39;</span><span class="p">,</span> <span class="s1">&#39;None&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="p">()]</span>
+
+        <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">((</span><span class="s1">&#39;vendor&#39;</span><span class="p">,</span> <span class="s1">&#39;model&#39;</span><span class="p">,</span> <span class="s1">&#39;serial&#39;</span><span class="p">,</span> <span class="s1">&#39;firmware&#39;</span><span class="p">),</span> <span class="n">idparts</span><span class="p">))</span></div>
+
+    <span class="k">def</span> <span class="nf">_get_version</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">mes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="nb">bytes</span><span class="p">([</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">]))</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">mes</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">v</span>
+
+<div class="viewcode-block" id="IVVI.get_all"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.QuTech.html#qcodes.instrument_drivers.QuTech.IVVI.IVVI.get_all">[docs]</a>    <span class="k">def</span> <span class="nf">get_all</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="IVVI.set_dacs_zero"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.QuTech.html#qcodes.instrument_drivers.QuTech.IVVI.IVVI.set_dacs_zero">[docs]</a>    <span class="k">def</span> <span class="nf">set_dacs_zero</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_numdacs</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_set_dac</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span></div>
+
+    <span class="c1"># Conversion of data</span>
+    <span class="k">def</span> <span class="nf">_mvoltage_to_bytes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mvoltage</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Converts a mvoltage on a 0mV-4000mV scale to a 16-bit integer</span>
+<span class="sd">        equivalent</span>
+
+<span class="sd">        output is a list of two bytes</span>
+
+<span class="sd">        Input:</span>
+<span class="sd">            mvoltage (float) : a mvoltage in the 0mV-4000mV range</span>
+
+<span class="sd">        Output:</span>
+<span class="sd">            (dataH, dataL) (int, int) : The high and low value byte equivalent</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">bytevalue</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">mvoltage</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">Fullrange</span><span class="o">*</span><span class="mi">65535</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">bytevalue</span><span class="o">.</span><span class="n">to_bytes</span><span class="p">(</span><span class="n">length</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">byteorder</span><span class="o">=</span><span class="s1">&#39;big&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_bytes_to_mvoltages</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">byte_mess</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Converts a list of bytes to a list containing</span>
+<span class="sd">        the corresponding mvoltages</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">values</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_numdacs</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_numdacs</span><span class="p">):</span>
+            <span class="c1"># takes two bytes, converts it to a 16 bit int and then divides by</span>
+            <span class="c1"># the range and adds the offset due to the polarity</span>
+            <span class="n">values</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">((</span><span class="n">byte_mess</span><span class="p">[</span><span class="mi">2</span> <span class="o">+</span> <span class="mi">2</span><span class="o">*</span><span class="n">i</span><span class="p">]</span><span class="o">*</span><span class="mi">256</span> <span class="o">+</span> <span class="n">byte_mess</span><span class="p">[</span><span class="mi">3</span> <span class="o">+</span> <span class="mi">2</span><span class="o">*</span><span class="n">i</span><span class="p">])</span> <span class="o">/</span>
+                         <span class="mf">65535.0</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">Fullrange</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">pol_num</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">values</span>
+
+    <span class="c1"># Communication with device</span>
+    <span class="k">def</span> <span class="nf">_get_dac</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Returns dac channel in mV</span>
+<span class="sd">        channels range from 1-numdacs</span>
+
+<span class="sd">        this version is a wrapper around the IVVI get function.</span>
+<span class="sd">        it only updates</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_dacs</span><span class="p">()[</span><span class="n">channel</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">_set_dac</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">,</span> <span class="n">mvoltage</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Sets the specified dac to the specified voltage.</span>
+<span class="sd">        Will only send a command to the IVVI if the next value is different</span>
+<span class="sd">        than the current value within byte resolution.</span>
+
+<span class="sd">        Input:</span>
+<span class="sd">            mvoltage (float) : output voltage in mV</span>
+<span class="sd">            channel (int)    : 1 based index of the dac</span>
+
+<span class="sd">        Output:</span>
+<span class="sd">            reply (string) : errormessage</span>
+<span class="sd">        Private version of function</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">cur_val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;dac{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">))</span>
+        <span class="c1"># dac range in mV / 16 bits FIXME make range depend on polarity</span>
+        <span class="n">byte_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Fullrange</span><span class="o">/</span><span class="mi">2</span><span class="o">**</span><span class="mi">16</span>
+        <span class="n">eps</span> <span class="o">=</span> <span class="mf">0.0001</span>
+        <span class="c1"># eps is a magic number to correct for an offset in the values the IVVI</span>
+        <span class="c1"># returns (i.e. setting 0 returns byte_res/2 = 0.030518 with rounding</span>
+
+        <span class="c1"># only update the value if it is different from the previous one</span>
+        <span class="c1"># this saves time in setting values, set cmd takes ~650ms</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">mvoltage</span> <span class="o">&gt;</span> <span class="p">(</span><span class="n">cur_val</span><span class="o">+</span><span class="n">byte_res</span><span class="o">/</span><span class="mi">2</span><span class="o">+</span><span class="n">eps</span><span class="p">)</span> <span class="ow">or</span>
+                <span class="n">mvoltage</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">cur_val</span> <span class="o">-</span> <span class="n">byte_res</span><span class="o">/</span><span class="mi">2</span><span class="o">-</span><span class="n">eps</span><span class="p">)):</span>
+            <span class="n">byte_val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mvoltage_to_bytes</span><span class="p">(</span><span class="n">mvoltage</span> <span class="o">-</span>
+                                               <span class="bp">self</span><span class="o">.</span><span class="n">pol_num</span><span class="p">[</span><span class="n">channel</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">channel</span><span class="p">])</span> <span class="o">+</span> <span class="n">byte_val</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="o">.</span><span class="mo">05</span><span class="p">)</span>
+            <span class="n">reply</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_time_last_update</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># ensures get command will update</span>
+            <span class="k">return</span> <span class="n">reply</span>
+        <span class="k">return</span>
+
+    <span class="k">def</span> <span class="nf">_get_dacs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Reads from device and returns all dacvoltages in a list</span>
+
+<span class="sd">        Input:</span>
+<span class="sd">            None</span>
+
+<span class="sd">        Output:</span>
+<span class="sd">            voltages (float[]) : list containing all dacvoltages (in mV)</span>
+
+<span class="sd">        get dacs command takes ~450ms according to ipython timeit</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_time_last_update</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_time</span><span class="p">:</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">_numdacs</span><span class="o">*</span><span class="mi">2</span><span class="o">+</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+            <span class="c1"># workaround for an error in the readout that occurs sometimes</span>
+            <span class="n">max_tries</span> <span class="o">=</span> <span class="mi">10</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_tries</span><span class="p">):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">reply</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_mvoltages</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bytes_to_mvoltages</span><span class="p">(</span><span class="n">reply</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_time_last_update</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+                    <span class="k">break</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
+                    <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;IVVI communication error trying again&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">i</span><span class="o">+</span><span class="mi">1</span> <span class="o">==</span> <span class="n">max_tries</span><span class="p">:</span>  <span class="c1"># +1 because range goes stops before end</span>
+                <span class="k">raise</span><span class="p">(</span><span class="s1">&#39;IVVI Communication error&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mvoltages</span>
+
+<div class="viewcode-block" id="IVVI.write"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.QuTech.html#qcodes.instrument_drivers.QuTech.IVVI.IVVI.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Protocol specifies that a write consists of</span>
+<span class="sd">        descriptor size, error_code, message</span>
+
+<span class="sd">        returns message_len</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="c1"># This is used when write is used in the ask command</span>
+        <span class="n">expected_answer_length</span> <span class="o">=</span> <span class="n">message</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">raw</span><span class="p">:</span>
+            <span class="n">message_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">message</span><span class="p">)</span><span class="o">+</span><span class="mi">2</span>
+            <span class="n">error_code</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">([</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">([</span><span class="n">message_len</span><span class="p">])</span> <span class="o">+</span> <span class="n">error_code</span> <span class="o">+</span> <span class="n">message</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">write_raw</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">expected_answer_length</span></div>
+
+<div class="viewcode-block" id="IVVI.ask"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.QuTech.html#qcodes.instrument_drivers.QuTech.IVVI.IVVI.ask">[docs]</a>    <span class="k">def</span> <span class="nf">ask</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Send &lt;message&gt; to the device and read answer.</span>
+<span class="sd">        Raises an error if one occurred</span>
+<span class="sd">        Returns a list of bytes</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="c1"># Protocol knows about the expected length of the answer</span>
+        <span class="n">message_len</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="n">raw</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">message_len</span><span class="o">=</span><span class="n">message_len</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="IVVI.read"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.QuTech.html#qcodes.instrument_drivers.QuTech.IVVI.IVVI.read">[docs]</a>    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message_len</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="c1"># because protocol has no termination chars the read reads the number</span>
+        <span class="c1"># of bytes in the buffer</span>
+        <span class="n">bytes_in_buffer</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">timeout</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">t0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="n">t1</span> <span class="o">=</span> <span class="n">t0</span>
+        <span class="n">bytes_in_buffer</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="n">message_len</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">message_len</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># ensures at least 1 byte in buffer</span>
+
+        <span class="k">while</span> <span class="n">bytes_in_buffer</span> <span class="o">&lt;</span> <span class="n">message_len</span><span class="p">:</span>
+            <span class="n">t1</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="o">.</span><span class="mo">05</span><span class="p">)</span>
+            <span class="n">bytes_in_buffer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">bytes_in_buffer</span>
+            <span class="k">if</span> <span class="n">t1</span><span class="o">-</span><span class="n">t0</span> <span class="o">&gt;</span> <span class="n">timeout</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">TimeoutError</span><span class="p">()</span>
+        <span class="c1"># a workaround for a timeout error in the pyvsia read_raw() function</span>
+        <span class="k">with</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">ignore_warning</span><span class="p">(</span><span class="n">visa</span><span class="o">.</span><span class="n">constants</span><span class="o">.</span><span class="n">VI_SUCCESS_MAX_CNT</span><span class="p">)):</span>
+            <span class="n">mes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">visalib</span><span class="o">.</span><span class="n">read</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">session</span><span class="p">,</span> <span class="n">bytes_in_buffer</span><span class="p">)</span>
+        <span class="n">mes</span> <span class="o">=</span> <span class="n">mes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># cannot be done on same line for some reason</span>
+        <span class="c1"># if mes[1] != 0:</span>
+        <span class="c1">#     # see protocol descriptor for error codes</span>
+        <span class="c1">#     raise Exception(&#39;IVVI rack exception &quot;%s&quot;&#39; % mes[1])</span>
+        <span class="k">return</span> <span class="n">mes</span></div>
+
+<div class="viewcode-block" id="IVVI.set_pol_dacrack"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.QuTech.html#qcodes.instrument_drivers.QuTech.IVVI.IVVI.set_pol_dacrack">[docs]</a>    <span class="k">def</span> <span class="nf">set_pol_dacrack</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">flag</span><span class="p">,</span> <span class="n">channels</span><span class="p">,</span> <span class="n">get_all</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Changes the polarity of the specified set of dacs</span>
+
+<span class="sd">        Input:</span>
+<span class="sd">            flag (string) : &#39;BIP&#39;, &#39;POS&#39; or &#39;NEG&#39;</span>
+<span class="sd">            channel (int) : 0 based index of the rack</span>
+<span class="sd">            get_all (boolean): if True (default) perform a get_all</span>
+
+<span class="sd">        Output:</span>
+<span class="sd">            None</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">flagmap</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;NEG&#39;</span><span class="p">:</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">Fullrange</span><span class="p">,</span> <span class="s1">&#39;BIP&#39;</span><span class="p">:</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">Halfrange</span><span class="p">,</span> <span class="s1">&#39;POS&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
+        <span class="k">if</span> <span class="n">flag</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">flagmap</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s1">&#39;Tried to set invalid dac polarity </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">flag</span><span class="p">)</span>
+
+        <span class="n">val</span> <span class="o">=</span> <span class="n">flagmap</span><span class="p">[</span><span class="n">flag</span><span class="o">.</span><span class="n">upper</span><span class="p">()]</span>
+        <span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="n">channels</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pol_num</span><span class="p">[</span><span class="n">ch</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
+            <span class="c1"># self.set_parameter_bounds(&#39;dac%d&#39; % (i+1), val, val + self.Fullrange.0)</span>
+
+        <span class="k">if</span> <span class="n">get_all</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">get_all</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="IVVI.get_pol_dac"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.QuTech.html#qcodes.instrument_drivers.QuTech.IVVI.IVVI.get_pol_dac">[docs]</a>    <span class="k">def</span> <span class="nf">get_pol_dac</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Returns the polarity of the dac channel specified</span>
+
+<span class="sd">        Input:</span>
+<span class="sd">            channel (int) : 1 based index of the dac</span>
+
+<span class="sd">        Output:</span>
+<span class="sd">            polarity (string) : &#39;BIP&#39;, &#39;POS&#39; or &#39;NEG&#39;</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pol_num</span><span class="p">[</span><span class="n">channel</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="n">val</span> <span class="o">==</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">Fullrange</span><span class="p">):</span>
+            <span class="k">return</span> <span class="s1">&#39;NEG&#39;</span>
+        <span class="k">elif</span> <span class="p">(</span><span class="n">val</span> <span class="o">==</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">Halfrange</span><span class="p">):</span>
+            <span class="k">return</span> <span class="s1">&#39;BIP&#39;</span>
+        <span class="k">elif</span> <span class="p">(</span><span class="n">val</span> <span class="o">==</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="k">return</span> <span class="s1">&#39;POS&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s1">&#39;Invalid polarity in memory&#39;</span></div>
+
+    <span class="k">def</span> <span class="nf">_gen_ch_set_func</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fun</span><span class="p">,</span> <span class="n">ch</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">set_func</span><span class="p">(</span><span class="n">val</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">fun</span><span class="p">(</span><span class="n">ch</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">set_func</span>
+
+    <span class="k">def</span> <span class="nf">_gen_ch_get_func</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fun</span><span class="p">,</span> <span class="n">ch</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">get_func</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">fun</span><span class="p">(</span><span class="n">ch</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">get_func</span></div>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">RS232 PROTOCOL</span>
+<span class="sd">-----------------------</span>
+<span class="sd">BAUTRATE    115200</span>
+<span class="sd">DATA BITS   8</span>
+<span class="sd">PARITY      ODD</span>
+<span class="sd">STOPBITS    1</span>
+
+<span class="sd">Descriptor data PC-&gt; MC</span>
+
+<span class="sd">Byte        Name               Description                              value</span>
+<span class="sd">--------------------------------------------------------------------------------------------------------</span>
+<span class="sd">0        Descriptor size         Size of this descriptor                4 (action 2,4,6,7)</span>
+<span class="sd">                                                                        5 (action 7)</span>
+<span class="sd">                                                                        7 (action 1,3)</span>
+<span class="sd">                                                                        11 (action 5)</span>
+<span class="sd">1        Error                                                          0</span>
+<span class="sd">2        Data out size           Number of bytes that has to be         2 (action 0,1,3,5,6)</span>
+<span class="sd">                                 send by the MC after receiving         3 (action 4)</span>
+<span class="sd">                                 descriptor                             4 (action 7)</span>
+<span class="sd">                                                                        34 (action 2)</span>
+<span class="sd">3        Action                                                         0= no operation</span>
+<span class="sd">                                                                        1= set Dac value</span>
+<span class="sd">                                                                        2= request DAC data</span>
+<span class="sd">                                                                        3= continues send data to DAC</span>
+<span class="sd">                                                                        4= ask for Program  ion</span>
+<span class="sd">                                                                        5= set bits interface</span>
+<span class="sd">                                                                        6= generate trigger output</span>
+<span class="sd">                                                                        7= request data from specified DAC</span>
+
+<span class="sd">4        Dac nr                  Nr of DAC to be updated                1 to 16</span>
+<span class="sd">5        DataH                   High byte to DAC                       0 to $ff</span>
+<span class="sd">6        DataL                   Low byte to DAC                        0 to $ff</span>
+<span class="sd">7        data bit 24-31          interfaceBit24_31                      0 to $ff</span>
+<span class="sd">8        data bit 16-23          interfaceBit16_23                      0 to $ff</span>
+<span class="sd">9        data bit 08-15          interfaceBit08_15                      0 to $ff</span>
+<span class="sd">10       data bit 00-07          interfaceBit00_07                      0 to $ff</span>
+<span class="sd">--------------------------------------------------------------------------------------------------------</span>
+
+
+<span class="sd">Descriptor data MC-&gt; PC</span>
+<span class="sd">--------------------------------------------------------------------------------------------------------</span>
+<span class="sd">0        Descriptor size         Size of this descriptor                1</span>
+<span class="sd">1        Error                   0x00 = no Error detected               1</span>
+<span class="sd">                                 0x01 =</span>
+<span class="sd">                                 0x02 =</span>
+<span class="sd">                                 0x04 = Parity</span>
+<span class="sd">                                 0x08 = Overrun</span>
+<span class="sd">                                 0x10 = Frame Error</span>
+<span class="sd">                                 0x20 = WatchDog reset detected (32)</span>
+<span class="sd">                                 0x40 = DAC does not exist(64)</span>
+<span class="sd">                                 0x80 = WrongAction (128)</span>
+<span class="sd">2        Version                 program version                       1</span>
+<span class="sd">2        DAC1                    Value of DAC1                         2</span>
+<span class="sd">4        DAC2                    Value of DAC2                         2</span>
+<span class="sd">..</span>
+<span class="sd">32       DAC16                   Value of DAC16                        2</span>
+<span class="sd">--------------------------------------------------------------------------------------------------------</span>
+<span class="sd">&#39;&#39;&#39;</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../../',
+            VERSION:'0.1.1',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

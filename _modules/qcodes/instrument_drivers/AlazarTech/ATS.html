@@ -1,0 +1,1198 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>qcodes.instrument_drivers.AlazarTech.ATS &mdash; QCoDeS 0.1.1 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+    <link rel="top" title="QCoDeS 0.1.1 documentation" href="../../../../index.html"/>
+        <link rel="up" title="Module code" href="../../../index.html"/> 
+
+  
+  <script src="../../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../../index.html" class="icon icon-home"> QCoDeS
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1.1
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../start/index.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../help.html">Get Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user/index.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../community/index.html">Community Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/index.html">Classes and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../auto/qcodes.instrument_drivers.html">qcodes.instrument_drivers package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../roadmap.html">Qcodes project plan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../changes/index.html">Changelogs</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../../../index.html">QCoDeS</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../../../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="../../../index.html">Module code</a> &raquo;</li>
+      
+    <li>qcodes.instrument_drivers.AlazarTech.ATS</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for qcodes.instrument_drivers.AlazarTech.ATS</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">ctypes</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="kn">from</span> <span class="nn">qcodes.instrument.base</span> <span class="kn">import</span> <span class="n">Instrument</span>
+<span class="kn">from</span> <span class="nn">qcodes.instrument.parameter</span> <span class="kn">import</span> <span class="n">Parameter</span>
+<span class="kn">from</span> <span class="nn">qcodes.utils</span> <span class="kn">import</span> <span class="n">validators</span>
+
+<span class="c1"># TODO(damazter) (C) logging</span>
+
+<span class="c1"># these items are important for generalizing this code to multiple alazar cards</span>
+<span class="c1"># TODO(damazter) (W) remove 8 bits per sample requirement</span>
+<span class="c1"># TODO(damazter) (W) some alazar cards have a different number of channels :(</span>
+<span class="c1"># this driver only works with 2-channel cards</span>
+
+<span class="c1"># TODO(damazter) (S) tests to do:</span>
+<span class="c1"># acquisition that would overflow the board if measurement is not stopped</span>
+<span class="c1"># quickly enough. can this be solved by not reposting the buffers?</span>
+
+
+<div class="viewcode-block" id="AlazarTech_ATS"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.AlazarTech.html#qcodes.instrument_drivers.AlazarTech.ATS.AlazarTech_ATS">[docs]</a><span class="k">class</span> <span class="nc">AlazarTech_ATS</span><span class="p">(</span><span class="n">Instrument</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This is the qcodes driver for Alazar data acquisition cards</span>
+
+<span class="sd">    status: beta-version</span>
+<span class="sd">        this driver is written with the ATS9870 in mind</span>
+<span class="sd">        updates might/will be necessary for other versions of Alazar cards</span>
+
+<span class="sd">    Args for constructor:</span>
+<span class="sd">    name: name ffor this instrument, passed to the base instrument</span>
+<span class="sd">    system_id: target system id for this instrument</span>
+<span class="sd">    board_id: target board id within the system for this instrument</span>
+<span class="sd">    dll_path: string contianing the path of the ATS driver dll</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># override dll_path in your init script or in the board constructor</span>
+    <span class="c1"># if you have it somewhere else</span>
+    <span class="n">dll_path</span> <span class="o">=</span> <span class="s1">&#39;C:</span><span class="se">\\</span><span class="s1">WINDOWS</span><span class="se">\\</span><span class="s1">System32</span><span class="se">\\</span><span class="s1">ATSApi&#39;</span>
+
+    <span class="c1"># override channels in a subclass if needed</span>
+    <span class="n">channels</span> <span class="o">=</span> <span class="mi">2</span>
+
+    <span class="n">_success</span> <span class="o">=</span> <span class="mi">512</span>
+
+    <span class="n">_error_codes</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="mi">513</span><span class="p">:</span> <span class="s1">&#39;ApiFailed&#39;</span><span class="p">,</span>
+        <span class="mi">514</span><span class="p">:</span> <span class="s1">&#39;ApiAccessDenied&#39;</span><span class="p">,</span>
+        <span class="mi">515</span><span class="p">:</span> <span class="s1">&#39;ApiDmaChannelUnavailable&#39;</span><span class="p">,</span>
+        <span class="mi">516</span><span class="p">:</span> <span class="s1">&#39;ApiDmaChannelInvalid&#39;</span><span class="p">,</span>
+        <span class="mi">517</span><span class="p">:</span> <span class="s1">&#39;ApiDmaChannelTypeError&#39;</span><span class="p">,</span>
+        <span class="mi">518</span><span class="p">:</span> <span class="s1">&#39;ApiDmaInProgress&#39;</span><span class="p">,</span>
+        <span class="mi">519</span><span class="p">:</span> <span class="s1">&#39;ApiDmaDone&#39;</span><span class="p">,</span>
+        <span class="mi">520</span><span class="p">:</span> <span class="s1">&#39;ApiDmaPaused&#39;</span><span class="p">,</span>
+        <span class="mi">521</span><span class="p">:</span> <span class="s1">&#39;ApiDmaNotPaused&#39;</span><span class="p">,</span>
+        <span class="mi">522</span><span class="p">:</span> <span class="s1">&#39;ApiDmaCommandInvalid&#39;</span><span class="p">,</span>
+        <span class="mi">523</span><span class="p">:</span> <span class="s1">&#39;ApiDmaManReady&#39;</span><span class="p">,</span>
+        <span class="mi">524</span><span class="p">:</span> <span class="s1">&#39;ApiDmaManNotReady&#39;</span><span class="p">,</span>
+        <span class="mi">525</span><span class="p">:</span> <span class="s1">&#39;ApiDmaInvalidChannelPriority&#39;</span><span class="p">,</span>
+        <span class="mi">526</span><span class="p">:</span> <span class="s1">&#39;ApiDmaManCorrupted&#39;</span><span class="p">,</span>
+        <span class="mi">527</span><span class="p">:</span> <span class="s1">&#39;ApiDmaInvalidElementIndex&#39;</span><span class="p">,</span>
+        <span class="mi">528</span><span class="p">:</span> <span class="s1">&#39;ApiDmaNoMoreElements&#39;</span><span class="p">,</span>
+        <span class="mi">529</span><span class="p">:</span> <span class="s1">&#39;ApiDmaSglInvalid&#39;</span><span class="p">,</span>
+        <span class="mi">530</span><span class="p">:</span> <span class="s1">&#39;ApiDmaSglQueueFull&#39;</span><span class="p">,</span>
+        <span class="mi">531</span><span class="p">:</span> <span class="s1">&#39;ApiNullParam&#39;</span><span class="p">,</span>
+        <span class="mi">532</span><span class="p">:</span> <span class="s1">&#39;ApiInvalidBusIndex&#39;</span><span class="p">,</span>
+        <span class="mi">533</span><span class="p">:</span> <span class="s1">&#39;ApiUnsupportedFunction&#39;</span><span class="p">,</span>
+        <span class="mi">534</span><span class="p">:</span> <span class="s1">&#39;ApiInvalidPciSpace&#39;</span><span class="p">,</span>
+        <span class="mi">535</span><span class="p">:</span> <span class="s1">&#39;ApiInvalidIopSpace&#39;</span><span class="p">,</span>
+        <span class="mi">536</span><span class="p">:</span> <span class="s1">&#39;ApiInvalidSize&#39;</span><span class="p">,</span>
+        <span class="mi">537</span><span class="p">:</span> <span class="s1">&#39;ApiInvalidAddress&#39;</span><span class="p">,</span>
+        <span class="mi">538</span><span class="p">:</span> <span class="s1">&#39;ApiInvalidAccessType&#39;</span><span class="p">,</span>
+        <span class="mi">539</span><span class="p">:</span> <span class="s1">&#39;ApiInvalidIndex&#39;</span><span class="p">,</span>
+        <span class="mi">540</span><span class="p">:</span> <span class="s1">&#39;ApiMuNotReady&#39;</span><span class="p">,</span>
+        <span class="mi">541</span><span class="p">:</span> <span class="s1">&#39;ApiMuFifoEmpty&#39;</span><span class="p">,</span>
+        <span class="mi">542</span><span class="p">:</span> <span class="s1">&#39;ApiMuFifoFull&#39;</span><span class="p">,</span>
+        <span class="mi">543</span><span class="p">:</span> <span class="s1">&#39;ApiInvalidRegister&#39;</span><span class="p">,</span>
+        <span class="mi">544</span><span class="p">:</span> <span class="s1">&#39;ApiDoorbellClearFailed&#39;</span><span class="p">,</span>
+        <span class="mi">545</span><span class="p">:</span> <span class="s1">&#39;ApiInvalidUserPin&#39;</span><span class="p">,</span>
+        <span class="mi">546</span><span class="p">:</span> <span class="s1">&#39;ApiInvalidUserState&#39;</span><span class="p">,</span>
+        <span class="mi">547</span><span class="p">:</span> <span class="s1">&#39;ApiEepromNotPresent&#39;</span><span class="p">,</span>
+        <span class="mi">548</span><span class="p">:</span> <span class="s1">&#39;ApiEepromTypeNotSupported&#39;</span><span class="p">,</span>
+        <span class="mi">549</span><span class="p">:</span> <span class="s1">&#39;ApiEepromBlank&#39;</span><span class="p">,</span>
+        <span class="mi">550</span><span class="p">:</span> <span class="s1">&#39;ApiConfigAccessFailed&#39;</span><span class="p">,</span>
+        <span class="mi">551</span><span class="p">:</span> <span class="s1">&#39;ApiInvalidDeviceInfo&#39;</span><span class="p">,</span>
+        <span class="mi">552</span><span class="p">:</span> <span class="s1">&#39;ApiNoActiveDriver&#39;</span><span class="p">,</span>
+        <span class="mi">553</span><span class="p">:</span> <span class="s1">&#39;ApiInsufficientResources&#39;</span><span class="p">,</span>
+        <span class="mi">554</span><span class="p">:</span> <span class="s1">&#39;ApiObjectAlreadyAllocated&#39;</span><span class="p">,</span>
+        <span class="mi">555</span><span class="p">:</span> <span class="s1">&#39;ApiAlreadyInitialized&#39;</span><span class="p">,</span>
+        <span class="mi">556</span><span class="p">:</span> <span class="s1">&#39;ApiNotInitialized&#39;</span><span class="p">,</span>
+        <span class="mi">557</span><span class="p">:</span> <span class="s1">&#39;ApiBadConfigRegEndianMode&#39;</span><span class="p">,</span>
+        <span class="mi">558</span><span class="p">:</span> <span class="s1">&#39;ApiInvalidPowerState&#39;</span><span class="p">,</span>
+        <span class="mi">559</span><span class="p">:</span> <span class="s1">&#39;ApiPowerDown&#39;</span><span class="p">,</span>
+        <span class="mi">560</span><span class="p">:</span> <span class="s1">&#39;ApiFlybyNotSupported&#39;</span><span class="p">,</span>
+        <span class="mi">561</span><span class="p">:</span> <span class="s1">&#39;ApiNotSupportThisChannel&#39;</span><span class="p">,</span>
+        <span class="mi">562</span><span class="p">:</span> <span class="s1">&#39;ApiNoAction&#39;</span><span class="p">,</span>
+        <span class="mi">563</span><span class="p">:</span> <span class="s1">&#39;ApiHSNotSupported&#39;</span><span class="p">,</span>
+        <span class="mi">564</span><span class="p">:</span> <span class="s1">&#39;ApiVPDNotSupported&#39;</span><span class="p">,</span>
+        <span class="mi">565</span><span class="p">:</span> <span class="s1">&#39;ApiVpdNotEnabled&#39;</span><span class="p">,</span>
+        <span class="mi">566</span><span class="p">:</span> <span class="s1">&#39;ApiNoMoreCap&#39;</span><span class="p">,</span>
+        <span class="mi">567</span><span class="p">:</span> <span class="s1">&#39;ApiInvalidOffset&#39;</span><span class="p">,</span>
+        <span class="mi">568</span><span class="p">:</span> <span class="s1">&#39;ApiBadPinDirection&#39;</span><span class="p">,</span>
+        <span class="mi">569</span><span class="p">:</span> <span class="s1">&#39;ApiPciTimeout&#39;</span><span class="p">,</span>
+        <span class="mi">570</span><span class="p">:</span> <span class="s1">&#39;ApiDmaChannelClosed&#39;</span><span class="p">,</span>
+        <span class="mi">571</span><span class="p">:</span> <span class="s1">&#39;ApiDmaChannelError&#39;</span><span class="p">,</span>
+        <span class="mi">572</span><span class="p">:</span> <span class="s1">&#39;ApiInvalidHandle&#39;</span><span class="p">,</span>
+        <span class="mi">573</span><span class="p">:</span> <span class="s1">&#39;ApiBufferNotReady&#39;</span><span class="p">,</span>
+        <span class="mi">574</span><span class="p">:</span> <span class="s1">&#39;ApiInvalidData&#39;</span><span class="p">,</span>
+        <span class="mi">575</span><span class="p">:</span> <span class="s1">&#39;ApiDoNothing&#39;</span><span class="p">,</span>
+        <span class="mi">576</span><span class="p">:</span> <span class="s1">&#39;ApiDmaSglBuildFailed&#39;</span><span class="p">,</span>
+        <span class="mi">577</span><span class="p">:</span> <span class="s1">&#39;ApiPMNotSupported&#39;</span><span class="p">,</span>
+        <span class="mi">578</span><span class="p">:</span> <span class="s1">&#39;ApiInvalidDriverVersion&#39;</span><span class="p">,</span>
+        <span class="mi">579</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;ApiWaitTimeout: operation did not finish during &#39;</span>
+              <span class="s1">&#39;timeout interval. Check your trigger.&#39;</span><span class="p">),</span>
+        <span class="mi">580</span><span class="p">:</span> <span class="s1">&#39;ApiWaitCanceled&#39;</span><span class="p">,</span>
+        <span class="mi">581</span><span class="p">:</span> <span class="s1">&#39;ApiBufferTooSmall&#39;</span><span class="p">,</span>
+        <span class="mi">582</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;ApiBufferOverflow:rate of acquiring data &gt; rate of &#39;</span>
+              <span class="s1">&#39;transferring data to local memory. Try reducing sample rate, &#39;</span>
+              <span class="s1">&#39;reducing number of enabled channels, increasing size of each &#39;</span>
+              <span class="s1">&#39;DMA buffer or increase number of DMA buffers.&#39;</span><span class="p">),</span>
+        <span class="mi">583</span><span class="p">:</span> <span class="s1">&#39;ApiInvalidBuffer&#39;</span><span class="p">,</span>
+        <span class="mi">584</span><span class="p">:</span> <span class="s1">&#39;ApiInvalidRecordsPerBuffer&#39;</span><span class="p">,</span>
+        <span class="mi">585</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;ApiDmaPending:Async I/O operation was successfully started, &#39;</span>
+              <span class="s1">&#39;it will be completed when sufficient trigger events are &#39;</span>
+              <span class="s1">&#39;supplied to fill the buffer.&#39;</span><span class="p">),</span>
+        <span class="mi">586</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;ApiLockAndProbePagesFailed:Driver or operating system was &#39;</span>
+              <span class="s1">&#39;unable to prepare the specified buffer for DMA transfer. &#39;</span>
+              <span class="s1">&#39;Try reducing buffer size or total number of buffers.&#39;</span><span class="p">),</span>
+        <span class="mi">587</span><span class="p">:</span> <span class="s1">&#39;ApiWaitAbandoned&#39;</span><span class="p">,</span>
+        <span class="mi">588</span><span class="p">:</span> <span class="s1">&#39;ApiWaitFailed&#39;</span><span class="p">,</span>
+        <span class="mi">589</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;ApiTransferComplete:This buffer is last in the current &#39;</span>
+              <span class="s1">&#39;acquisition.&#39;</span><span class="p">),</span>
+        <span class="mi">590</span><span class="p">:</span> <span class="s1">&#39;ApiPllNotLocked:hardware error, contact AlazarTech&#39;</span><span class="p">,</span>
+        <span class="mi">591</span><span class="p">:</span> <span class="p">(</span><span class="s1">&#39;ApiNotSupportedInDualChannelMode:Requested number of samples &#39;</span>
+              <span class="s1">&#39;per channel is too large to fit in on-board memory. Try &#39;</span>
+              <span class="s1">&#39;reducing number of samples per channel, or switch to &#39;</span>
+              <span class="s1">&#39;single channel mode.&#39;</span><span class="p">)</span>
+    <span class="p">}</span>
+
+    <span class="n">_board_names</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="mi">1</span><span class="p">:</span> <span class="s1">&#39;ATS850&#39;</span><span class="p">,</span>
+        <span class="mi">2</span><span class="p">:</span> <span class="s1">&#39;ATS310&#39;</span><span class="p">,</span>
+        <span class="mi">3</span><span class="p">:</span> <span class="s1">&#39;ATS330&#39;</span><span class="p">,</span>
+        <span class="mi">4</span><span class="p">:</span> <span class="s1">&#39;ATS855&#39;</span><span class="p">,</span>
+        <span class="mi">5</span><span class="p">:</span> <span class="s1">&#39;ATS315&#39;</span><span class="p">,</span>
+        <span class="mi">6</span><span class="p">:</span> <span class="s1">&#39;ATS335&#39;</span><span class="p">,</span>
+        <span class="mi">7</span><span class="p">:</span> <span class="s1">&#39;ATS460&#39;</span><span class="p">,</span>
+        <span class="mi">8</span><span class="p">:</span> <span class="s1">&#39;ATS860&#39;</span><span class="p">,</span>
+        <span class="mi">9</span><span class="p">:</span> <span class="s1">&#39;ATS660&#39;</span><span class="p">,</span>
+        <span class="mi">10</span><span class="p">:</span> <span class="s1">&#39;ATS665&#39;</span><span class="p">,</span>
+        <span class="mi">11</span><span class="p">:</span> <span class="s1">&#39;ATS9462&#39;</span><span class="p">,</span>
+        <span class="mi">12</span><span class="p">:</span> <span class="s1">&#39;ATS9434&#39;</span><span class="p">,</span>
+        <span class="mi">13</span><span class="p">:</span> <span class="s1">&#39;ATS9870&#39;</span><span class="p">,</span>
+        <span class="mi">14</span><span class="p">:</span> <span class="s1">&#39;ATS9350&#39;</span><span class="p">,</span>
+        <span class="mi">15</span><span class="p">:</span> <span class="s1">&#39;ATS9325&#39;</span><span class="p">,</span>
+        <span class="mi">16</span><span class="p">:</span> <span class="s1">&#39;ATS9440&#39;</span><span class="p">,</span>
+        <span class="mi">17</span><span class="p">:</span> <span class="s1">&#39;ATS9410&#39;</span><span class="p">,</span>
+        <span class="mi">18</span><span class="p">:</span> <span class="s1">&#39;ATS9351&#39;</span><span class="p">,</span>
+        <span class="mi">19</span><span class="p">:</span> <span class="s1">&#39;ATS9310&#39;</span><span class="p">,</span>
+        <span class="mi">20</span><span class="p">:</span> <span class="s1">&#39;ATS9461&#39;</span><span class="p">,</span>
+        <span class="mi">21</span><span class="p">:</span> <span class="s1">&#39;ATS9850&#39;</span><span class="p">,</span>
+        <span class="mi">22</span><span class="p">:</span> <span class="s1">&#39;ATS9625&#39;</span><span class="p">,</span>
+        <span class="mi">23</span><span class="p">:</span> <span class="s1">&#39;ATG6500&#39;</span><span class="p">,</span>
+        <span class="mi">24</span><span class="p">:</span> <span class="s1">&#39;ATS9626&#39;</span><span class="p">,</span>
+        <span class="mi">25</span><span class="p">:</span> <span class="s1">&#39;ATS9360&#39;</span><span class="p">,</span>
+        <span class="mi">26</span><span class="p">:</span> <span class="s1">&#39;AXI9870&#39;</span><span class="p">,</span>
+        <span class="mi">27</span><span class="p">:</span> <span class="s1">&#39;ATS9370&#39;</span><span class="p">,</span>
+        <span class="mi">28</span><span class="p">:</span> <span class="s1">&#39;ATU7825&#39;</span><span class="p">,</span>
+        <span class="mi">29</span><span class="p">:</span> <span class="s1">&#39;ATS9373&#39;</span><span class="p">,</span>
+        <span class="mi">30</span><span class="p">:</span> <span class="s1">&#39;ATS9416&#39;</span>
+    <span class="p">}</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="AlazarTech_ATS.find_boards"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.AlazarTech.html#qcodes.instrument_drivers.AlazarTech.ATS.AlazarTech_ATS.find_boards">[docs]</a>    <span class="k">def</span> <span class="nf">find_boards</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">dll_path</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Find Alazar boards connected</span>
+
+<span class="sd">        :param dll_path: (string) path of the Alazar driver dll</span>
+<span class="sd">        :return: (list) list of board info for each connected board</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">dll</span> <span class="o">=</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">cdll</span><span class="o">.</span><span class="n">LoadLibrary</span><span class="p">(</span><span class="n">dll_path</span> <span class="ow">or</span> <span class="n">cls</span><span class="o">.</span><span class="n">dll_path</span><span class="p">)</span>
+
+        <span class="n">system_count</span> <span class="o">=</span> <span class="n">dll</span><span class="o">.</span><span class="n">AlazarNumOfSystems</span><span class="p">()</span>
+        <span class="n">boards</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">system_id</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">system_count</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">board_count</span> <span class="o">=</span> <span class="n">dll</span><span class="o">.</span><span class="n">AlazarBoardsInSystemBySystemID</span><span class="p">(</span><span class="n">system_id</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">board_id</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">board_count</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="n">boards</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">get_board_info</span><span class="p">(</span><span class="n">dll</span><span class="p">,</span> <span class="n">system_id</span><span class="p">,</span> <span class="n">board_id</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">boards</span></div>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="AlazarTech_ATS.get_board_info"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.AlazarTech.html#qcodes.instrument_drivers.AlazarTech.ATS.AlazarTech_ATS.get_board_info">[docs]</a>    <span class="k">def</span> <span class="nf">get_board_info</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">dll</span><span class="p">,</span> <span class="n">system_id</span><span class="p">,</span> <span class="n">board_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the information from a connected Alazar board</span>
+
+<span class="sd">        :param dll: (string) path of the Alazar driver dll</span>
+<span class="sd">        :param system_id: id of the Alazar system</span>
+<span class="sd">        :param board_id: id of the board within the alazar system</span>
+<span class="sd">        :return: dictionary containing the</span>
+<span class="sd">            system_id</span>
+<span class="sd">            board_id</span>
+<span class="sd">            board_kind (as string)</span>
+<span class="sd">            max_samples</span>
+<span class="sd">            bits_per_sample</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># make a temporary instrument for this board, to make it easier</span>
+        <span class="c1"># to get its info</span>
+        <span class="n">board</span> <span class="o">=</span> <span class="n">cls</span><span class="p">(</span><span class="s1">&#39;temp&#39;</span><span class="p">,</span> <span class="n">system_id</span><span class="o">=</span><span class="n">system_id</span><span class="p">,</span> <span class="n">board_id</span><span class="o">=</span><span class="n">board_id</span><span class="p">,</span>
+                    <span class="n">server_name</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+        <span class="n">handle</span> <span class="o">=</span> <span class="n">board</span><span class="o">.</span><span class="n">_handle</span>
+        <span class="n">board_kind</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">_board_names</span><span class="p">[</span><span class="n">dll</span><span class="o">.</span><span class="n">AlazarGetBoardKind</span><span class="p">(</span><span class="n">handle</span><span class="p">)]</span>
+
+        <span class="n">max_s</span><span class="p">,</span> <span class="n">bps</span> <span class="o">=</span> <span class="n">board</span><span class="o">.</span><span class="n">_get_channel_info</span><span class="p">(</span><span class="n">handle</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;system_id&#39;</span><span class="p">:</span> <span class="n">system_id</span><span class="p">,</span>
+            <span class="s1">&#39;board_id&#39;</span><span class="p">:</span> <span class="n">board_id</span><span class="p">,</span>
+            <span class="s1">&#39;board_kind&#39;</span><span class="p">:</span> <span class="n">board_kind</span><span class="p">,</span>
+            <span class="s1">&#39;max_samples&#39;</span><span class="p">:</span> <span class="n">max_s</span><span class="p">,</span>
+            <span class="s1">&#39;bits_per_sample&#39;</span><span class="p">:</span> <span class="n">bps</span>
+        <span class="p">}</span></div>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">system_id</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">board_id</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">dll_path</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ATS_dll</span> <span class="o">=</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">cdll</span><span class="o">.</span><span class="n">LoadLibrary</span><span class="p">(</span><span class="n">dll_path</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll_path</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ATS_dll</span><span class="o">.</span><span class="n">AlazarGetBoardBySystemID</span><span class="p">(</span><span class="n">system_id</span><span class="p">,</span>
+                                                              <span class="n">board_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;AlazarTech_ATS not found at &#39;</span>
+                            <span class="s1">&#39;system {}, board {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">system_id</span><span class="p">,</span> <span class="n">board_id</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">buffer_list</span> <span class="o">=</span> <span class="p">[]</span>
+
+<div class="viewcode-block" id="AlazarTech_ATS.get_idn"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.AlazarTech.html#qcodes.instrument_drivers.AlazarTech.ATS.AlazarTech_ATS.get_idn">[docs]</a>    <span class="k">def</span> <span class="nf">get_idn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This methods gets the most relevant information of this instrument</span>
+<span class="sd">        :return: a dictionary containing:</span>
+<span class="sd">            &#39;firmware&#39;: None</span>
+<span class="sd">            &#39;model&#39;: as string</span>
+<span class="sd">            &#39;serial&#39;: board serial number</span>
+<span class="sd">            &#39;vendor&#39;: &#39;AlazarTech&#39;,</span>
+<span class="sd">            &#39;CPLD_version&#39;: version of the CPLD</span>
+<span class="sd">            &#39;driver_version&#39;: version of the driver dll</span>
+<span class="sd">            &#39;SDK_version&#39;: version of the SDK</span>
+<span class="sd">            &#39;latest_cal_date&#39;: date of the latest calibration (as string)</span>
+<span class="sd">            &#39;memory_size&#39;: size of the memory in samples,</span>
+<span class="sd">            &#39;asopc_type&#39;: type of asopc (as decimal number),</span>
+<span class="sd">            &#39;pcie_link_speed&#39;: the speed of a single pcie link (in GB/s),</span>
+<span class="sd">            &#39;pcie_link_width&#39;: number of pcie links</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">board_kind</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_board_names</span><span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ATS_dll</span><span class="o">.</span><span class="n">AlazarGetBoardKind</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">)]</span>
+
+        <span class="n">major</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+        <span class="n">minor</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+        <span class="n">revision</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarGetCPLDVersion&#39;</span><span class="p">,</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span>
+                       <span class="n">major</span><span class="o">.</span><span class="n">ctypes</span><span class="o">.</span><span class="n">data</span><span class="p">,</span>
+                       <span class="n">minor</span><span class="o">.</span><span class="n">ctypes</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">cpld_ver</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">major</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">+</span><span class="s2">&quot;.&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">minor</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarGetDriverVersion&#39;</span><span class="p">,</span>
+                       <span class="n">major</span><span class="o">.</span><span class="n">ctypes</span><span class="o">.</span><span class="n">data</span><span class="p">,</span>
+                       <span class="n">minor</span><span class="o">.</span><span class="n">ctypes</span><span class="o">.</span><span class="n">data</span><span class="p">,</span>
+                       <span class="n">revision</span><span class="o">.</span><span class="n">ctypes</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">driver_ver</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">major</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">+</span><span class="s2">&quot;.&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">minor</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">+</span><span class="s2">&quot;.&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">revision</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarGetSDKVersion&#39;</span><span class="p">,</span>
+                       <span class="n">major</span><span class="o">.</span><span class="n">ctypes</span><span class="o">.</span><span class="n">data</span><span class="p">,</span>
+                       <span class="n">minor</span><span class="o">.</span><span class="n">ctypes</span><span class="o">.</span><span class="n">data</span><span class="p">,</span>
+                       <span class="n">revision</span><span class="o">.</span><span class="n">ctypes</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">sdk_ver</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">major</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">+</span><span class="s2">&quot;.&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">minor</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">+</span><span class="s2">&quot;.&quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">revision</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="n">value</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint32</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarQueryCapability&#39;</span><span class="p">,</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span> <span class="mh">0x10000024</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">value</span><span class="o">.</span><span class="n">ctypes</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">serial</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarQueryCapability&#39;</span><span class="p">,</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span> <span class="mh">0x10000026</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">value</span><span class="o">.</span><span class="n">ctypes</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">latest_cal_date</span> <span class="o">=</span> <span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">])[</span><span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;-&quot;</span> <span class="o">+</span>
+                           <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">])[</span><span class="mi">2</span><span class="p">:</span><span class="mi">4</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;-&quot;</span> <span class="o">+</span>
+                           <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">])[</span><span class="mi">4</span><span class="p">:</span><span class="mi">6</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarQueryCapability&#39;</span><span class="p">,</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span> <span class="mh">0x1000002A</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">value</span><span class="o">.</span><span class="n">ctypes</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">memory_size</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarQueryCapability&#39;</span><span class="p">,</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span> <span class="mh">0x1000002C</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">value</span><span class="o">.</span><span class="n">ctypes</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">asopc_type</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="c1"># see the ATS-SDK programmer&#39;s guide</span>
+        <span class="c1"># about the encoding of the link speed</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarQueryCapability&#39;</span><span class="p">,</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span> <span class="mh">0x10000030</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">value</span><span class="o">.</span><span class="n">ctypes</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">pcie_link_speed</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="mf">2.5</span><span class="o">/</span><span class="mi">10</span><span class="p">)</span><span class="o">+</span><span class="s2">&quot;GB/s&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarQueryCapability&#39;</span><span class="p">,</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span> <span class="mh">0x10000031</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">value</span><span class="o">.</span><span class="n">ctypes</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">pcie_link_width</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+
+        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;firmware&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+                <span class="s1">&#39;model&#39;</span><span class="p">:</span> <span class="n">board_kind</span><span class="p">,</span>
+                <span class="s1">&#39;serial&#39;</span><span class="p">:</span> <span class="n">serial</span><span class="p">,</span>
+                <span class="s1">&#39;vendor&#39;</span><span class="p">:</span> <span class="s1">&#39;AlazarTech&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;CPLD_version&#39;</span><span class="p">:</span> <span class="n">cpld_ver</span><span class="p">,</span>
+                <span class="s1">&#39;driver_version&#39;</span><span class="p">:</span> <span class="n">driver_ver</span><span class="p">,</span>
+                <span class="s1">&#39;SDK_version&#39;</span><span class="p">:</span> <span class="n">sdk_ver</span><span class="p">,</span>
+                <span class="s1">&#39;latest_cal_date&#39;</span><span class="p">:</span> <span class="n">latest_cal_date</span><span class="p">,</span>
+                <span class="s1">&#39;memory_size&#39;</span><span class="p">:</span> <span class="n">memory_size</span><span class="p">,</span>
+                <span class="s1">&#39;asopc_type&#39;</span><span class="p">:</span> <span class="n">asopc_type</span><span class="p">,</span>
+                <span class="s1">&#39;pcie_link_speed&#39;</span><span class="p">:</span> <span class="n">pcie_link_speed</span><span class="p">,</span>
+                <span class="s1">&#39;pcie_link_width&#39;</span><span class="p">:</span> <span class="n">pcie_link_width</span><span class="p">}</span></div>
+
+<div class="viewcode-block" id="AlazarTech_ATS.config"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.AlazarTech.html#qcodes.instrument_drivers.AlazarTech.ATS.AlazarTech_ATS.config">[docs]</a>    <span class="k">def</span> <span class="nf">config</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">clock_source</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">sample_rate</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">clock_edge</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+               <span class="n">decimation</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">coupling</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">channel_range</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+               <span class="n">impedance</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">bwlimit</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">trigger_operation</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+               <span class="n">trigger_engine1</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">trigger_source1</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+               <span class="n">trigger_slope1</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">trigger_level1</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+               <span class="n">trigger_engine2</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">trigger_source2</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+               <span class="n">trigger_slope2</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">trigger_level2</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+               <span class="n">external_trigger_coupling</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">external_trigger_range</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+               <span class="n">trigger_delay</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">timeout_ticks</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        configure the ATS board and set the corresponding parameters to the</span>
+<span class="sd">        appropriate values.</span>
+<span class="sd">        For documentation of the parameters, see ATS-SDK programmer&#39;s guide</span>
+<span class="sd">        :param clock_source:</span>
+<span class="sd">        :param sample_rate:</span>
+<span class="sd">        :param clock_edge:</span>
+<span class="sd">        :param decimation:</span>
+<span class="sd">        :param coupling:</span>
+<span class="sd">        :param channel_range:</span>
+<span class="sd">        :param impedance:</span>
+<span class="sd">        :param bwlimit:</span>
+<span class="sd">        :param trigger_operation:</span>
+<span class="sd">        :param trigger_engine1:</span>
+<span class="sd">        :param trigger_source1:</span>
+<span class="sd">        :param trigger_slope1:</span>
+<span class="sd">        :param trigger_level1:</span>
+<span class="sd">        :param trigger_engine2:</span>
+<span class="sd">        :param trigger_source2:</span>
+<span class="sd">        :param trigger_slope2:</span>
+<span class="sd">        :param trigger_level2:</span>
+<span class="sd">        :param external_trigger_coupling:</span>
+<span class="sd">        :param external_trigger_range:</span>
+<span class="sd">        :param trigger_delay:</span>
+<span class="sd">        :param timeout_ticks:</span>
+
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># region set parameters from args</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;clock_source&#39;</span><span class="p">,</span> <span class="n">clock_source</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;sample_rate&#39;</span><span class="p">,</span> <span class="n">sample_rate</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;clock_edge&#39;</span><span class="p">,</span> <span class="n">clock_edge</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;decimation&#39;</span><span class="p">,</span> <span class="n">decimation</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_list_if_present</span><span class="p">(</span><span class="s1">&#39;coupling&#39;</span><span class="p">,</span> <span class="n">coupling</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_list_if_present</span><span class="p">(</span><span class="s1">&#39;channel_range&#39;</span><span class="p">,</span> <span class="n">channel_range</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_list_if_present</span><span class="p">(</span><span class="s1">&#39;impedance&#39;</span><span class="p">,</span> <span class="n">impedance</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_list_if_present</span><span class="p">(</span><span class="s1">&#39;bwlimit&#39;</span><span class="p">,</span> <span class="n">bwlimit</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;trigger_operation&#39;</span><span class="p">,</span> <span class="n">trigger_operation</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;trigger_engine1&#39;</span><span class="p">,</span> <span class="n">trigger_engine1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;trigger_source1&#39;</span><span class="p">,</span> <span class="n">trigger_source1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;trigger_slope1&#39;</span><span class="p">,</span> <span class="n">trigger_slope1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;trigger_level1&#39;</span><span class="p">,</span> <span class="n">trigger_level1</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;trigger_engine2&#39;</span><span class="p">,</span> <span class="n">trigger_engine2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;trigger_source2&#39;</span><span class="p">,</span> <span class="n">trigger_source2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;trigger_slope2&#39;</span><span class="p">,</span> <span class="n">trigger_slope2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;trigger_level2&#39;</span><span class="p">,</span> <span class="n">trigger_level2</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;external_trigger_coupling&#39;</span><span class="p">,</span>
+                             <span class="n">external_trigger_coupling</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;external_trigger_range&#39;</span><span class="p">,</span>
+                             <span class="n">external_trigger_range</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;trigger_delay&#39;</span><span class="p">,</span> <span class="n">trigger_delay</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;timeout_ticks&#39;</span><span class="p">,</span> <span class="n">timeout_ticks</span><span class="p">)</span>
+        <span class="c1"># endregion</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarSetCaptureClock&#39;</span><span class="p">,</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">clock_source</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">,</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">clock_edge</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">decimation</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">channels</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarInputControl&#39;</span><span class="p">,</span>
+                           <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span>
+                           <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;coupling&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)],</span>
+                           <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;channel_range&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)],</span>
+                           <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;impedance&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarSetBWLimit&#39;</span><span class="p">,</span>
+                           <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span>
+                           <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;bwlimit&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarSetTriggerOperation&#39;</span><span class="p">,</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">trigger_operation</span><span class="p">,</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">trigger_engine1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">trigger_source1</span><span class="p">,</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">trigger_slope1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">trigger_level1</span><span class="p">,</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">trigger_engine2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">trigger_source2</span><span class="p">,</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">trigger_slope2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">trigger_level2</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarSetExternalTrigger&#39;</span><span class="p">,</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">external_trigger_coupling</span><span class="p">,</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">external_trigger_range</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarSetTriggerDelay&#39;</span><span class="p">,</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">trigger_delay</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarSetTriggerTimeOut&#39;</span><span class="p">,</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">timeout_ticks</span><span class="p">)</span></div>
+
+        <span class="c1"># TODO(damazter) (W) config AUXIO</span>
+
+    <span class="k">def</span> <span class="nf">_get_channel_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">handle</span><span class="p">):</span>
+        <span class="n">bps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>  <span class="c1"># bps bits per sample</span>
+        <span class="n">max_s</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint32</span><span class="p">)</span>  <span class="c1"># max_s memory size in samples</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarGetChannelInfo&#39;</span><span class="p">,</span>
+                       <span class="n">handle</span><span class="p">,</span> <span class="n">max_s</span><span class="o">.</span><span class="n">ctypes</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">bps</span><span class="o">.</span><span class="n">ctypes</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">max_s</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">bps</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+<div class="viewcode-block" id="AlazarTech_ATS.acquire"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.AlazarTech.html#qcodes.instrument_drivers.AlazarTech.ATS.AlazarTech_ATS.acquire">[docs]</a>    <span class="k">def</span> <span class="nf">acquire</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">samples_per_record</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                <span class="n">records_per_buffer</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">buffers_per_acquisition</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                <span class="n">channel_selection</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">transfer_offset</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                <span class="n">external_startcapture</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">enable_record_headers</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                <span class="n">alloc_buffers</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">fifo_only_streaming</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                <span class="n">interleave_samples</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">get_processed_data</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                <span class="n">allocated_buffers</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">buffer_timeout</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                <span class="n">acquisition_controller</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        perform a single acquisition with the Alazar board, and set certain</span>
+<span class="sd">        parameters to the appropriate values</span>
+<span class="sd">        for the parameters, see the ATS-SDK programmer&#39;s guide</span>
+<span class="sd">        :param mode:</span>
+<span class="sd">        :param samples_per_record:</span>
+<span class="sd">        :param records_per_buffer:</span>
+<span class="sd">        :param buffers_per_acquisition:</span>
+<span class="sd">        :param channel_selection:</span>
+<span class="sd">        :param transfer_offset:</span>
+<span class="sd">        :param external_startcapture:</span>
+<span class="sd">        :param enable_record_headers:</span>
+<span class="sd">        :param alloc_buffers:</span>
+<span class="sd">        :param fifo_only_streaming:</span>
+<span class="sd">        :param interleave_samples:</span>
+<span class="sd">        :param get_processed_data:</span>
+<span class="sd">        :param allocated_buffers:</span>
+<span class="sd">        :param buffer_timeout:</span>
+
+<span class="sd">        :param acquisition_controller: An instance of an acquisition controller</span>
+<span class="sd">            that handles the dataflow of an acquisition</span>
+
+<span class="sd">        :return: whatever is given by acquisition_controller.post_acquire method</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># region set parameters from args</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;mode&#39;</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;samples_per_record&#39;</span><span class="p">,</span> <span class="n">samples_per_record</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;records_per_buffer&#39;</span><span class="p">,</span> <span class="n">records_per_buffer</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;buffers_per_acquisition&#39;</span><span class="p">,</span>
+                             <span class="n">buffers_per_acquisition</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;channel_selection&#39;</span><span class="p">,</span> <span class="n">channel_selection</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;transfer_offset&#39;</span><span class="p">,</span> <span class="n">transfer_offset</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;external_startcapture&#39;</span><span class="p">,</span> <span class="n">external_startcapture</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;enable_record_headers&#39;</span><span class="p">,</span> <span class="n">enable_record_headers</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;alloc_buffers&#39;</span><span class="p">,</span> <span class="n">alloc_buffers</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;fifo_only_streaming&#39;</span><span class="p">,</span> <span class="n">fifo_only_streaming</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;interleave_samples&#39;</span><span class="p">,</span> <span class="n">interleave_samples</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;get_processed_data&#39;</span><span class="p">,</span> <span class="n">get_processed_data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;allocated_buffers&#39;</span><span class="p">,</span> <span class="n">allocated_buffers</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;buffer_timeout&#39;</span><span class="p">,</span> <span class="n">buffer_timeout</span><span class="p">)</span>
+
+        <span class="c1"># endregion</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="o">.</span><span class="n">_set_updated</span><span class="p">()</span>
+        <span class="n">mode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">mode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;TS&#39;</span><span class="p">,</span> <span class="s1">&#39;NPT&#39;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Only the &#39;TS&#39; and &#39;NPT&#39; modes are implemented &quot;</span>
+                            <span class="s2">&quot;at this point&quot;</span><span class="p">)</span>
+
+        <span class="c1"># -----set final configurations-----</span>
+
+        <span class="c1"># Abort any previous measurement</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarAbortAsyncRead&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">)</span>
+
+        <span class="c1"># get channel info</span>
+        <span class="n">max_s</span><span class="p">,</span> <span class="n">bps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_channel_info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">bps</span> <span class="o">!=</span> <span class="mi">8</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Only 8 bits per sample supported at this moment&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Set record size for NPT mode</span>
+        <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;NPT&#39;</span><span class="p">:</span>
+            <span class="n">pretriggersize</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># pretriggersize is 0 for NPT always</span>
+            <span class="n">post_trigger_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">samples_per_record</span><span class="o">.</span><span class="n">_get_byte</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarSetRecordSize&#39;</span><span class="p">,</span>
+                           <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span> <span class="n">pretriggersize</span><span class="p">,</span>
+                           <span class="n">post_trigger_size</span><span class="p">)</span>
+
+        <span class="c1"># set acquisition parameters here for NPT, TS mode</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel_selection</span><span class="o">.</span><span class="n">_get_byte</span><span class="p">()</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">number_of_channels</span> <span class="o">=</span> <span class="mi">2</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">number_of_channels</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">samples_per_buffer</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">buffers_per_acquisition</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffers_per_acquisition</span><span class="o">.</span><span class="n">_get_byte</span><span class="p">()</span>
+        <span class="n">samples_per_record</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">samples_per_record</span><span class="o">.</span><span class="n">_get_byte</span><span class="p">()</span>
+        <span class="n">acquire_flags</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="o">.</span><span class="n">_get_byte</span><span class="p">()</span> <span class="o">|</span>
+                         <span class="bp">self</span><span class="o">.</span><span class="n">external_startcapture</span><span class="o">.</span><span class="n">_get_byte</span><span class="p">()</span> <span class="o">|</span>
+                         <span class="bp">self</span><span class="o">.</span><span class="n">enable_record_headers</span><span class="o">.</span><span class="n">_get_byte</span><span class="p">()</span> <span class="o">|</span>
+                         <span class="bp">self</span><span class="o">.</span><span class="n">alloc_buffers</span><span class="o">.</span><span class="n">_get_byte</span><span class="p">()</span> <span class="o">|</span>
+                         <span class="bp">self</span><span class="o">.</span><span class="n">fifo_only_streaming</span><span class="o">.</span><span class="n">_get_byte</span><span class="p">()</span> <span class="o">|</span>
+                         <span class="bp">self</span><span class="o">.</span><span class="n">interleave_samples</span><span class="o">.</span><span class="n">_get_byte</span><span class="p">()</span> <span class="o">|</span>
+                         <span class="bp">self</span><span class="o">.</span><span class="n">get_processed_data</span><span class="o">.</span><span class="n">_get_byte</span><span class="p">())</span>
+
+        <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;NPT&#39;</span><span class="p">:</span>
+            <span class="n">records_per_buffer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">records_per_buffer</span><span class="o">.</span><span class="n">_get_byte</span><span class="p">()</span>
+            <span class="n">records_per_acquisition</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">records_per_buffer</span> <span class="o">*</span> <span class="n">buffers_per_acquisition</span><span class="p">)</span>
+            <span class="n">samples_per_buffer</span> <span class="o">=</span> <span class="n">samples_per_record</span> <span class="o">*</span> <span class="n">records_per_buffer</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarBeforeAsyncRead&#39;</span><span class="p">,</span>
+                           <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel_selection</span><span class="p">,</span>
+                           <span class="bp">self</span><span class="o">.</span><span class="n">transfer_offset</span><span class="p">,</span> <span class="n">samples_per_record</span><span class="p">,</span>
+                           <span class="n">records_per_buffer</span><span class="p">,</span> <span class="n">records_per_acquisition</span><span class="p">,</span>
+                           <span class="n">acquire_flags</span><span class="p">)</span>
+
+        <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;TS&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">samples_per_record</span> <span class="o">%</span> <span class="n">buffers_per_acquisition</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">):</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;buffers_per_acquisition is not a divisor of &#39;</span>
+                                <span class="s1">&#39;samples per record which it should be in &#39;</span>
+                                <span class="s1">&#39;TS mode, rounding down in samples per buffer &#39;</span>
+                                <span class="s1">&#39;calculation&#39;</span><span class="p">)</span>
+            <span class="n">samples_per_buffer</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">samples_per_record</span> <span class="o">/</span>
+                                     <span class="n">buffers_per_acquisition</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">records_per_buffer</span><span class="o">.</span><span class="n">_get_byte</span><span class="p">()</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;records_per_buffer should be 1 in TS mode, &#39;</span>
+                                <span class="s1">&#39;defauling to 1&#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">records_per_buffer</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">records_per_buffer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">records_per_buffer</span><span class="o">.</span><span class="n">_get_byte</span><span class="p">()</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarBeforeAsyncRead&#39;</span><span class="p">,</span>
+                           <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel_selection</span><span class="p">,</span>
+                           <span class="bp">self</span><span class="o">.</span><span class="n">transfer_offset</span><span class="p">,</span> <span class="n">samples_per_buffer</span><span class="p">,</span>
+                           <span class="bp">self</span><span class="o">.</span><span class="n">records_per_buffer</span><span class="p">,</span> <span class="n">buffers_per_acquisition</span><span class="p">,</span>
+                           <span class="n">acquire_flags</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">samples_per_record</span><span class="o">.</span><span class="n">_set_updated</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">records_per_buffer</span><span class="o">.</span><span class="n">_set_updated</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">buffers_per_acquisition</span><span class="o">.</span><span class="n">_set_updated</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">channel_selection</span><span class="o">.</span><span class="n">_set_updated</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transfer_offset</span><span class="o">.</span><span class="n">_set_updated</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">external_startcapture</span><span class="o">.</span><span class="n">_set_updated</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">enable_record_headers</span><span class="o">.</span><span class="n">_set_updated</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alloc_buffers</span><span class="o">.</span><span class="n">_set_updated</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fifo_only_streaming</span><span class="o">.</span><span class="n">_set_updated</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">interleave_samples</span><span class="o">.</span><span class="n">_set_updated</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_processed_data</span><span class="o">.</span><span class="n">_set_updated</span><span class="p">()</span>
+
+        <span class="c1"># create buffers for acquisition</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">clear_buffers</span><span class="p">()</span>
+        <span class="c1"># make sure that allocated_buffers &lt;= buffers_per_acquisition</span>
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">allocated_buffers</span><span class="o">.</span><span class="n">_get_byte</span><span class="p">()</span> <span class="o">&gt;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">buffers_per_acquisition</span><span class="o">.</span><span class="n">_get_byte</span><span class="p">()):</span>
+            <span class="k">print</span><span class="p">(</span><span class="s2">&quot;&#39;allocated_buffers&#39; should be smaller than or equal to&quot;</span>
+                  <span class="s2">&quot;&#39;buffers_per_acquisition&#39;. Defaulting &#39;allocated_buffers&#39; to&quot;</span>
+                  <span class="s2">&quot;&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">buffers_per_acquisition</span><span class="o">.</span><span class="n">_get_byte</span><span class="p">()))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">allocated_buffers</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">buffers_per_acquisition</span><span class="o">.</span><span class="n">_get_byte</span><span class="p">())</span>
+
+        <span class="n">allocated_buffers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">allocated_buffers</span><span class="o">.</span><span class="n">_get_byte</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">allocated_buffers</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">buffer_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Buffer</span><span class="p">(</span><span class="n">bps</span><span class="p">,</span> <span class="n">samples_per_buffer</span><span class="p">,</span>
+                                               <span class="n">number_of_channels</span><span class="p">))</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">clear_buffers</span><span class="p">()</span>
+                <span class="k">raise</span>
+
+        <span class="c1"># post buffers to Alazar</span>
+        <span class="k">for</span> <span class="n">buf</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffer_list</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarPostAsyncBuffer&#39;</span><span class="p">,</span>
+                           <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span> <span class="n">buf</span><span class="o">.</span><span class="n">addr</span><span class="p">,</span> <span class="n">buf</span><span class="o">.</span><span class="n">size_bytes</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">allocated_buffers</span><span class="o">.</span><span class="n">_set_updated</span><span class="p">()</span>
+
+        <span class="c1"># -----start capture here-----</span>
+        <span class="n">acquisition_controller</span><span class="o">.</span><span class="n">pre_start_capture</span><span class="p">()</span>
+        <span class="c1"># call the startcapture method</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarStartCapture&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">)</span>
+
+        <span class="n">acquisition_controller</span><span class="o">.</span><span class="n">pre_acquire</span><span class="p">()</span>
+        <span class="c1"># buffer handling from acquisition</span>
+        <span class="n">buffers_completed</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">buffer_timeout</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffer_timeout</span><span class="o">.</span><span class="n">_get_byte</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">buffer_timeout</span><span class="o">.</span><span class="n">_set_updated</span><span class="p">()</span>
+
+        <span class="n">buffer_recycling</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">buffers_per_acquisition</span><span class="o">.</span><span class="n">_get_byte</span><span class="p">()</span> <span class="o">&gt;</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">allocated_buffers</span><span class="o">.</span><span class="n">_get_byte</span><span class="p">())</span>
+
+        <span class="k">while</span> <span class="n">buffers_completed</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffers_per_acquisition</span><span class="o">.</span><span class="n">_get_byte</span><span class="p">():</span>
+            <span class="n">buf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffer_list</span><span class="p">[</span><span class="n">buffers_completed</span> <span class="o">%</span> <span class="n">allocated_buffers</span><span class="p">]</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarWaitAsyncBufferComplete&#39;</span><span class="p">,</span>
+                           <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span> <span class="n">buf</span><span class="o">.</span><span class="n">addr</span><span class="p">,</span> <span class="n">buffer_timeout</span><span class="p">)</span>
+
+            <span class="c1"># TODO(damazter) (C) last series of buffers must be handled</span>
+            <span class="c1"># exceptionally</span>
+            <span class="c1"># (and I want to test the difference) by changing buffer</span>
+            <span class="c1"># recycling for the last series of buffers</span>
+
+            <span class="c1"># if buffers must be recycled, extract data and repost them</span>
+            <span class="c1"># otherwise continue to next buffer</span>
+
+            <span class="k">if</span> <span class="n">buffer_recycling</span><span class="p">:</span>
+                <span class="n">acquisition_controller</span><span class="o">.</span><span class="n">handle_buffer</span><span class="p">(</span><span class="n">buf</span><span class="o">.</span><span class="n">buffer</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarPostAsyncBuffer&#39;</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span> <span class="n">buf</span><span class="o">.</span><span class="n">addr</span><span class="p">,</span> <span class="n">buf</span><span class="o">.</span><span class="n">size_bytes</span><span class="p">)</span>
+            <span class="n">buffers_completed</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="c1"># stop measurement here</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarAbortAsyncRead&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">)</span>
+
+        <span class="c1"># -----cleanup here-----</span>
+        <span class="c1"># extract data if not yet done</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">buffer_recycling</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">buf</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffer_list</span><span class="p">:</span>
+                <span class="n">acquisition_controller</span><span class="o">.</span><span class="n">handle_buffer</span><span class="p">(</span><span class="n">buf</span><span class="o">.</span><span class="n">buffer</span><span class="p">)</span>
+
+        <span class="c1"># free up memory</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">clear_buffers</span><span class="p">()</span>
+
+        <span class="c1"># check if all parameters are up to date</span>
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+
+        <span class="c1"># return result</span>
+        <span class="k">return</span> <span class="n">acquisition_controller</span><span class="o">.</span><span class="n">post_acquire</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">_set_if_present</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_name</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">param_name</span><span class="p">]</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_set_list_if_present</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_base</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">param_base</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_call_dll</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func_name</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Execute a dll function `func_name`, passing it the given arguments</span>
+
+<span class="sd">        For each argument in the list</span>
+<span class="sd">        - If an arg is a parameter of this instrument, the parameter</span>
+<span class="sd">          value from `._get_bytes()` is used. If the call succeeds, these</span>
+<span class="sd">          parameters will be marked as updated using their `._set_updated()`</span>
+<span class="sd">          method</span>
+<span class="sd">        - Otherwise the arg is used directly</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># create the argument list</span>
+        <span class="n">args_out</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">update_params</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span><span class="n">AlazarParameter</span><span class="p">):</span>
+                <span class="n">args_out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">arg</span><span class="o">.</span><span class="n">_get_byte</span><span class="p">())</span>
+                <span class="n">update_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">args_out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
+
+        <span class="c1"># run the function</span>
+        <span class="n">func</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ATS_dll</span><span class="p">,</span> <span class="n">func_name</span><span class="p">)</span>
+        <span class="n">return_code</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args_out</span><span class="p">)</span>
+
+        <span class="c1"># check for errors</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">return_code</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_success</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">return_code</span> <span class="o">!=</span><span class="mi">518</span><span class="p">):</span>
+            <span class="c1"># TODO(damazter) (C) log error</span>
+
+            <span class="n">argrepr</span> <span class="o">=</span> <span class="nb">repr</span><span class="p">(</span><span class="n">args_out</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">argrepr</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">100</span><span class="p">:</span>
+                <span class="n">argrepr</span> <span class="o">=</span> <span class="n">argrepr</span><span class="p">[:</span><span class="mi">96</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;...]&#39;</span>
+
+            <span class="k">if</span> <span class="n">return_code</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_error_codes</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                    <span class="s1">&#39;unknown error {} from function {} with args: {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">return_code</span><span class="p">,</span> <span class="n">func_name</span><span class="p">,</span> <span class="n">argrepr</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s1">&#39;error {}: {} from function {} with args: {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">return_code</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_error_codes</span><span class="p">[</span><span class="n">return_code</span><span class="p">],</span> <span class="n">func_name</span><span class="p">,</span>
+                    <span class="n">argrepr</span><span class="p">))</span>
+
+        <span class="c1"># mark parameters updated (only after we&#39;ve checked for errors)</span>
+        <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">update_params</span><span class="p">:</span>
+            <span class="n">param</span><span class="o">.</span><span class="n">_set_updated</span><span class="p">()</span>
+
+<div class="viewcode-block" id="AlazarTech_ATS.clear_buffers"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.AlazarTech.html#qcodes.instrument_drivers.AlazarTech.ATS.AlazarTech_ATS.clear_buffers">[docs]</a>    <span class="k">def</span> <span class="nf">clear_buffers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This method uncommits all buffers that were committed by the driver.</span>
+<span class="sd">        This method only has to be called when the acquistion crashes, otherwise</span>
+<span class="sd">        the driver will uncommit the buffers itself</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffer_list</span><span class="p">:</span>
+            <span class="n">b</span><span class="o">.</span><span class="n">free_mem</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">buffer_list</span> <span class="o">=</span> <span class="p">[]</span></div>
+
+<div class="viewcode-block" id="AlazarTech_ATS.signal_to_volt"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.AlazarTech.html#qcodes.instrument_drivers.AlazarTech.ATS.AlazarTech_ATS.signal_to_volt">[docs]</a>    <span class="k">def</span> <span class="nf">signal_to_volt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">,</span> <span class="n">signal</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        convert a value from a buffer to an actual value in volts based on the</span>
+<span class="sd">        ranges of the channel</span>
+<span class="sd">        :param channel: number of the channel where the signal value came from</span>
+<span class="sd">        :param signal: the value that needs to be converted</span>
+<span class="sd">        :return: the corresponding value in volts</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO(damazter) (S) check this</span>
+        <span class="c1"># TODO(damazter) (M) use byte value if range{channel}</span>
+        <span class="k">return</span> <span class="p">(((</span><span class="n">signal</span> <span class="o">-</span> <span class="mf">127.5</span><span class="p">)</span> <span class="o">/</span> <span class="mf">127.5</span><span class="p">)</span> <span class="o">*</span>
+                <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;channel_range&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">channel</span><span class="p">)]</span><span class="o">.</span><span class="n">get</span><span class="p">()))</span></div>
+
+<div class="viewcode-block" id="AlazarTech_ATS.get_sample_rate"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.AlazarTech.html#qcodes.instrument_drivers.AlazarTech.ATS.AlazarTech_ATS.get_sample_rate">[docs]</a>    <span class="k">def</span> <span class="nf">get_sample_rate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Obtain the effective sampling rate of the acquisition</span>
+<span class="sd">        based on clock speed and decimation</span>
+<span class="sd">        :return: the number of samples (per channel) per second</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span><span class="o">.</span><span class="n">get</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;EXTERNAL_CLOCK&#39;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;External clock is used, alazar driver &#39;</span>
+                            <span class="s1">&#39;could not determine sample speed.&#39;</span><span class="p">)</span>
+
+        <span class="n">rate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">rate</span> <span class="o">==</span> <span class="s1">&#39;1GHz_REFERENCE_CLOCK&#39;</span><span class="p">:</span>
+            <span class="n">rate</span> <span class="o">=</span> <span class="mf">1e9</span>
+
+        <span class="n">decimation</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decimation</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">decimation</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">rate</span> <span class="o">/</span> <span class="n">decimation</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">rate</span></div></div>
+
+
+<div class="viewcode-block" id="AlazarParameter"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.AlazarTech.html#qcodes.instrument_drivers.AlazarTech.ATS.AlazarParameter">[docs]</a><span class="k">class</span> <span class="nc">AlazarParameter</span><span class="p">(</span><span class="n">Parameter</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This class represents of many parameters that are relevant for the Alazar</span>
+<span class="sd">    driver. This parameters only have a private set method, because the values</span>
+<span class="sd">    are set by the Alazar driver. They do have a get function which return a</span>
+<span class="sd">    human readable value. Internally the value is stored as an Alazar readable</span>
+<span class="sd">    value.</span>
+
+<span class="sd">    These parameters also keep track the up-to-dateness of the value of this</span>
+<span class="sd">    parameter. If the private set_function is called incorrectly, this parameter</span>
+<span class="sd">    raises an error when the get_function is called to warn the user that the</span>
+<span class="sd">    value is out-of-date</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name: see Parameter class</span>
+<span class="sd">        label: see Parameter class</span>
+<span class="sd">        unit: see Parameter class</span>
+<span class="sd">        instrument: see Parameter class</span>
+<span class="sd">        value: default value</span>
+<span class="sd">        byte_to_value_dict: dictionary that maps byte values (readable to the</span>
+<span class="sd">            alazar) to values that are readable to humans</span>
+<span class="sd">        vals: see Parameter class, should not be set if byte_to_value_dict is</span>
+<span class="sd">            provided</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">instrument</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                 <span class="n">value</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">byte_to_value_dict</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">vals</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">byte_to_value_dict</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">vals</span> <span class="o">=</span> <span class="n">validators</span><span class="o">.</span><span class="n">Anything</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># TODO(damazter) (S) test this validator</span>
+                <span class="n">vals</span> <span class="o">=</span> <span class="n">validators</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="o">*</span><span class="n">byte_to_value_dict</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="n">unit</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">instrument</span> <span class="o">=</span> <span class="n">instrument</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_byte</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_uptodate_flag</span> <span class="o">=</span> <span class="bp">False</span>
+
+        <span class="c1"># TODO(damazter) (M) check this block</span>
+        <span class="k">if</span> <span class="n">byte_to_value_dict</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_byte_to_value_dict</span> <span class="o">=</span> <span class="n">TrivialDictionary</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_value_to_byte_dict</span> <span class="o">=</span> <span class="n">TrivialDictionary</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_byte_to_value_dict</span> <span class="o">=</span> <span class="n">byte_to_value_dict</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_value_to_byte_dict</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="n">v</span><span class="p">:</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_byte_to_value_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+<div class="viewcode-block" id="AlazarParameter.get"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.AlazarTech.html#qcodes.instrument_drivers.AlazarTech.ATS.AlazarParameter.get">[docs]</a>    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This method returns the name of the value set for this parameter</span>
+<span class="sd">        :return: value</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO(damazter) (S) test this exception</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_uptodate_flag</span> <span class="ow">is</span> <span class="bp">False</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;The value of this parameter (&#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span>
+                            <span class="s1">&#39;) is not up to date with the actual value in &#39;</span>
+                            <span class="s1">&#39;the instrument.</span><span class="se">\n</span><span class="s1">&#39;</span>
+                            <span class="s1">&#39;Most probable cause is illegal usage of ._set() &#39;</span>
+                            <span class="s1">&#39;method of this parameter.</span><span class="se">\n</span><span class="s1">&#39;</span>
+                            <span class="s1">&#39;Don</span><span class="se">\&#39;</span><span class="s1">t use private methods if you do not know &#39;</span>
+                            <span class="s1">&#39;what you are doing!&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_byte_to_value_dict</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_byte</span><span class="p">]</span></div>
+
+    <span class="k">def</span> <span class="nf">_get_byte</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        this method gets the byte representation of the value of the parameter</span>
+<span class="sd">        :return: byte representation</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_byte</span>
+
+    <span class="k">def</span> <span class="nf">_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This method sets the value of this parameter</span>
+<span class="sd">        This method is private to ensure that all values in the instruments</span>
+<span class="sd">        are up to date always</span>
+<span class="sd">        :param value: the new value (e.g. &#39;NPT&#39;, 0.5, ...)</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># TODO(damazter) (S) test this validation</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_byte</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_value_to_byte_dict</span><span class="p">[</span><span class="n">value</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_uptodate_flag</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_save_val</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">_set_updated</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This method is used to keep track of which parameters are updated in the</span>
+<span class="sd">        instrument. If the end-user starts messing with this function, things</span>
+<span class="sd">        can go wrong.</span>
+
+<span class="sd">        Do not use this function if you do not know what you are doing</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_uptodate_flag</span> <span class="o">=</span> <span class="bp">True</span></div>
+
+
+<div class="viewcode-block" id="Buffer"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.AlazarTech.html#qcodes.instrument_drivers.AlazarTech.ATS.Buffer">[docs]</a><span class="k">class</span> <span class="nc">Buffer</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This class represents a single buffer used for the data acquisition</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        bits_per_sample: the number of bits needed to store a sample</span>
+<span class="sd">        samples_per_buffer: the number of samples needed per buffer(per channel)</span>
+<span class="sd">        number_of_channels: the number of channels that will be stored in the</span>
+<span class="sd">            buffer</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bits_per_sample</span><span class="p">,</span> <span class="n">samples_per_buffer</span><span class="p">,</span>
+                 <span class="n">number_of_channels</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">bits_per_sample</span> <span class="o">!=</span> <span class="mi">8</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Buffer: only 8 bit per sample supported&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">name</span> <span class="o">!=</span> <span class="s1">&#39;nt&#39;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Buffer: only Windows supported at this moment&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_allocated</span> <span class="o">=</span> <span class="bp">True</span>
+
+        <span class="c1"># try to allocate memory</span>
+        <span class="n">mem_commit</span> <span class="o">=</span> <span class="mh">0x1000</span>
+        <span class="n">page_readwrite</span> <span class="o">=</span> <span class="mh">0x4</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">size_bytes</span> <span class="o">=</span> <span class="n">samples_per_buffer</span> <span class="o">*</span> <span class="n">number_of_channels</span>
+
+        <span class="c1"># for documentation please see:</span>
+        <span class="c1"># https://msdn.microsoft.com/en-us/library/windows/desktop/aa366887(v=vs.85).aspx</span>
+        <span class="n">ctypes</span><span class="o">.</span><span class="n">windll</span><span class="o">.</span><span class="n">kernel32</span><span class="o">.</span><span class="n">VirtualAlloc</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">ctypes</span><span class="o">.</span><span class="n">c_void_p</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_long</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_long</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_long</span><span class="p">]</span>
+        <span class="n">ctypes</span><span class="o">.</span><span class="n">windll</span><span class="o">.</span><span class="n">kernel32</span><span class="o">.</span><span class="n">VirtualAlloc</span><span class="o">.</span><span class="n">restype</span> <span class="o">=</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_void_p</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">addr</span> <span class="o">=</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">windll</span><span class="o">.</span><span class="n">kernel32</span><span class="o">.</span><span class="n">VirtualAlloc</span><span class="p">(</span>
+            <span class="mi">0</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_long</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">size_bytes</span><span class="p">),</span> <span class="n">mem_commit</span><span class="p">,</span> <span class="n">page_readwrite</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">addr</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_allocated</span> <span class="o">=</span> <span class="bp">False</span>
+            <span class="n">e</span> <span class="o">=</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">windll</span><span class="o">.</span><span class="n">kernel32</span><span class="o">.</span><span class="n">GetLastError</span><span class="p">()</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Memory allocation error: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+
+        <span class="n">ctypes_array</span> <span class="o">=</span> <span class="p">(</span><span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint8</span> <span class="o">*</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">size_bytes</span><span class="p">)</span><span class="o">.</span><span class="n">from_address</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">addr</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">buffer</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">frombuffer</span><span class="p">(</span><span class="n">ctypes_array</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+        <span class="n">pointer</span><span class="p">,</span> <span class="n">read_only_flag</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffer</span><span class="o">.</span><span class="n">__array_interface__</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">]</span>
+
+<div class="viewcode-block" id="Buffer.free_mem"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.AlazarTech.html#qcodes.instrument_drivers.AlazarTech.ATS.Buffer.free_mem">[docs]</a>    <span class="k">def</span> <span class="nf">free_mem</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        uncommit memory allocated with this buffer object</span>
+<span class="sd">        :return: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">mem_release</span> <span class="o">=</span> <span class="mh">0x8000</span>
+
+        <span class="c1"># for documentation please see:</span>
+        <span class="c1"># https://msdn.microsoft.com/en-us/library/windows/desktop/aa366892(v=vs.85).aspx</span>
+        <span class="n">ctypes</span><span class="o">.</span><span class="n">windll</span><span class="o">.</span><span class="n">kernel32</span><span class="o">.</span><span class="n">VirtualFree</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">ctypes</span><span class="o">.</span><span class="n">c_void_p</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_long</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_long</span><span class="p">]</span>
+        <span class="n">ctypes</span><span class="o">.</span><span class="n">windll</span><span class="o">.</span><span class="n">kernel32</span><span class="o">.</span><span class="n">VirtualFree</span><span class="o">.</span><span class="n">restype</span> <span class="o">=</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_int</span>
+        <span class="n">ctypes</span><span class="o">.</span><span class="n">windll</span><span class="o">.</span><span class="n">kernel32</span><span class="o">.</span><span class="n">VirtualFree</span><span class="p">(</span><span class="n">ctypes</span><span class="o">.</span><span class="n">c_void_p</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">addr</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span>
+                                           <span class="n">mem_release</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_allocated</span> <span class="o">=</span> <span class="bp">False</span></div>
+
+<div class="viewcode-block" id="Buffer.__del__"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.AlazarTech.html#qcodes.instrument_drivers.AlazarTech.ATS.Buffer.__del__">[docs]</a>    <span class="k">def</span> <span class="nf">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        If python garbage collects this object, __del__ should be called and it</span>
+<span class="sd">        is the last chance to uncommit the memory to prevent a memory leak.</span>
+<span class="sd">        This method is not very reliable so users should not rely on this</span>
+<span class="sd">        functionality</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_allocated</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">free_mem</span><span class="p">()</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s1">&#39;Buffer prevented memory leak; Memory released to Windows.</span><span class="se">\n</span><span class="s1">&#39;</span>
+                <span class="s1">&#39;Memory should have been released before buffer was deleted.&#39;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="AcquisitionController"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.AlazarTech.html#qcodes.instrument_drivers.AlazarTech.ATS.AcquisitionController">[docs]</a><span class="k">class</span> <span class="nc">AcquisitionController</span><span class="p">(</span><span class="n">Instrument</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This class represents all choices that the end-user has to make regarding</span>
+<span class="sd">    the data-acquisition. this class should be subclassed to program these</span>
+<span class="sd">    choices.</span>
+
+<span class="sd">    The basic structure of an acquisition is:</span>
+<span class="sd">    call to AlazarTech_ATS.acquire</span>
+<span class="sd">        internal configuration</span>
+<span class="sd">        call to acquisitioncontroller.pre_start_capture</span>
+<span class="sd">        Call to the start capture of the Alazar board</span>
+<span class="sd">        call to acquisitioncontroller.pre_acquire</span>
+<span class="sd">        loop over all buffers that need to be acquired</span>
+<span class="sd">            dump each buffer to acquisitioncontroller.handle_buffer</span>
+<span class="sd">            (only if buffers need to be recycled to finish the acquisiton)</span>
+<span class="sd">        dump remaining buffers to acquisitioncontroller.handle_buffer</span>
+<span class="sd">        alazar internals</span>
+<span class="sd">        return acquisitioncontroller.post_acquire</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        _alazar: a reference to the alazar instrument driver</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">alazar_name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param alazar_name: The name of the alazar instrument on the server</span>
+<span class="sd">        :return: nothing</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_alazar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_instrument</span><span class="p">(</span><span class="n">alazar_name</span><span class="p">,</span>
+                                            <span class="n">instrument_class</span><span class="o">=</span><span class="n">AlazarTech_ATS</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_alazar</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        returns a reference to the alazar instrument. A call to self._alazar is</span>
+<span class="sd">        quicker, so use that if in need for speed</span>
+<span class="sd">        :return: reference to the Alazar instrument</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_alazar</span>
+
+<div class="viewcode-block" id="AcquisitionController.pre_start_capture"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.AlazarTech.html#qcodes.instrument_drivers.AlazarTech.ATS.AcquisitionController.pre_start_capture">[docs]</a>    <span class="k">def</span> <span class="nf">pre_start_capture</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Use this method to prepare yourself for the data acquisition</span>
+<span class="sd">        The Alazar instrument will call this method right before</span>
+<span class="sd">        &#39;AlazarStartCapture&#39; is called</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+            <span class="s1">&#39;This method should be implemented in a subclass&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AcquisitionController.pre_acquire"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.AlazarTech.html#qcodes.instrument_drivers.AlazarTech.ATS.AcquisitionController.pre_acquire">[docs]</a>    <span class="k">def</span> <span class="nf">pre_acquire</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This method is called immediately after &#39;AlazarStartCapture&#39; is called</span>
+<span class="sd">        :return: nothing</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+            <span class="s1">&#39;This method should be implemented in a subclass&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AcquisitionController.handle_buffer"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.AlazarTech.html#qcodes.instrument_drivers.AlazarTech.ATS.AcquisitionController.handle_buffer">[docs]</a>    <span class="k">def</span> <span class="nf">handle_buffer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">buffer</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This method should store or process the information that is contained</span>
+<span class="sd">        in the buffers obtained during the acquisition.</span>
+<span class="sd">        :param buffer: np.array with the data from the Alazar card</span>
+<span class="sd">        :return: something, it is ignored in any case</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+            <span class="s1">&#39;This method should be implemented in a subclass&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AcquisitionController.post_acquire"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.AlazarTech.html#qcodes.instrument_drivers.AlazarTech.ATS.AcquisitionController.post_acquire">[docs]</a>    <span class="k">def</span> <span class="nf">post_acquire</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This method should return any information you want to save from this</span>
+<span class="sd">        acquisition. The acquisition method from the Alazar driver will use</span>
+<span class="sd">        this data as its own return value</span>
+<span class="sd">        :return: this function should return all relevant data that you want</span>
+<span class="sd">            to get form the acquisition</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+            <span class="s1">&#39;This method should be implemented in a subclass&#39;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="TrivialDictionary"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.AlazarTech.html#qcodes.instrument_drivers.AlazarTech.ATS.TrivialDictionary">[docs]</a><span class="k">class</span> <span class="nc">TrivialDictionary</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This class looks like a dictionary to the outside world</span>
+<span class="sd">    every key maps to this key as a value (lambda x: x)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">item</span>
+
+    <span class="k">def</span> <span class="nf">__contains__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">):</span>
+        <span class="c1"># this makes sure that this dictionary contains everything</span>
+        <span class="k">return</span> <span class="bp">True</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../../',
+            VERSION:'0.1.1',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

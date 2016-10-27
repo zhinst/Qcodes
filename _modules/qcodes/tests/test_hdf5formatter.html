@@ -1,0 +1,530 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>qcodes.tests.test_hdf5formatter &mdash; QCoDeS 0.1.1 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+    <link rel="top" title="QCoDeS 0.1.1 documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> QCoDeS
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1.1
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../start/index.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../help.html">Get Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../user/index.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../community/index.html">Community Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/index.html">Classes and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../auto/qcodes.instrument_drivers.html">qcodes.instrument_drivers package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../roadmap.html">Qcodes project plan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changes/index.html">Changelogs</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../../index.html">QCoDeS</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      
+    <li>qcodes.tests.test_hdf5formatter</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for qcodes.tests.test_hdf5formatter</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">unittest</span> <span class="kn">import</span> <span class="n">TestCase</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">h5py</span>
+<span class="kn">from</span> <span class="nn">shutil</span> <span class="kn">import</span> <span class="n">copy</span>
+
+<span class="kn">from</span> <span class="nn">qcodes.station</span> <span class="kn">import</span> <span class="n">Station</span>
+<span class="kn">from</span> <span class="nn">qcodes.loops</span> <span class="kn">import</span> <span class="n">Loop</span>
+<span class="kn">from</span> <span class="nn">qcodes.data.location</span> <span class="kn">import</span> <span class="n">FormatLocation</span>
+<span class="kn">from</span> <span class="nn">qcodes.data.hdf5_format</span> <span class="kn">import</span> <span class="n">HDF5Format</span><span class="p">,</span> <span class="n">str_to_bool</span>
+
+<span class="kn">from</span> <span class="nn">qcodes.data.data_set</span> <span class="kn">import</span> <span class="n">new_data</span><span class="p">,</span> <span class="n">load_data</span><span class="p">,</span> <span class="n">DataSet</span>
+<span class="kn">from</span> <span class="nn">qcodes.data.data_array</span> <span class="kn">import</span> <span class="n">DataArray</span>
+<span class="kn">from</span> <span class="nn">qcodes.utils.helpers</span> <span class="kn">import</span> <span class="n">compare_dictionaries</span>
+<span class="kn">from</span> <span class="nn">.data_mocks</span> <span class="kn">import</span> <span class="n">DataSet1D</span><span class="p">,</span> <span class="n">DataSet2D</span>
+
+<span class="kn">from</span> <span class="nn">qcodes.tests.instrument_mocks</span> <span class="kn">import</span> <span class="n">MockParabola</span>
+
+
+<div class="viewcode-block" id="TestHDF5_Format"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_hdf5formatter.TestHDF5_Format">[docs]</a><span class="k">class</span> <span class="nc">TestHDF5_Format</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="TestHDF5_Format.setUp"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_hdf5formatter.TestHDF5_Format.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">io</span> <span class="o">=</span> <span class="n">DataSet</span><span class="o">.</span><span class="n">default_io</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span> <span class="o">=</span> <span class="n">HDF5Format</span><span class="p">()</span>
+        <span class="c1"># Set up the location provider to always store test data in</span>
+        <span class="c1"># &quot;qc.tests.unittest_data</span>
+        <span class="n">cur_fp</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">__file__</span><span class="p">)</span>
+        <span class="n">base_fp</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cur_fp</span><span class="p">,</span> <span class="s1">&#39;../unittest_data&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loc_provider</span> <span class="o">=</span> <span class="n">FormatLocation</span><span class="p">(</span>
+            <span class="n">fmt</span><span class="o">=</span><span class="n">base_fp</span><span class="o">+</span><span class="s1">&#39;/{date}/#{counter}_{name}_{time}&#39;</span><span class="p">)</span>
+        <span class="n">DataSet</span><span class="o">.</span><span class="n">location_provider</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loc_provider</span></div>
+
+<div class="viewcode-block" id="TestHDF5_Format.checkArraysEqual"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_hdf5formatter.TestHDF5_Format.checkArraysEqual">[docs]</a>    <span class="k">def</span> <span class="nf">checkArraysEqual</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Checks if arrays are equal</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Modified from GNUplot would be better to have this in some module</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">checkArrayAttrs</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">assert_array_equal</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">set_arrays</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">set_arr</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">set_arrays</span><span class="p">):</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">assert_array_equal</span><span class="p">(</span><span class="n">set_arr</span><span class="p">,</span> <span class="n">b</span><span class="o">.</span><span class="n">set_arrays</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">assert_array_equal</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">set_arrays</span><span class="p">,</span> <span class="n">b</span><span class="o">.</span><span class="n">set_arrays</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">sa</span><span class="p">,</span> <span class="n">sb</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">set_arrays</span><span class="p">,</span> <span class="n">b</span><span class="o">.</span><span class="n">set_arrays</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">checkArrayAttrs</span><span class="p">(</span><span class="n">sa</span><span class="p">,</span> <span class="n">sb</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestHDF5_Format.checkArrayAttrs"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_hdf5formatter.TestHDF5_Format.checkArrayAttrs">[docs]</a>    <span class="k">def</span> <span class="nf">checkArrayAttrs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="n">b</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="n">b</span><span class="o">.</span><span class="n">label</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">array_id</span><span class="p">,</span> <span class="n">b</span><span class="o">.</span><span class="n">array_id</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestHDF5_Format.test_full_write_read_1D"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_hdf5formatter.TestHDF5_Format.test_full_write_read_1D">[docs]</a>    <span class="k">def</span> <span class="nf">test_full_write_read_1D</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Test writing and reading a file back in</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># location = self.locations[0]</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">DataSet1D</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;test1D_full_write&#39;</span><span class="p">,</span>
+                         <span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">loc_provider</span><span class="p">)</span>
+        <span class="c1"># print(&#39;Data location:&#39;, os.path.abspath(data.location))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="c1"># Used because the formatter has no nice find file method</span>
+
+        <span class="c1"># Test reading the same file through the DataSet.read</span>
+        <span class="n">data2</span> <span class="o">=</span> <span class="n">DataSet</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="n">formatter</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="p">)</span>
+        <span class="n">data2</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">checkArraysEqual</span><span class="p">(</span><span class="n">data2</span><span class="o">.</span><span class="n">x_set</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">x_set</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">checkArraysEqual</span><span class="p">(</span><span class="n">data2</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">y</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">close_file</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">close_file</span><span class="p">(</span><span class="n">data2</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestHDF5_Format.test_full_write_read_2D"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_hdf5formatter.TestHDF5_Format.test_full_write_read_2D">[docs]</a>    <span class="k">def</span> <span class="nf">test_full_write_read_2D</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Test writing and reading a file back in</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">DataSet2D</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">loc_provider</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;test2D&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="c1"># Test reading the same file through the DataSet.read</span>
+        <span class="n">data2</span> <span class="o">=</span> <span class="n">DataSet</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="n">formatter</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="p">)</span>
+        <span class="n">data2</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">checkArraysEqual</span><span class="p">(</span><span class="n">data2</span><span class="o">.</span><span class="n">x_set</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">x_set</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">checkArraysEqual</span><span class="p">(</span><span class="n">data2</span><span class="o">.</span><span class="n">y_set</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">y_set</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">checkArraysEqual</span><span class="p">(</span><span class="n">data2</span><span class="o">.</span><span class="n">z</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">z</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">close_file</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">close_file</span><span class="p">(</span><span class="n">data2</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestHDF5_Format.test_incremental_write"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_hdf5formatter.TestHDF5_Format.test_incremental_write">[docs]</a>    <span class="k">def</span> <span class="nf">test_incremental_write</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">DataSet1D</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">loc_provider</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;test_incremental&#39;</span><span class="p">)</span>
+        <span class="n">location</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">location</span>
+        <span class="n">data_copy</span> <span class="o">=</span> <span class="n">DataSet1D</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+
+        <span class="c1"># # empty the data and mark it as unmodified</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">x_set</span><span class="p">[:]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;nan&#39;</span><span class="p">)</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">y</span><span class="p">[:]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;nan&#39;</span><span class="p">)</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">x_set</span><span class="o">.</span><span class="n">modified_range</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">y</span><span class="o">.</span><span class="n">modified_range</span> <span class="o">=</span> <span class="bp">None</span>
+
+        <span class="c1"># simulate writing after every value comes in, even within</span>
+        <span class="c1"># one row (x comes first, it&#39;s the setpoint)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">data_copy</span><span class="o">.</span><span class="n">x_set</span><span class="p">,</span> <span class="n">data_copy</span><span class="o">.</span><span class="n">y</span><span class="p">)):</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">x_set</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">y</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">data2</span> <span class="o">=</span> <span class="n">DataSet</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="n">location</span><span class="p">,</span> <span class="n">formatter</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="p">)</span>
+        <span class="n">data2</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">checkArraysEqual</span><span class="p">(</span><span class="n">data2</span><span class="o">.</span><span class="n">arrays</span><span class="p">[</span><span class="s1">&#39;x_set&#39;</span><span class="p">],</span> <span class="n">data_copy</span><span class="o">.</span><span class="n">arrays</span><span class="p">[</span><span class="s1">&#39;x_set&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">checkArraysEqual</span><span class="p">(</span><span class="n">data2</span><span class="o">.</span><span class="n">arrays</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">],</span> <span class="n">data_copy</span><span class="o">.</span><span class="n">arrays</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">close_file</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">close_file</span><span class="p">(</span><span class="n">data2</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestHDF5_Format.test_metadata_write_read"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_hdf5formatter.TestHDF5_Format.test_metadata_write_read">[docs]</a>    <span class="k">def</span> <span class="nf">test_metadata_write_read</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Test is based on the snapshot of the 1D dataset.</span>
+<span class="sd">        Having a more complex snapshot in the metadata would be a better test.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">DataSet1D</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">loc_provider</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;test_metadata&#39;</span><span class="p">)</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">snapshot</span><span class="p">()</span>  <span class="c1"># gets the snapshot, not added upon init</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>  <span class="c1"># write_metadata is included in write</span>
+        <span class="n">data2</span> <span class="o">=</span> <span class="n">DataSet</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="n">formatter</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="p">)</span>
+        <span class="n">data2</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">close_file</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">close_file</span><span class="p">(</span><span class="n">data2</span><span class="p">)</span>
+        <span class="n">metadata_equal</span><span class="p">,</span> <span class="n">err_msg</span> <span class="o">=</span> <span class="n">compare_dictionaries</span><span class="p">(</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">metadata</span><span class="p">,</span> <span class="n">data2</span><span class="o">.</span><span class="n">metadata</span><span class="p">,</span>
+            <span class="s1">&#39;original_metadata&#39;</span><span class="p">,</span> <span class="s1">&#39;loaded_metadata&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">metadata_equal</span><span class="p">,</span> <span class="n">msg</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">+</span><span class="n">err_msg</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestHDF5_Format.test_loop_writing"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_hdf5formatter.TestHDF5_Format.test_loop_writing">[docs]</a>    <span class="k">def</span> <span class="nf">test_loop_writing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># pass</span>
+        <span class="n">station</span> <span class="o">=</span> <span class="n">Station</span><span class="p">()</span>
+        <span class="n">MockPar</span> <span class="o">=</span> <span class="n">MockParabola</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;Loop_writing_test&#39;</span><span class="p">)</span>
+        <span class="n">station</span><span class="o">.</span><span class="n">add_component</span><span class="p">(</span><span class="n">MockPar</span><span class="p">)</span>
+        <span class="c1"># # added to station to test snapshot at a later stage</span>
+        <span class="n">loop</span> <span class="o">=</span> <span class="n">Loop</span><span class="p">(</span><span class="n">MockPar</span><span class="o">.</span><span class="n">x</span><span class="p">[</span><span class="o">-</span><span class="mi">100</span><span class="p">:</span><span class="mi">100</span><span class="p">:</span><span class="mi">20</span><span class="p">])</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="n">MockPar</span><span class="o">.</span><span class="n">skewed_parabola</span><span class="p">)</span>
+        <span class="n">data1</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;MockLoop_hdf5_test&#39;</span><span class="p">,</span>
+                         <span class="n">formatter</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="p">,</span>
+                         <span class="n">background</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">data_manager</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+        <span class="n">data2</span> <span class="o">=</span> <span class="n">DataSet</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="n">data1</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="n">formatter</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="p">)</span>
+        <span class="n">data2</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">data2</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">checkArraysEqual</span><span class="p">(</span><span class="n">data2</span><span class="o">.</span><span class="n">arrays</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="n">data1</span><span class="o">.</span><span class="n">arrays</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+
+        <span class="n">metadata_equal</span><span class="p">,</span> <span class="n">err_msg</span> <span class="o">=</span> <span class="n">compare_dictionaries</span><span class="p">(</span>
+            <span class="n">data1</span><span class="o">.</span><span class="n">metadata</span><span class="p">,</span> <span class="n">data2</span><span class="o">.</span><span class="n">metadata</span><span class="p">,</span>
+            <span class="s1">&#39;original_metadata&#39;</span><span class="p">,</span> <span class="s1">&#39;loaded_metadata&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">metadata_equal</span><span class="p">,</span> <span class="n">msg</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">+</span><span class="n">err_msg</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">close_file</span><span class="p">(</span><span class="n">data1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">close_file</span><span class="p">(</span><span class="n">data2</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestHDF5_Format.test_loop_writing_2D"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_hdf5formatter.TestHDF5_Format.test_loop_writing_2D">[docs]</a>    <span class="k">def</span> <span class="nf">test_loop_writing_2D</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># pass</span>
+        <span class="n">station</span> <span class="o">=</span> <span class="n">Station</span><span class="p">()</span>
+        <span class="n">MockPar</span> <span class="o">=</span> <span class="n">MockParabola</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;Loop_writing_test_2D&#39;</span><span class="p">)</span>
+        <span class="n">station</span><span class="o">.</span><span class="n">add_component</span><span class="p">(</span><span class="n">MockPar</span><span class="p">)</span>
+        <span class="n">loop</span> <span class="o">=</span> <span class="n">Loop</span><span class="p">(</span><span class="n">MockPar</span><span class="o">.</span><span class="n">x</span><span class="p">[</span><span class="o">-</span><span class="mi">100</span><span class="p">:</span><span class="mi">100</span><span class="p">:</span><span class="mi">20</span><span class="p">])</span><span class="o">.</span><span class="n">loop</span><span class="p">(</span>
+            <span class="n">MockPar</span><span class="o">.</span><span class="n">y</span><span class="p">[</span><span class="o">-</span><span class="mi">50</span><span class="p">:</span><span class="mi">50</span><span class="p">:</span><span class="mi">10</span><span class="p">])</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="n">MockPar</span><span class="o">.</span><span class="n">skewed_parabola</span><span class="p">)</span>
+        <span class="n">data1</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;MockLoop_hdf5_test&#39;</span><span class="p">,</span>
+                         <span class="n">formatter</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="p">,</span>
+                         <span class="n">background</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">data_manager</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+        <span class="n">data2</span> <span class="o">=</span> <span class="n">DataSet</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="n">data1</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="n">formatter</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="p">)</span>
+        <span class="n">data2</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">data2</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">checkArraysEqual</span><span class="p">(</span><span class="n">data2</span><span class="o">.</span><span class="n">arrays</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="n">data1</span><span class="o">.</span><span class="n">arrays</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+
+        <span class="n">metadata_equal</span><span class="p">,</span> <span class="n">err_msg</span> <span class="o">=</span> <span class="n">compare_dictionaries</span><span class="p">(</span>
+            <span class="n">data1</span><span class="o">.</span><span class="n">metadata</span><span class="p">,</span> <span class="n">data2</span><span class="o">.</span><span class="n">metadata</span><span class="p">,</span>
+            <span class="s1">&#39;original_metadata&#39;</span><span class="p">,</span> <span class="s1">&#39;loaded_metadata&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">metadata_equal</span><span class="p">,</span> <span class="n">msg</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">+</span><span class="n">err_msg</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">close_file</span><span class="p">(</span><span class="n">data1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">close_file</span><span class="p">(</span><span class="n">data2</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestHDF5_Format.test_closed_file"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_hdf5formatter.TestHDF5_Format.test_closed_file">[docs]</a>    <span class="k">def</span> <span class="nf">test_closed_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">DataSet1D</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">loc_provider</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;test_closed&#39;</span><span class="p">)</span>
+        <span class="c1"># closing before file is written should not raise error</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">close_file</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="c1"># Used because the formatter has no nice find file method</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">close_file</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="c1"># Closing file twice should not raise an error</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">close_file</span><span class="p">(</span><span class="n">data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestHDF5_Format.test_reading_into_existing_data_array"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_hdf5formatter.TestHDF5_Format.test_reading_into_existing_data_array">[docs]</a>    <span class="k">def</span> <span class="nf">test_reading_into_existing_data_array</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">DataSet1D</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">loc_provider</span><span class="p">,</span>
+                         <span class="n">name</span><span class="o">=</span><span class="s1">&#39;test_read_existing&#39;</span><span class="p">)</span>
+        <span class="c1"># closing before file is written should not raise error</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="n">data2</span> <span class="o">=</span> <span class="n">DataSet</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">location</span><span class="p">,</span>
+                        <span class="n">formatter</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="p">)</span>
+        <span class="n">d_array</span> <span class="o">=</span> <span class="n">DataArray</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;dummy&#39;</span><span class="p">,</span>
+                            <span class="n">array_id</span><span class="o">=</span><span class="s1">&#39;x_set&#39;</span><span class="p">,</span>  <span class="c1"># existing array id in data</span>
+                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;bla&#39;</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s1">&#39;a.u.&#39;</span><span class="p">,</span> <span class="n">is_setpoint</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                            <span class="n">set_arrays</span><span class="o">=</span><span class="p">(),</span> <span class="n">preset_data</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">5</span><span class="p">))</span>
+        <span class="n">data2</span><span class="o">.</span><span class="n">add_array</span><span class="p">(</span><span class="n">d_array</span><span class="p">)</span>
+        <span class="c1"># test if d_array refers to same as array x_set in dataset</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">d_array</span> <span class="ow">is</span> <span class="n">data2</span><span class="o">.</span><span class="n">arrays</span><span class="p">[</span><span class="s1">&#39;x_set&#39;</span><span class="p">])</span>
+        <span class="n">data2</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="c1"># test if reading did not overwrite dataarray</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">d_array</span> <span class="ow">is</span> <span class="n">data2</span><span class="o">.</span><span class="n">arrays</span><span class="p">[</span><span class="s1">&#39;x_set&#39;</span><span class="p">])</span>
+        <span class="c1"># Testing if data was correctly updated into dataset</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">checkArraysEqual</span><span class="p">(</span><span class="n">data2</span><span class="o">.</span><span class="n">arrays</span><span class="p">[</span><span class="s1">&#39;x_set&#39;</span><span class="p">],</span> <span class="n">data</span><span class="o">.</span><span class="n">arrays</span><span class="p">[</span><span class="s1">&#39;x_set&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">checkArraysEqual</span><span class="p">(</span><span class="n">data2</span><span class="o">.</span><span class="n">arrays</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">],</span> <span class="n">data</span><span class="o">.</span><span class="n">arrays</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">close_file</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">close_file</span><span class="p">(</span><span class="n">data2</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestHDF5_Format.test_dataset_closing"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_hdf5formatter.TestHDF5_Format.test_dataset_closing">[docs]</a>    <span class="k">def</span> <span class="nf">test_dataset_closing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">DataSet1D</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">loc_provider</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;test_closing&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+        <span class="n">fp</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">_h5_base_group</span><span class="o">.</span><span class="n">filename</span>
+        <span class="n">fp2</span> <span class="o">=</span> <span class="n">fp</span><span class="p">[:</span><span class="o">-</span><span class="mi">5</span><span class="p">]</span><span class="o">+</span><span class="s1">&#39;_2.hdf5&#39;</span>
+        <span class="n">copy</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="n">fp2</span><span class="p">)</span>
+        <span class="c1"># Raises an error because the file was open and not flushed</span>
+        <span class="c1"># This tests if this way of testing works</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">OSError</span><span class="p">):</span>
+            <span class="n">F2</span> <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">fp2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">close_file</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">fp3</span> <span class="o">=</span> <span class="n">fp</span><span class="p">[:</span><span class="o">-</span><span class="mi">5</span><span class="p">]</span><span class="o">+</span><span class="s1">&#39;_3.hdf5&#39;</span>
+        <span class="n">copy</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="n">fp3</span><span class="p">)</span>
+        <span class="c1"># Should now not raise an error because the file was properly closed</span>
+        <span class="n">F3</span> <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">fp3</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestHDF5_Format.test_dataset_flush_after_write"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_hdf5formatter.TestHDF5_Format.test_dataset_flush_after_write">[docs]</a>    <span class="k">def</span> <span class="nf">test_dataset_flush_after_write</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">DataSet1D</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;test_flush&#39;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">loc_provider</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="n">fp</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">_h5_base_group</span><span class="o">.</span><span class="n">filename</span>
+        <span class="n">fp2</span> <span class="o">=</span> <span class="n">fp</span><span class="p">[:</span><span class="o">-</span><span class="mi">5</span><span class="p">]</span><span class="o">+</span><span class="s1">&#39;_2.hdf5&#39;</span>
+        <span class="n">copy</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="n">fp2</span><span class="p">)</span>
+        <span class="c1"># Opening this copy should not raise an error</span>
+        <span class="n">F2</span> <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">fp2</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestHDF5_Format.test_dataset_finalize_closes_file"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_hdf5formatter.TestHDF5_Format.test_dataset_finalize_closes_file">[docs]</a>    <span class="k">def</span> <span class="nf">test_dataset_finalize_closes_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">DataSet1D</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;test_finalize&#39;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">loc_provider</span><span class="p">)</span>
+        <span class="c1"># closing before file is written should not raise error</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+        <span class="n">fp</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">_h5_base_group</span><span class="o">.</span><span class="n">filename</span>
+        <span class="n">fp2</span> <span class="o">=</span> <span class="n">fp</span><span class="p">[:</span><span class="o">-</span><span class="mi">5</span><span class="p">]</span><span class="o">+</span><span class="s1">&#39;_2.hdf5&#39;</span>
+        <span class="n">copy</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="n">fp2</span><span class="p">)</span>
+        <span class="c1"># Raises an error because the file was still open</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">OSError</span><span class="p">):</span>
+            <span class="n">F2</span> <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">fp2</span><span class="p">)</span>
+        <span class="c1"># Attaching the formatter like this should not be neccesary</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">formatter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">finalize</span><span class="p">()</span>
+        <span class="n">fp3</span> <span class="o">=</span> <span class="n">fp</span><span class="p">[:</span><span class="o">-</span><span class="mi">5</span><span class="p">]</span><span class="o">+</span><span class="s1">&#39;_4.hdf5&#39;</span>
+        <span class="n">copy</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="n">fp3</span><span class="p">)</span>
+        <span class="c1"># Should now not raise an error because the file was properly closed</span>
+        <span class="n">F3</span> <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">fp3</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestHDF5_Format.test_double_closing_gives_warning"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_hdf5formatter.TestHDF5_Format.test_double_closing_gives_warning">[docs]</a>    <span class="k">def</span> <span class="nf">test_double_closing_gives_warning</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">DataSet1D</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;test_double_close&#39;</span><span class="p">,</span>
+                         <span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">loc_provider</span><span class="p">)</span>
+        <span class="c1"># closing before file is written should not raise error</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">close_file</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertLogs</span><span class="p">():</span>
+            <span class="c1"># Test that this raises a logging message</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">close_file</span><span class="p">(</span><span class="n">data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestHDF5_Format.test_dataset_with_missing_attrs"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_hdf5formatter.TestHDF5_Format.test_dataset_with_missing_attrs">[docs]</a>    <span class="k">def</span> <span class="nf">test_dataset_with_missing_attrs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data1</span> <span class="o">=</span> <span class="n">new_data</span><span class="p">(</span><span class="n">formatter</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">loc_provider</span><span class="p">,</span>
+                         <span class="n">name</span><span class="o">=</span><span class="s1">&#39;test_missing_attr&#39;</span><span class="p">)</span>
+        <span class="n">arr</span> <span class="o">=</span> <span class="n">DataArray</span><span class="p">(</span><span class="n">array_id</span><span class="o">=</span><span class="s1">&#39;arr&#39;</span><span class="p">,</span> <span class="n">preset_data</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">21</span><span class="p">))</span>
+        <span class="n">data1</span><span class="o">.</span><span class="n">add_array</span><span class="p">(</span><span class="n">arr</span><span class="p">)</span>
+        <span class="n">data1</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+        <span class="c1"># data2 = DataSet(location=data1.location, formatter=self.formatter)</span>
+        <span class="c1"># data2.read()</span>
+        <span class="n">data2</span> <span class="o">=</span> <span class="n">load_data</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="n">data1</span><span class="o">.</span><span class="n">location</span><span class="p">,</span>
+                          <span class="n">formatter</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="p">)</span>
+        <span class="c1"># cannot use the check arrays equal as I expect the attributes</span>
+        <span class="c1"># to not be equal</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">assert_array_equal</span><span class="p">(</span><span class="n">data2</span><span class="o">.</span><span class="n">arrays</span><span class="p">[</span><span class="s1">&#39;arr&#39;</span><span class="p">],</span> <span class="n">data1</span><span class="o">.</span><span class="n">arrays</span><span class="p">[</span><span class="s1">&#39;arr&#39;</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="TestHDF5_Format.test_read_writing_dicts_withlists_to_hdf5"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_hdf5formatter.TestHDF5_Format.test_read_writing_dicts_withlists_to_hdf5">[docs]</a>    <span class="k">def</span> <span class="nf">test_read_writing_dicts_withlists_to_hdf5</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">some_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">some_dict</span><span class="p">[</span><span class="s1">&#39;list_of_ints&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">5</span><span class="p">))</span>
+        <span class="n">some_dict</span><span class="p">[</span><span class="s1">&#39;list_of_floats&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mf">5.1</span><span class="p">))</span>
+        <span class="n">fp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loc_provider</span><span class="p">(</span>
+            <span class="n">io</span><span class="o">=</span><span class="n">DataSet</span><span class="o">.</span><span class="n">default_io</span><span class="p">,</span>
+            <span class="n">record</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;test_dict_writing&#39;</span><span class="p">})</span><span class="o">+</span><span class="s1">&#39;.hdf5&#39;</span>
+        <span class="n">F</span> <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;a&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">write_dict_to_hdf5</span><span class="p">(</span><span class="n">some_dict</span><span class="p">,</span> <span class="n">F</span><span class="p">)</span>
+        <span class="n">new_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">read_dict_from_hdf5</span><span class="p">(</span><span class="n">new_dict</span><span class="p">,</span> <span class="n">F</span><span class="p">)</span>
+        <span class="n">dicts_equal</span><span class="p">,</span> <span class="n">err_msg</span> <span class="o">=</span> <span class="n">compare_dictionaries</span><span class="p">(</span>
+            <span class="n">some_dict</span><span class="p">,</span> <span class="n">new_dict</span><span class="p">,</span>
+            <span class="s1">&#39;written_dict&#39;</span><span class="p">,</span> <span class="s1">&#39;loaded_dict&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">dicts_equal</span><span class="p">,</span> <span class="n">msg</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">+</span><span class="n">err_msg</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestHDF5_Format.test_str_to_bool"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_hdf5formatter.TestHDF5_Format.test_str_to_bool">[docs]</a>    <span class="k">def</span> <span class="nf">test_str_to_bool</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">str_to_bool</span><span class="p">(</span><span class="s1">&#39;True&#39;</span><span class="p">),</span> <span class="bp">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">str_to_bool</span><span class="p">(</span><span class="s1">&#39;False&#39;</span><span class="p">),</span> <span class="bp">False</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">str_to_bool</span><span class="p">(</span><span class="s1">&#39;flse&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestHDF5_Format.test_writing_unsupported_types_to_hdf5"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_hdf5formatter.TestHDF5_Format.test_writing_unsupported_types_to_hdf5">[docs]</a>    <span class="k">def</span> <span class="nf">test_writing_unsupported_types_to_hdf5</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Tests writing of</span>
+<span class="sd">            - unsuported list type attr</span>
+<span class="sd">            - nested dataset</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">some_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">some_dict</span><span class="p">[</span><span class="s1">&#39;list_of_ints&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">5</span><span class="p">))</span>
+        <span class="n">some_dict</span><span class="p">[</span><span class="s1">&#39;list_of_floats&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mf">5.1</span><span class="p">))</span>
+        <span class="n">some_dict</span><span class="p">[</span><span class="s1">&#39;weird_dict&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">}</span>
+        <span class="n">data1</span> <span class="o">=</span> <span class="n">new_data</span><span class="p">(</span><span class="n">formatter</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">loc_provider</span><span class="p">,</span>
+                         <span class="n">name</span><span class="o">=</span><span class="s1">&#39;test_missing_attr&#39;</span><span class="p">)</span>
+        <span class="n">some_dict</span><span class="p">[</span><span class="s1">&#39;nested_dataset&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">data1</span>
+
+        <span class="n">some_dict</span><span class="p">[</span><span class="s1">&#39;list_of_dataset&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">data1</span><span class="p">,</span> <span class="n">data1</span><span class="p">]</span>
+        <span class="n">some_dict</span><span class="p">[</span><span class="s1">&#39;list_of_mixed_type&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;hello&#39;</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mf">4.2</span><span class="p">]</span>
+
+        <span class="n">fp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loc_provider</span><span class="p">(</span>
+            <span class="n">io</span><span class="o">=</span><span class="n">DataSet</span><span class="o">.</span><span class="n">default_io</span><span class="p">,</span>
+            <span class="n">record</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;test_dict_writing&#39;</span><span class="p">})</span><span class="o">+</span><span class="s1">&#39;.hdf5&#39;</span>
+        <span class="n">F</span> <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;a&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">write_dict_to_hdf5</span><span class="p">(</span><span class="n">some_dict</span><span class="p">,</span> <span class="n">F</span><span class="p">)</span>
+        <span class="n">new_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">read_dict_from_hdf5</span><span class="p">(</span><span class="n">new_dict</span><span class="p">,</span> <span class="n">F</span><span class="p">)</span>
+        <span class="c1"># objects are not identical but the string representation should be</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">some_dict</span><span class="p">[</span><span class="s1">&#39;nested_dataset&#39;</span><span class="p">]),</span>
+                         <span class="n">new_dict</span><span class="p">[</span><span class="s1">&#39;nested_dataset&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">some_dict</span><span class="p">[</span><span class="s1">&#39;list_of_dataset&#39;</span><span class="p">]),</span>
+                         <span class="n">new_dict</span><span class="p">[</span><span class="s1">&#39;list_of_dataset&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">some_dict</span><span class="p">[</span><span class="s1">&#39;list_of_mixed_type&#39;</span><span class="p">]),</span>
+                         <span class="n">new_dict</span><span class="p">[</span><span class="s1">&#39;list_of_mixed_type&#39;</span><span class="p">])</span>
+
+        <span class="n">F</span><span class="p">[</span><span class="s1">&#39;weird_dict&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;list_type&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;unsuported_list_type&#39;</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">NotImplementedError</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">read_dict_from_hdf5</span><span class="p">(</span><span class="n">new_dict</span><span class="p">,</span> <span class="n">F</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.1.1',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

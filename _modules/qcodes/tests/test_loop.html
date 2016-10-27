@@ -1,0 +1,1022 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>qcodes.tests.test_loop &mdash; QCoDeS 0.1.1 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+    <link rel="top" title="QCoDeS 0.1.1 documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> QCoDeS
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1.1
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../start/index.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../help.html">Get Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../user/index.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../community/index.html">Community Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/index.html">Classes and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../auto/qcodes.instrument_drivers.html">qcodes.instrument_drivers package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../roadmap.html">Qcodes project plan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changes/index.html">Changelogs</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../../index.html">QCoDeS</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      
+    <li>qcodes.tests.test_loop</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for qcodes.tests.test_loop</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">multiprocessing</span> <span class="kn">as</span> <span class="nn">mp</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">unittest</span> <span class="kn">import</span> <span class="n">TestCase</span>
+<span class="kn">from</span> <span class="nn">unittest.mock</span> <span class="kn">import</span> <span class="n">patch</span>
+
+<span class="kn">from</span> <span class="nn">qcodes.loops</span> <span class="kn">import</span> <span class="p">(</span><span class="n">Loop</span><span class="p">,</span> <span class="n">MP_NAME</span><span class="p">,</span> <span class="n">get_bg</span><span class="p">,</span> <span class="n">halt_bg</span><span class="p">,</span> <span class="n">ActiveLoop</span><span class="p">,</span>
+                          <span class="n">_DebugInterrupt</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">qcodes.actions</span> <span class="kn">import</span> <span class="n">Task</span><span class="p">,</span> <span class="n">Wait</span><span class="p">,</span> <span class="n">BreakIf</span>
+<span class="kn">from</span> <span class="nn">qcodes.station</span> <span class="kn">import</span> <span class="n">Station</span>
+<span class="kn">from</span> <span class="nn">qcodes.data.io</span> <span class="kn">import</span> <span class="n">DiskIO</span>
+<span class="kn">from</span> <span class="nn">qcodes.data.data_array</span> <span class="kn">import</span> <span class="n">DataArray</span>
+<span class="kn">from</span> <span class="nn">qcodes.data.manager</span> <span class="kn">import</span> <span class="n">get_data_manager</span>
+<span class="kn">from</span> <span class="nn">qcodes.instrument.parameter</span> <span class="kn">import</span> <span class="n">Parameter</span><span class="p">,</span> <span class="n">ManualParameter</span>
+<span class="kn">from</span> <span class="nn">qcodes.process.helpers</span> <span class="kn">import</span> <span class="n">kill_processes</span>
+<span class="kn">from</span> <span class="nn">qcodes.process.qcodes_process</span> <span class="kn">import</span> <span class="n">QcodesProcess</span>
+<span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="kn">import</span> <span class="n">Numbers</span>
+<span class="kn">from</span> <span class="nn">qcodes.utils.helpers</span> <span class="kn">import</span> <span class="n">LogCapture</span>
+
+<span class="kn">from</span> <span class="nn">.instrument_mocks</span> <span class="kn">import</span> <span class="p">(</span><span class="n">AMockModel</span><span class="p">,</span> <span class="n">MockGates</span><span class="p">,</span> <span class="n">MockSource</span><span class="p">,</span> <span class="n">MockMeter</span><span class="p">,</span>
+                               <span class="n">MultiGetter</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="TestMockInstLoop"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestMockInstLoop">[docs]</a><span class="k">class</span> <span class="nc">TestMockInstLoop</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="TestMockInstLoop.setUp"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestMockInstLoop.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">get_data_manager</span><span class="p">()</span><span class="o">.</span><span class="n">restart</span><span class="p">(</span><span class="n">force</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="n">kill_processes</span><span class="p">()</span>
+        <span class="c1"># TODO: figure out what&#39;s leaving DataManager in a weird state</span>
+        <span class="c1"># and fix it</span>
+        <span class="n">get_data_manager</span><span class="p">()</span><span class="o">.</span><span class="n">restart</span><span class="p">(</span><span class="n">force</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">AMockModel</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">gates</span> <span class="o">=</span> <span class="n">MockGates</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">server_name</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">source</span> <span class="o">=</span> <span class="n">MockSource</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">server_name</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">meter</span> <span class="o">=</span> <span class="n">MockMeter</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">server_name</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">location</span> <span class="o">=</span> <span class="s1">&#39;_loop_test_&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">location2</span> <span class="o">=</span> <span class="s1">&#39;_loop_test2_&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">io</span> <span class="o">=</span> <span class="n">DiskIO</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
+
+        <span class="n">c1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gates</span><span class="o">.</span><span class="n">chan1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loop</span> <span class="o">=</span> <span class="n">Loop</span><span class="p">(</span><span class="n">c1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">5</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="mf">0.001</span><span class="p">)</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="n">c1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loop_progress</span> <span class="o">=</span> <span class="n">Loop</span><span class="p">(</span><span class="n">c1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">5</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="mf">0.001</span><span class="p">,</span>
+                                  <span class="n">progress_interval</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="n">c1</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">location</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">location2</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestMockInstLoop.tearDown"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestMockInstLoop.tearDown">[docs]</a>    <span class="k">def</span> <span class="nf">tearDown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">instrument</span> <span class="ow">in</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">gates</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">meter</span><span class="p">]:</span>
+            <span class="n">instrument</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="n">get_data_manager</span><span class="p">()</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">remove_all</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">location</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">remove_all</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">location2</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestMockInstLoop.check_empty_data"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestMockInstLoop.check_empty_data">[docs]</a>    <span class="k">def</span> <span class="nf">check_empty_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="n">expected</span> <span class="o">=</span> <span class="nb">repr</span><span class="p">([</span><span class="nb">float</span><span class="p">(</span><span class="s1">&#39;nan&#39;</span><span class="p">)]</span> <span class="o">*</span> <span class="mi">4</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">gates_chan1</span><span class="o">.</span><span class="n">tolist</span><span class="p">()),</span> <span class="n">expected</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">gates_chan1_set</span><span class="o">.</span><span class="n">tolist</span><span class="p">()),</span> <span class="n">expected</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestMockInstLoop.check_loop_data"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestMockInstLoop.check_loop_data">[docs]</a>    <span class="k">def</span> <span class="nf">check_loop_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">gates_chan1</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">gates_chan1_set</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">location</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestMockInstLoop.test_background_and_datamanager"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestMockInstLoop.test_background_and_datamanager">[docs]</a>    <span class="k">def</span> <span class="nf">test_background_and_datamanager</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># make sure that an unpicklable instrument can indeed run in a loop</span>
+        <span class="c1"># because the instrument itself is in a server</span>
+
+        <span class="c1"># TODO: if we don&#39;t save the dataset (location=False) then we can&#39;t</span>
+        <span class="c1"># sync it when we&#39;re done. Should fix that - for now that just means</span>
+        <span class="c1"># you can only do in-memory loops if you set data_manager=False</span>
+        <span class="c1"># TODO: this is the one place we don&#39;t do quiet=True - test that we</span>
+        <span class="c1"># really print stuff?</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loop</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_empty_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="c1"># wait for process to finish (ensures that this was run in the bg,</span>
+        <span class="c1"># because otherwise there *is* no loop.process)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loop</span><span class="o">.</span><span class="n">process</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+
+        <span class="n">data</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_loop_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestMockInstLoop.test_local_instrument"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestMockInstLoop.test_local_instrument">[docs]</a>    <span class="k">def</span> <span class="nf">test_local_instrument</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># a local instrument should work in a foreground loop, but</span>
+        <span class="c1"># not in a background loop (should give a RuntimeError)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gates</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>  <span class="c1"># so we don&#39;t have two gates with same name</span>
+        <span class="n">gates_local</span> <span class="o">=</span> <span class="n">MockGates</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">server_name</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gates</span> <span class="o">=</span> <span class="n">gates_local</span>
+        <span class="n">c1</span> <span class="o">=</span> <span class="n">gates_local</span><span class="o">.</span><span class="n">chan1</span>
+        <span class="n">loop_local</span> <span class="o">=</span> <span class="n">Loop</span><span class="p">(</span><span class="n">c1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">5</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="mf">0.001</span><span class="p">)</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="n">c1</span><span class="p">)</span>
+
+        <span class="c1"># if spawn, pickle will happen</span>
+        <span class="k">if</span> <span class="n">mp</span><span class="o">.</span><span class="n">get_start_method</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;spawn&quot;</span><span class="p">:</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
+                <span class="n">loop_local</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">location</span><span class="p">,</span>
+                               <span class="n">quiet</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                               <span class="n">background</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="c1"># allow for *nix</span>
+        <span class="c1"># TODO(giulioungaretti) see what happens ?</span>
+        <span class="c1"># what is the expected beavhiour ?</span>
+        <span class="c1"># The RunimError will never be raised here, as the forkmethod</span>
+        <span class="c1"># won&#39;t try to pickle anything at all.</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;this should not be allowed, but for now we let it be&quot;</span><span class="p">)</span>
+            <span class="n">loop_local</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="n">quiet</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">loop_local</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">location2</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                              <span class="n">quiet</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_loop_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestMockInstLoop.test_background_no_datamanager"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestMockInstLoop.test_background_no_datamanager">[docs]</a>    <span class="k">def</span> <span class="nf">test_background_no_datamanager</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loop</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">location</span><span class="p">,</span>
+                             <span class="n">background</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                             <span class="n">data_manager</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                             <span class="n">quiet</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_empty_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">loop</span><span class="o">.</span><span class="n">process</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+
+        <span class="n">data</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_loop_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestMockInstLoop.test_foreground_and_datamanager"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestMockInstLoop.test_foreground_and_datamanager">[docs]</a>    <span class="k">def</span> <span class="nf">test_foreground_and_datamanager</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loop</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                             <span class="n">quiet</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loop</span><span class="p">,</span> <span class="s1">&#39;process&#39;</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_loop_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestMockInstLoop.test_foreground_no_datamanager_progress"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestMockInstLoop.test_foreground_no_datamanager_progress">[docs]</a>    <span class="k">def</span> <span class="nf">test_foreground_no_datamanager_progress</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loop_progress</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                                      <span class="n">data_manager</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">quiet</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loop</span><span class="p">,</span> <span class="s1">&#39;process&#39;</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_loop_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span></div>
+
+    <span class="nd">@patch</span><span class="p">(</span><span class="s1">&#39;qcodes.loops.tprint&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="TestMockInstLoop.test_progress_calls"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestMockInstLoop.test_progress_calls">[docs]</a>    <span class="k">def</span> <span class="nf">test_progress_calls</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tprint_mock</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loop_progress</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                                      <span class="n">data_manager</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">quiet</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loop</span><span class="p">,</span> <span class="s1">&#39;process&#39;</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_loop_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">expected_calls</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loop_progress</span><span class="o">.</span><span class="n">sweep_values</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">tprint_mock</span><span class="o">.</span><span class="n">call_count</span><span class="p">,</span> <span class="n">expected_calls</span><span class="p">)</span>
+
+        <span class="c1"># now run again with no progress interval and check that we get no</span>
+        <span class="c1"># additional calls</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loop_progress</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                                      <span class="n">data_manager</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">quiet</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                                      <span class="n">progress_interval</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loop</span><span class="p">,</span> <span class="s1">&#39;process&#39;</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_loop_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">tprint_mock</span><span class="o">.</span><span class="n">call_count</span><span class="p">,</span> <span class="n">expected_calls</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestMockInstLoop.test_foreground_no_datamanager"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestMockInstLoop.test_foreground_no_datamanager">[docs]</a>    <span class="k">def</span> <span class="nf">test_foreground_no_datamanager</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loop</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                             <span class="n">data_manager</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">quiet</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loop</span><span class="p">,</span> <span class="s1">&#39;process&#39;</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_loop_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestMockInstLoop.test_enqueue"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestMockInstLoop.test_enqueue">[docs]</a>    <span class="k">def</span> <span class="nf">test_enqueue</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">c1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gates</span><span class="o">.</span><span class="n">chan1</span>
+        <span class="n">loop</span> <span class="o">=</span> <span class="n">Loop</span><span class="p">(</span><span class="n">c1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">5</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="mf">0.01</span><span class="p">)</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="n">c1</span><span class="p">)</span>
+        <span class="n">data1</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">location</span><span class="p">,</span>
+                         <span class="n">quiet</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                         <span class="n">background</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                         <span class="n">data_manager</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+        <span class="c1"># second running of the loop should be enqueued, blocks until</span>
+        <span class="c1"># the first one finishes.</span>
+        <span class="c1"># TODO: check what it prints?</span>
+        <span class="n">data2</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">location2</span><span class="p">,</span>
+                         <span class="n">quiet</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                         <span class="n">background</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                         <span class="n">data_manager</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+        <span class="n">data1</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+        <span class="n">data2</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data1</span><span class="o">.</span><span class="n">gates_chan1</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">data2</span><span class="o">.</span><span class="n">gates_chan1</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">v</span><span class="p">))</span>
+
+        <span class="n">loop</span><span class="o">.</span><span class="n">process</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+        <span class="n">data2</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data2</span><span class="o">.</span><span class="n">gates_chan1</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
+
+        <span class="c1"># and while we&#39;re here, check that running a loop in the</span>
+        <span class="c1"># foreground *after* the background clears its .process</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="n">loop</span><span class="p">,</span> <span class="s1">&#39;process&#39;</span><span class="p">))</span>
+        <span class="n">loop</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="n">loop</span><span class="p">,</span> <span class="s1">&#39;process&#39;</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="sleeper"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.sleeper">[docs]</a><span class="k">def</span> <span class="nf">sleeper</span><span class="p">(</span><span class="n">t</span><span class="p">):</span>
+    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">t</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="TestBG"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestBG">[docs]</a><span class="k">class</span> <span class="nc">TestBG</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="TestBG.test_get_halt"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestBG.test_get_halt">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_halt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">kill_processes</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNone</span><span class="p">(</span><span class="n">get_bg</span><span class="p">())</span>
+
+        <span class="n">p1</span> <span class="o">=</span> <span class="n">QcodesProcess</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">MP_NAME</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">sleeper</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="p">))</span>
+        <span class="n">p1</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+        <span class="n">p2</span> <span class="o">=</span> <span class="n">QcodesProcess</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">MP_NAME</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">sleeper</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="p">))</span>
+        <span class="n">p2</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+        <span class="n">p1</span><span class="o">.</span><span class="n">signal_queue</span> <span class="o">=</span> <span class="n">p2</span><span class="o">.</span><span class="n">signal_queue</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">Queue</span><span class="p">()</span>
+        <span class="n">qcodes_processes</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">mp</span><span class="o">.</span><span class="n">active_children</span><span class="p">()</span>
+                            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">QcodesProcess</span><span class="p">)]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">qcodes_processes</span><span class="p">),</span> <span class="mi">2</span><span class="p">,</span> <span class="n">mp</span><span class="o">.</span><span class="n">active_children</span><span class="p">())</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
+            <span class="n">get_bg</span><span class="p">()</span>
+        <span class="n">bg1</span> <span class="o">=</span> <span class="n">get_bg</span><span class="p">(</span><span class="n">return_first</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="n">bg1</span><span class="p">,</span> <span class="p">[</span><span class="n">p1</span><span class="p">,</span> <span class="n">p2</span><span class="p">])</span>
+
+        <span class="n">halt_bg</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)</span>
+        <span class="n">bg2</span> <span class="o">=</span> <span class="n">get_bg</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="n">bg2</span><span class="p">,</span> <span class="p">[</span><span class="n">p1</span><span class="p">,</span> <span class="n">p2</span><span class="p">])</span>
+        <span class="c1"># is this robust? requires that active_children always returns the same</span>
+        <span class="c1"># order, even if it&#39;s not the order you started processes in</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertNotEqual</span><span class="p">(</span><span class="n">bg1</span><span class="p">,</span> <span class="n">bg2</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">mp</span><span class="o">.</span><span class="n">active_children</span><span class="p">()),</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">halt_bg</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNone</span><span class="p">(</span><span class="n">get_bg</span><span class="p">())</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">mp</span><span class="o">.</span><span class="n">active_children</span><span class="p">()),</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># TODO - test that we print &quot;no loops running&quot;?</span>
+        <span class="c1"># at least this shows that it won&#39;t raise an error</span>
+        <span class="n">halt_bg</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="FakeMonitor"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.FakeMonitor">[docs]</a><span class="k">class</span> <span class="nc">FakeMonitor</span><span class="p">:</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    when attached to an ActiveLoop as _monitor, records how long</span>
+<span class="sd">    the monitor was given to measure</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delay_array</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">delay_array</span> <span class="o">=</span> <span class="n">delay_array</span>
+
+<div class="viewcode-block" id="FakeMonitor.call"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.FakeMonitor.call">[docs]</a>    <span class="k">def</span> <span class="nf">call</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">finish_by</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">delay_array</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">finish_by</span> <span class="o">-</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">())</span></div></div>
+
+
+<div class="viewcode-block" id="TestLoop"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestLoop">[docs]</a><span class="k">class</span> <span class="nc">TestLoop</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="TestLoop.setUpClass"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestLoop.setUpClass">[docs]</a>    <span class="k">def</span> <span class="nf">setUpClass</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">p1</span> <span class="o">=</span> <span class="n">ManualParameter</span><span class="p">(</span><span class="s1">&#39;p1&#39;</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">p2</span> <span class="o">=</span> <span class="n">ManualParameter</span><span class="p">(</span><span class="s1">&#39;p2&#39;</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">p3</span> <span class="o">=</span> <span class="n">ManualParameter</span><span class="p">(</span><span class="s1">&#39;p3&#39;</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+        <span class="n">Station</span><span class="p">()</span><span class="o">.</span><span class="n">set_measurement</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">p2</span><span class="p">,</span> <span class="n">cls</span><span class="o">.</span><span class="n">p3</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestLoop.setUp"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestLoop.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">kill_processes</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TestLoop.test_nesting"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestLoop.test_nesting">[docs]</a>    <span class="k">def</span> <span class="nf">test_nesting</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">loop</span> <span class="o">=</span> <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="mf">0.001</span><span class="p">)</span><span class="o">.</span><span class="n">loop</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">5</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="mf">0.001</span><span class="p">)</span><span class="o">.</span><span class="n">loop</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">p3</span><span class="p">[</span><span class="mi">5</span><span class="p">:</span><span class="mi">7</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="mf">0.001</span><span class="p">)</span>
+        <span class="n">active_loop</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">p3</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">active_loop</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p1_set</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p2_set</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">]]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p3_set</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[[[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">]]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p1</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[[[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="p">[[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">]]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p2</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[[[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">]]]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p3</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[[[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">]]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestLoop.test_nesting_2"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestLoop.test_nesting_2">[docs]</a>    <span class="k">def</span> <span class="nf">test_nesting_2</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">loop</span> <span class="o">=</span> <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">:</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">each</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">,</span>
+            <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">5</span><span class="p">:</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">each</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="p">,</span>
+                <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p3</span><span class="p">[</span><span class="mi">5</span><span class="p">:</span><span class="mi">7</span><span class="p">:</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">each</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">p3</span><span class="p">)))</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+        <span class="n">keys</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p1_set</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p2_set</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">]]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p3_set</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[[[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">]]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p1_0</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+
+        <span class="c1"># TODO(alexcjohnson): these names are extra confusing...</span>
+        <span class="c1"># perhaps we should say something like always include *all* indices</span>
+        <span class="c1"># unless you can get rid of them all (ie that param only shows up</span>
+        <span class="c1"># once, but separately for set and measured)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p1_1_0</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">]])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p2_1</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">]]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p1_1_2_0</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[[[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="p">[[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">]]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p2_2_1</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[[[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">]]]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p3</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[[[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">]]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="c1"># make sure rerunning this doesn&#39;t cause any problems</span>
+        <span class="n">data2</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+        <span class="n">keys2</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">keys</span><span class="p">,</span> <span class="n">keys2</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestLoop.test_repr"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestLoop.test_repr">[docs]</a>    <span class="k">def</span> <span class="nf">test_repr</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">loop2</span> <span class="o">=</span> <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">5</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="mf">0.001</span><span class="p">)</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="p">)</span>
+        <span class="n">loop</span> <span class="o">=</span> <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="mf">0.001</span><span class="p">)</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p3</span><span class="p">,</span>
+                                                <span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="p">,</span>
+                                                <span class="n">loop2</span><span class="p">,</span>
+                                                <span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">)</span>
+        <span class="n">active_loop</span> <span class="o">=</span> <span class="n">loop</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">active_loop</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+        <span class="n">expected</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;DataSet:</span><span class="se">\n</span><span class="s1">&#39;</span>
+                    <span class="s1">&#39;   mode     = DataMode.LOCAL</span><span class="se">\n</span><span class="s1">&#39;</span>
+                    <span class="s1">&#39;   location = False</span><span class="se">\n</span><span class="s1">&#39;</span>
+                    <span class="s1">&#39;   &lt;Type&gt;   | &lt;array_id&gt; | &lt;array.name&gt; | &lt;array.shape&gt;</span><span class="se">\n</span><span class="s1">&#39;</span>
+                    <span class="s1">&#39;   Setpoint | p1_set     | p1           | (2,)</span><span class="se">\n</span><span class="s1">&#39;</span>
+                    <span class="s1">&#39;   Measured | p3         | p3           | (2,)</span><span class="se">\n</span><span class="s1">&#39;</span>
+                    <span class="s1">&#39;   Measured | p2_1       | p2           | (2,)</span><span class="se">\n</span><span class="s1">&#39;</span>
+                    <span class="s1">&#39;   Setpoint | p2_set     | p2           | (2, 2)</span><span class="se">\n</span><span class="s1">&#39;</span>
+                    <span class="s1">&#39;   Measured | p2_2_0     | p2           | (2, 2)</span><span class="se">\n</span><span class="s1">&#39;</span>
+                    <span class="s1">&#39;   Measured | p1         | p1           | (2,)&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">__repr__</span><span class="p">(),</span> <span class="n">expected</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestLoop.test_default_measurement"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestLoop.test_default_measurement">[docs]</a>    <span class="k">def</span> <span class="nf">test_default_measurement</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p3</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="mf">0.001</span><span class="p">)</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p1_set</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p2</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p3</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">])</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="mf">0.001</span><span class="p">)</span><span class="o">.</span><span class="n">each</span><span class="p">(</span>
+            <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">5</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="mf">0.001</span><span class="p">))</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p1_set</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p2</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">],</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">]])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p2_set</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">],</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">]])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p3</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">]]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestLoop.test_tasks_callable_arguments"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestLoop.test_tasks_callable_arguments">[docs]</a>    <span class="k">def</span> <span class="nf">test_tasks_callable_arguments</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="mf">0.01</span><span class="p">)</span><span class="o">.</span><span class="n">each</span><span class="p">(</span>
+            <span class="n">Task</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="o">.</span><span class="n">set</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">),</span>
+            <span class="n">Task</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p3</span><span class="o">.</span><span class="n">set</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="o">.</span><span class="n">get</span><span class="p">),</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">p3</span><span class="p">)</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p2</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p3</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+
+        <span class="k">def</span> <span class="nf">test_func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">kwargs</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;a_kwarg&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">})</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">2</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="mf">0.01</span><span class="p">)</span><span class="o">.</span><span class="n">each</span><span class="p">(</span>
+            <span class="n">Task</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="o">.</span><span class="n">set</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">p1</span> <span class="o">*</span> <span class="mi">2</span><span class="p">),</span>
+            <span class="n">Task</span><span class="p">(</span><span class="n">test_func</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">p1</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">a_kwarg</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span> <span class="o">*</span> <span class="mi">4</span><span class="p">),</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">p3</span><span class="p">)</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p2</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[</span><span class="mi">2</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="TestLoop.test_tasks_waits"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestLoop.test_tasks_waits">[docs]</a>    <span class="k">def</span> <span class="nf">test_tasks_waits</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">delay0</span> <span class="o">=</span> <span class="mf">0.01</span>
+        <span class="n">delay1</span> <span class="o">=</span> <span class="mf">0.03</span>
+        <span class="n">loop</span> <span class="o">=</span> <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="n">delay0</span><span class="p">)</span><span class="o">.</span><span class="n">each</span><span class="p">(</span>
+            <span class="n">Task</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="o">.</span><span class="n">set</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span>
+            <span class="n">Wait</span><span class="p">(</span><span class="n">delay1</span><span class="p">),</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="p">,</span>
+            <span class="n">Task</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="o">.</span><span class="n">set</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="p">)</span>
+        <span class="n">delay_array</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">loop</span><span class="o">.</span><span class="n">_monitor</span> <span class="o">=</span> <span class="n">FakeMonitor</span><span class="p">(</span><span class="n">delay_array</span><span class="p">)</span>
+
+        <span class="c1"># give it a &quot;process&quot; as if it was run in the bg before,</span>
+        <span class="c1"># check that this gets cleared</span>
+        <span class="n">loop</span><span class="o">.</span><span class="n">process</span> <span class="o">=</span> <span class="s1">&#39;TDD&#39;</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="n">loop</span><span class="p">,</span> <span class="s1">&#39;process&#39;</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p1_set</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p2_2</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p2_4</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">delay_array</span><span class="p">),</span> <span class="mi">4</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">delay</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">delay_array</span><span class="p">):</span>
+            <span class="n">target</span> <span class="o">=</span> <span class="n">delay1</span> <span class="k">if</span> <span class="n">i</span> <span class="o">%</span> <span class="mi">2</span> <span class="k">else</span> <span class="n">delay0</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertLessEqual</span><span class="p">(</span><span class="n">delay</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertGreater</span><span class="p">(</span><span class="n">delay</span><span class="p">,</span> <span class="n">target</span> <span class="o">-</span> <span class="mf">0.001</span><span class="p">)</span></div>
+
+    <span class="nd">@patch</span><span class="p">(</span><span class="s1">&#39;time.sleep&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="TestLoop.test_delay0"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestLoop.test_delay0">[docs]</a>    <span class="k">def</span> <span class="nf">test_delay0</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sleep_mock</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+
+        <span class="n">loop</span> <span class="o">=</span> <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">:</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">loop</span><span class="o">.</span><span class="n">delay</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p1_set</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p2</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">sleep_mock</span><span class="o">.</span><span class="n">call_count</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestLoop.test_bad_delay"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestLoop.test_bad_delay">[docs]</a>    <span class="k">def</span> <span class="nf">test_bad_delay</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">val</span><span class="p">,</span> <span class="n">err</span> <span class="ow">in</span> <span class="p">[(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mf">0.1</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">),</span>
+                         <span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;forever&#39;</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">)]:</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">err</span><span class="p">):</span>
+                <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="n">val</span><span class="p">)</span>
+
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">err</span><span class="p">):</span>
+                <span class="n">Wait</span><span class="p">(</span><span class="n">val</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestLoop.test_bare_wait"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestLoop.test_bare_wait">[docs]</a>    <span class="k">def</span> <span class="nf">test_bare_wait</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Wait gets transformed to a Task, but is also callable on its own</span>
+        <span class="n">t0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+        <span class="n">Wait</span><span class="p">(</span><span class="mf">0.05</span><span class="p">)()</span>
+        <span class="n">delay</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">t0</span>
+        <span class="c1"># TODO: On Mac delay is always at least the time you waited, but on</span>
+        <span class="c1"># Windows it is sometimes less? need to investigate the precision here.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertGreaterEqual</span><span class="p">(</span><span class="n">delay</span><span class="p">,</span> <span class="mf">0.04</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertLessEqual</span><span class="p">(</span><span class="n">delay</span><span class="p">,</span> <span class="mf">0.06</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestLoop.test_composite_params"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestLoop.test_composite_params">[docs]</a>    <span class="k">def</span> <span class="nf">test_composite_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># this one has names and shapes</span>
+        <span class="n">mg</span> <span class="o">=</span> <span class="n">MultiGetter</span><span class="p">(</span><span class="n">one</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">onetwo</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="n">mg</span><span class="p">,</span> <span class="s1">&#39;names&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="n">mg</span><span class="p">,</span> <span class="s1">&#39;shapes&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">mg</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s1">&#39;None&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="n">mg</span><span class="p">,</span> <span class="s1">&#39;shape&#39;</span><span class="p">))</span>
+        <span class="n">loop</span> <span class="o">=</span> <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="mf">0.001</span><span class="p">)</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="n">mg</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p1_set</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">onetwo</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">index0</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="c1"># give it setpoints, names, and labels</span>
+        <span class="n">mg</span><span class="o">.</span><span class="n">setpoints</span> <span class="o">=</span> <span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="p">((</span><span class="mi">10</span><span class="p">,</span> <span class="mi">11</span><span class="p">),))</span>
+        <span class="n">sp_name</span> <span class="o">=</span> <span class="s1">&#39;highest&#39;</span>
+        <span class="n">mg</span><span class="o">.</span><span class="n">setpoint_names</span> <span class="o">=</span> <span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="p">(</span><span class="n">sp_name</span><span class="p">,))</span>
+        <span class="n">sp_label</span> <span class="o">=</span> <span class="s1">&#39;does it go to 11?&#39;</span>
+        <span class="n">mg</span><span class="o">.</span><span class="n">setpoint_labels</span> <span class="o">=</span> <span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="p">(</span><span class="n">sp_label</span><span class="p">,))</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">highest</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[[</span><span class="mi">10</span><span class="p">,</span> <span class="mi">11</span><span class="p">]]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">highest</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="n">sp_label</span><span class="p">)</span>
+
+        <span class="c1"># setpoints as DataArray - name and label here override</span>
+        <span class="c1"># setpoint_names and setpoint_labels attributes</span>
+        <span class="n">new_sp_name</span> <span class="o">=</span> <span class="s1">&#39;bgn&#39;</span>
+        <span class="n">new_sp_label</span> <span class="o">=</span> <span class="s1">&#39;boogie nights!&#39;</span>
+        <span class="n">sp_dataarray</span> <span class="o">=</span> <span class="n">DataArray</span><span class="p">(</span><span class="n">preset_data</span><span class="o">=</span><span class="p">[</span><span class="mi">6</span><span class="p">,</span> <span class="mi">7</span><span class="p">],</span> <span class="n">name</span><span class="o">=</span><span class="n">new_sp_name</span><span class="p">,</span>
+                                 <span class="n">label</span><span class="o">=</span><span class="n">new_sp_label</span><span class="p">)</span>
+        <span class="n">mg</span><span class="o">.</span><span class="n">setpoints</span> <span class="o">=</span> <span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="p">(</span><span class="n">sp_dataarray</span><span class="p">,))</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">bgn</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[[</span><span class="mi">6</span><span class="p">,</span> <span class="mi">7</span><span class="p">]]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">bgn</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="n">new_sp_label</span><span class="p">)</span>
+
+        <span class="c1"># muck things up and test for errors</span>
+        <span class="n">mg</span><span class="o">.</span><span class="n">setpoints</span> <span class="o">=</span> <span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">),))</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">loop</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+
+        <span class="n">mg</span><span class="o">.</span><span class="n">setpoints</span> <span class="o">=</span> <span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">)))</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">loop</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+
+        <span class="k">del</span> <span class="n">mg</span><span class="o">.</span><span class="n">setpoints</span><span class="p">,</span> <span class="n">mg</span><span class="o">.</span><span class="n">setpoint_names</span><span class="p">,</span> <span class="n">mg</span><span class="o">.</span><span class="n">setpoint_labels</span>
+        <span class="n">mg</span><span class="o">.</span><span class="n">names</span> <span class="o">=</span> <span class="n">mg</span><span class="o">.</span><span class="n">names</span> <span class="o">+</span> <span class="p">(</span><span class="s1">&#39;extra&#39;</span><span class="p">,)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">loop</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+
+        <span class="k">del</span> <span class="n">mg</span><span class="o">.</span><span class="n">names</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">loop</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+
+        <span class="c1"># this one has name and shape</span>
+        <span class="n">mg</span> <span class="o">=</span> <span class="n">MultiGetter</span><span class="p">(</span><span class="n">arr</span><span class="o">=</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="n">mg</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="n">mg</span><span class="p">,</span> <span class="s1">&#39;shape&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="n">mg</span><span class="p">,</span> <span class="s1">&#39;names&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="n">mg</span><span class="p">,</span> <span class="s1">&#39;shapes&#39;</span><span class="p">))</span>
+        <span class="n">loop</span> <span class="o">=</span> <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="mf">0.001</span><span class="p">)</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="n">mg</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p1_set</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">arr</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[[</span><span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">]]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">index0</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="n">mg</span> <span class="o">=</span> <span class="n">MultiGetter</span><span class="p">(</span><span class="n">arr2d</span><span class="o">=</span><span class="p">((</span><span class="mi">21</span><span class="p">,</span> <span class="mi">22</span><span class="p">),</span> <span class="p">(</span><span class="mi">23</span><span class="p">,</span> <span class="mi">24</span><span class="p">)))</span>
+        <span class="n">loop</span> <span class="o">=</span> <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="mf">0.001</span><span class="p">)</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="n">mg</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p1_set</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">arr2d</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[[[</span><span class="mi">21</span><span class="p">,</span> <span class="mi">22</span><span class="p">],</span> <span class="p">[</span><span class="mi">23</span><span class="p">,</span> <span class="mi">24</span><span class="p">]]]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">index0</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">index1</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestLoop.test_bad_actors"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestLoop.test_bad_actors">[docs]</a>    <span class="k">def</span> <span class="nf">test_bad_actors</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">f</span><span class="p">():</span>
+            <span class="k">return</span> <span class="mi">42</span>
+
+        <span class="k">class</span> <span class="nc">NoName</span><span class="p">:</span>
+            <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                <span class="k">return</span> <span class="mi">42</span>
+
+        <span class="k">class</span> <span class="nc">HasName</span><span class="p">:</span>
+            <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                <span class="k">return</span> <span class="mi">42</span>
+
+            <span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;IHazName!&#39;</span>
+
+        <span class="k">class</span> <span class="nc">HasNames</span><span class="p">:</span>
+            <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                <span class="k">return</span> <span class="mi">42</span>
+
+            <span class="n">names</span> <span class="o">=</span> <span class="s1">&#39;Namezz&#39;</span>
+
+        <span class="c1"># first two minimal working gettables</span>
+        <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">:</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="n">HasName</span><span class="p">())</span>
+        <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">:</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="n">HasNames</span><span class="p">())</span>
+
+        <span class="k">for</span> <span class="n">bad_action</span> <span class="ow">in</span> <span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="mi">42</span><span class="p">,</span> <span class="n">NoName</span><span class="p">()):</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+                <span class="c1"># include a good action too, just to make sure we look</span>
+                <span class="c1"># at the whole list</span>
+                <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">:</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">,</span> <span class="n">bad_action</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="c1"># invalid sweep values</span>
+            <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">[</span><span class="o">-</span><span class="mi">20</span><span class="p">:</span><span class="mi">20</span><span class="p">:</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestLoop.test_very_short_delay"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestLoop.test_very_short_delay">[docs]</a>    <span class="k">def</span> <span class="nf">test_very_short_delay</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">with</span> <span class="n">LogCapture</span><span class="p">()</span> <span class="k">as</span> <span class="n">logs</span><span class="p">:</span>
+            <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="mf">1e-9</span><span class="p">)</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">)</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">logs</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s1">&#39;negative delay&#39;</span><span class="p">),</span> <span class="mi">2</span><span class="p">,</span> <span class="n">logs</span><span class="o">.</span><span class="n">value</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestLoop.test_zero_delay"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestLoop.test_zero_delay">[docs]</a>    <span class="k">def</span> <span class="nf">test_zero_delay</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">with</span> <span class="n">LogCapture</span><span class="p">()</span> <span class="k">as</span> <span class="n">logs</span><span class="p">:</span>
+            <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">:</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">)</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">logs</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s1">&#39;negative delay&#39;</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="n">logs</span><span class="o">.</span><span class="n">value</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestLoop.test_breakif"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestLoop.test_breakif">[docs]</a>    <span class="k">def</span> <span class="nf">test_breakif</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">nan</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;nan&#39;</span><span class="p">)</span>
+        <span class="n">loop</span> <span class="o">=</span> <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">6</span><span class="p">:</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">,</span> <span class="n">BreakIf</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span> <span class="o">&gt;=</span> <span class="mi">3</span><span class="p">))</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p1</span><span class="o">.</span><span class="n">tolist</span><span class="p">()),</span>
+                         <span class="nb">repr</span><span class="p">([</span><span class="mf">1.</span><span class="p">,</span> <span class="mf">2.</span><span class="p">,</span> <span class="mf">3.</span><span class="p">,</span> <span class="n">nan</span><span class="p">,</span> <span class="n">nan</span><span class="p">]))</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="n">BreakIf</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="o">.</span><span class="n">get_latest</span> <span class="o">&gt;=</span> <span class="mi">3</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">)</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p1</span><span class="o">.</span><span class="n">tolist</span><span class="p">()),</span>
+                         <span class="nb">repr</span><span class="p">([</span><span class="mf">1.</span><span class="p">,</span> <span class="mf">2.</span><span class="p">,</span> <span class="n">nan</span><span class="p">,</span> <span class="n">nan</span><span class="p">,</span> <span class="n">nan</span><span class="p">]))</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="n">BreakIf</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="n">BreakIf</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="o">.</span><span class="n">set</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestLoop.test_then_construction"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestLoop.test_then_construction">[docs]</a>    <span class="k">def</span> <span class="nf">test_then_construction</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">loop</span> <span class="o">=</span> <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">6</span><span class="p">:</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">task1</span> <span class="o">=</span> <span class="n">Task</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="o">.</span><span class="n">set</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">task2</span> <span class="o">=</span> <span class="n">Wait</span><span class="p">(</span><span class="mf">0.02</span><span class="p">)</span>
+        <span class="n">loop2</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">then</span><span class="p">(</span><span class="n">task1</span><span class="p">)</span>
+        <span class="n">loop3</span> <span class="o">=</span> <span class="n">loop2</span><span class="o">.</span><span class="n">then</span><span class="p">(</span><span class="n">task2</span><span class="p">,</span> <span class="n">task1</span><span class="p">)</span>
+        <span class="n">loop4</span> <span class="o">=</span> <span class="n">loop3</span><span class="o">.</span><span class="n">then</span><span class="p">(</span><span class="n">task2</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="n">loop5</span> <span class="o">=</span> <span class="n">loop4</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">,</span> <span class="n">BreakIf</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span> <span class="o">&gt;=</span> <span class="mi">3</span><span class="p">))</span>
+        <span class="n">loop6</span> <span class="o">=</span> <span class="n">loop5</span><span class="o">.</span><span class="n">then</span><span class="p">(</span><span class="n">task1</span><span class="p">)</span>
+        <span class="n">loop7</span> <span class="o">=</span> <span class="n">loop6</span><span class="o">.</span><span class="n">then</span><span class="p">(</span><span class="n">task1</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+        <span class="c1"># original loop is untouched, same as .each and .loop</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">loop</span><span class="o">.</span><span class="n">then_actions</span><span class="p">,</span> <span class="p">())</span>
+
+        <span class="c1"># but loop2 has the task we asked for</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">loop2</span><span class="o">.</span><span class="n">then_actions</span><span class="p">,</span> <span class="p">(</span><span class="n">task1</span><span class="p">,))</span>
+
+        <span class="c1"># loop3 gets the other tasks appended</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">loop3</span><span class="o">.</span><span class="n">then_actions</span><span class="p">,</span> <span class="p">(</span><span class="n">task1</span><span class="p">,</span> <span class="n">task2</span><span class="p">,</span> <span class="n">task1</span><span class="p">))</span>
+
+        <span class="c1"># loop4 gets only the new one</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">loop4</span><span class="o">.</span><span class="n">then_actions</span><span class="p">,</span> <span class="p">(</span><span class="n">task2</span><span class="p">,))</span>
+
+        <span class="c1"># tasks survive .each</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">loop5</span><span class="o">.</span><span class="n">then_actions</span><span class="p">,</span> <span class="p">(</span><span class="n">task2</span><span class="p">,))</span>
+
+        <span class="c1"># and ActiveLoop.then works the same way as Loop.then</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">loop6</span><span class="o">.</span><span class="n">then_actions</span><span class="p">,</span> <span class="p">(</span><span class="n">task2</span><span class="p">,</span> <span class="n">task1</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">loop7</span><span class="o">.</span><span class="n">then_actions</span><span class="p">,</span> <span class="p">(</span><span class="n">task1</span><span class="p">,))</span>
+
+        <span class="c1"># .then rejects Loops and others that are valid loop actions</span>
+        <span class="k">for</span> <span class="n">action</span> <span class="ow">in</span> <span class="p">(</span><span class="n">loop2</span><span class="p">,</span> <span class="n">loop7</span><span class="p">,</span> <span class="n">BreakIf</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span> <span class="o">&gt;=</span> <span class="mi">3</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">,</span>
+                       <span class="bp">True</span><span class="p">,</span> <span class="mi">42</span><span class="p">):</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+                <span class="n">loop</span><span class="o">.</span><span class="n">then</span><span class="p">(</span><span class="n">action</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestLoop.check_snap_ts"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestLoop.check_snap_ts">[docs]</a>    <span class="k">def</span> <span class="nf">check_snap_ts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">container</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">ts_set</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="n">container</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="n">ts_set</span><span class="p">)</span>
+        <span class="k">del</span> <span class="n">container</span><span class="p">[</span><span class="n">key</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="TestLoop.test_then_action"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestLoop.test_then_action">[docs]</a>    <span class="k">def</span> <span class="nf">test_then_action</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">maxDiff</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="n">nan</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;nan&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+        <span class="n">f_calls</span><span class="p">,</span> <span class="n">g_calls</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
+
+        <span class="k">def</span> <span class="nf">f</span><span class="p">():</span>
+            <span class="n">f_calls</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">g</span><span class="p">():</span>
+            <span class="n">g_calls</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">breaker</span> <span class="o">=</span> <span class="n">BreakIf</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span> <span class="o">&gt;=</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="n">ts1</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1"> %H:%M:%S&#39;</span><span class="p">)</span>
+        <span class="c1"># evaluate param snapshots now since later value will change</span>
+        <span class="n">p1snap</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="o">.</span><span class="n">snapshot</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">p2snap</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="o">.</span><span class="n">snapshot</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p3</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+        <span class="n">p3snap</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p3</span><span class="o">.</span><span class="n">snapshot</span><span class="p">()</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">6</span><span class="p">:</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">each</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">,</span> <span class="n">breaker</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">then</span><span class="p">(</span>
+            <span class="n">Task</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="o">.</span><span class="n">set</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">Wait</span><span class="p">(</span><span class="mf">0.01</span><span class="p">),</span> <span class="n">Task</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+        <span class="n">ts2</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1"> %H:%M:%S&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p1</span><span class="o">.</span><span class="n">tolist</span><span class="p">()),</span>
+                         <span class="nb">repr</span><span class="p">([</span><span class="mf">1.</span><span class="p">,</span> <span class="mf">2.</span><span class="p">,</span> <span class="mf">3.</span><span class="p">,</span> <span class="n">nan</span><span class="p">,</span> <span class="n">nan</span><span class="p">]))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">f_calls</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># this loop makes use of all the features, so use it to test</span>
+        <span class="c1"># DataSet metadata</span>
+        <span class="n">loopmeta</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;loop&#39;</span><span class="p">]</span>
+        <span class="n">default_meas_meta</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;station&#39;</span><span class="p">][</span><span class="s1">&#39;default_measurement&#39;</span><span class="p">]</span>
+        <span class="c1"># assuming the whole loop takes &lt; 1 sec, all timestamps</span>
+        <span class="c1"># should each be the same as one of the bounding times</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_snap_ts</span><span class="p">(</span><span class="n">loopmeta</span><span class="p">,</span> <span class="s1">&#39;ts_start&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">ts1</span><span class="p">,</span> <span class="n">ts2</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_snap_ts</span><span class="p">(</span><span class="n">loopmeta</span><span class="p">,</span> <span class="s1">&#39;ts_end&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">ts1</span><span class="p">,</span> <span class="n">ts2</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_snap_ts</span><span class="p">(</span><span class="n">loopmeta</span><span class="p">[</span><span class="s1">&#39;sweep_values&#39;</span><span class="p">][</span><span class="s1">&#39;parameter&#39;</span><span class="p">],</span>
+                           <span class="s1">&#39;ts&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">ts1</span><span class="p">,</span> <span class="n">ts2</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_snap_ts</span><span class="p">(</span><span class="n">loopmeta</span><span class="p">[</span><span class="s1">&#39;actions&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="s1">&#39;ts&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">ts1</span><span class="p">,</span> <span class="n">ts2</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_snap_ts</span><span class="p">(</span><span class="n">default_meas_meta</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s1">&#39;ts&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">ts1</span><span class="p">,</span> <span class="n">ts2</span><span class="p">,</span> <span class="bp">None</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_snap_ts</span><span class="p">(</span><span class="n">default_meas_meta</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="s1">&#39;ts&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">ts1</span><span class="p">,</span> <span class="n">ts2</span><span class="p">,</span> <span class="bp">None</span><span class="p">))</span>
+        <span class="k">del</span> <span class="n">p1snap</span><span class="p">[</span><span class="s1">&#39;ts&#39;</span><span class="p">],</span> <span class="n">p2snap</span><span class="p">[</span><span class="s1">&#39;ts&#39;</span><span class="p">],</span> <span class="n">p3snap</span><span class="p">[</span><span class="s1">&#39;ts&#39;</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">metadata</span><span class="p">,</span> <span class="p">{</span>
+            <span class="s1">&#39;station&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;instruments&#39;</span><span class="p">:</span> <span class="p">{},</span>
+                <span class="s1">&#39;parameters&#39;</span><span class="p">:</span> <span class="p">{},</span>
+                <span class="s1">&#39;components&#39;</span><span class="p">:</span> <span class="p">{},</span>
+                <span class="s1">&#39;default_measurement&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">p2snap</span><span class="p">,</span> <span class="n">p3snap</span><span class="p">]</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;loop&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;background&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
+                <span class="s1">&#39;use_threads&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
+                <span class="s1">&#39;use_data_manager&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
+                <span class="s1">&#39;__class__&#39;</span><span class="p">:</span> <span class="s1">&#39;qcodes.loops.ActiveLoop&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;sweep_values&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;parameter&#39;</span><span class="p">:</span> <span class="n">p1snap</span><span class="p">,</span>
+                    <span class="s1">&#39;values&#39;</span><span class="p">:</span> <span class="p">[{</span><span class="s1">&#39;first&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;last&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s1">&#39;num&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+                               <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;linear&#39;</span><span class="p">}]</span>
+                <span class="p">},</span>
+                <span class="s1">&#39;delay&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="s1">&#39;actions&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">p1snap</span><span class="p">,</span> <span class="n">breaker</span><span class="o">.</span><span class="n">snapshot</span><span class="p">()],</span>
+                <span class="s1">&#39;then_actions&#39;</span><span class="p">:</span> <span class="p">[</span>
+                    <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;Task&#39;</span><span class="p">,</span> <span class="s1">&#39;func&#39;</span><span class="p">:</span> <span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="o">.</span><span class="n">set</span><span class="p">)},</span>
+                    <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;Wait&#39;</span><span class="p">,</span> <span class="s1">&#39;delay&#39;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">},</span>
+                    <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;Task&#39;</span><span class="p">,</span> <span class="s1">&#39;func&#39;</span><span class="p">:</span> <span class="nb">repr</span><span class="p">(</span><span class="n">f</span><span class="p">)}</span>
+                <span class="p">]</span>
+            <span class="p">}</span>
+        <span class="p">})</span>
+
+        <span class="c1"># now test a nested loop with .then inside and outside</span>
+        <span class="n">f_calls</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">:</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">each</span><span class="p">(</span>
+            <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">:</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="p">)</span><span class="o">.</span><span class="n">then</span><span class="p">(</span><span class="n">Task</span><span class="p">(</span><span class="n">g</span><span class="p">))</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">then</span><span class="p">(</span><span class="n">Task</span><span class="p">(</span><span class="n">f</span><span class="p">))</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">f_calls</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">g_calls</span><span class="p">),</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="c1"># Loop.loop nesting always just makes the .then actions run after</span>
+        <span class="c1"># the outer loop</span>
+        <span class="n">f_calls</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">:</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">then</span><span class="p">(</span><span class="n">Task</span><span class="p">(</span><span class="n">f</span><span class="p">))</span><span class="o">.</span><span class="n">loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">:</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">each</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">p1</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">f_calls</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">f_calls</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">:</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">:</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">then</span><span class="p">(</span><span class="n">Task</span><span class="p">(</span><span class="n">f</span><span class="p">))</span><span class="o">.</span><span class="n">each</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">p1</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">f_calls</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">f_calls</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">:</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">:</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">each</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">p1</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">then</span><span class="p">(</span><span class="n">Task</span><span class="p">(</span><span class="n">f</span><span class="p">))</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">f_calls</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="AbortingGetter"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.AbortingGetter">[docs]</a><span class="k">class</span> <span class="nc">AbortingGetter</span><span class="p">(</span><span class="n">ManualParameter</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    A manual parameter that can only be measured a couple of times</span>
+<span class="sd">    before it aborts the loop that&#39;s measuring it.</span>
+
+<span class="sd">    You have to attach the queue after construction with set_queue</span>
+<span class="sd">    so you can grab it from the loop that uses the parameter.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">count</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">msg</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_count</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initial_count</span> <span class="o">=</span> <span class="n">count</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">msg</span> <span class="o">=</span> <span class="n">msg</span>
+        <span class="c1"># also need a _signal_queue, but that has to be added later</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="AbortingGetter.get"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.AbortingGetter.get">[docs]</a>    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_count</span> <span class="o">-=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_count</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_signal_queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="AbortingGetter.set_queue"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.AbortingGetter.set_queue">[docs]</a>    <span class="k">def</span> <span class="nf">set_queue</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">queue</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_signal_queue</span> <span class="o">=</span> <span class="n">queue</span></div>
+
+<div class="viewcode-block" id="AbortingGetter.reset"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.AbortingGetter.reset">[docs]</a>    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_count</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initial_count</span></div></div>
+
+
+<div class="viewcode-block" id="TestSignal"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestSignal">[docs]</a><span class="k">class</span> <span class="nc">TestSignal</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="TestSignal.test_halt"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestSignal.test_halt">[docs]</a>    <span class="k">def</span> <span class="nf">test_halt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">p1</span> <span class="o">=</span> <span class="n">AbortingGetter</span><span class="p">(</span><span class="s1">&#39;p1&#39;</span><span class="p">,</span> <span class="n">count</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span>
+                            <span class="n">msg</span><span class="o">=</span><span class="n">ActiveLoop</span><span class="o">.</span><span class="n">HALT_DEBUG</span><span class="p">)</span>
+        <span class="n">loop</span> <span class="o">=</span> <span class="n">Loop</span><span class="p">(</span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">6</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="mf">0.005</span><span class="p">)</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="n">p1</span><span class="p">)</span>
+        <span class="c1"># we want to test what&#39;s in data, so get it ahead of time</span>
+        <span class="c1"># because loop.run will not return.</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">get_data_set</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+        <span class="n">p1</span><span class="o">.</span><span class="n">set_queue</span><span class="p">(</span><span class="n">loop</span><span class="o">.</span><span class="n">signal_queue</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">_DebugInterrupt</span><span class="p">):</span>
+            <span class="c1"># need to use explicit loop.run rather than run_temp</span>
+            <span class="c1"># so we can avoid providing location=False twice, which</span>
+            <span class="c1"># is an error.</span>
+            <span class="n">loop</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">background</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">data_manager</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">quiet</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestSignal.test_halt_quiet"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestSignal.test_halt_quiet">[docs]</a>    <span class="k">def</span> <span class="nf">test_halt_quiet</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">p1</span> <span class="o">=</span> <span class="n">AbortingGetter</span><span class="p">(</span><span class="s1">&#39;p1&#39;</span><span class="p">,</span> <span class="n">count</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span>
+                            <span class="n">msg</span><span class="o">=</span><span class="n">ActiveLoop</span><span class="o">.</span><span class="n">HALT</span><span class="p">)</span>
+        <span class="n">loop</span> <span class="o">=</span> <span class="n">Loop</span><span class="p">(</span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">6</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="mf">0.005</span><span class="p">)</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="n">p1</span><span class="p">)</span>
+        <span class="n">p1</span><span class="o">.</span><span class="n">set_queue</span><span class="p">(</span><span class="n">loop</span><span class="o">.</span><span class="n">signal_queue</span><span class="p">)</span>
+
+        <span class="c1"># does not raise, just quits, but the data set looks the same</span>
+        <span class="c1"># as in test_halt</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestSignal.check_data"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestSignal.check_data">[docs]</a>    <span class="k">def</span> <span class="nf">check_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="n">nan</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;nan&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p1</span><span class="o">.</span><span class="n">tolist</span><span class="p">()[:</span><span class="mi">2</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+        <span class="c1"># when NaN is involved, I&#39;ll just compare reprs, because NaN!=NaN</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p1</span><span class="o">.</span><span class="n">tolist</span><span class="p">()[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]),</span> <span class="nb">repr</span><span class="p">([</span><span class="n">nan</span><span class="p">,</span> <span class="n">nan</span><span class="p">]))</span>
+        <span class="c1"># because of the way the waits work out, we can get an extra</span>
+        <span class="c1"># point measured before the interrupt is registered. But the</span>
+        <span class="c1"># test would be valid either way.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">p1</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span> <span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">nan</span><span class="p">),</span> <span class="nb">repr</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="nb">repr</span><span class="p">(</span><span class="mf">3.0</span><span class="p">)))</span></div></div>
+
+
+<div class="viewcode-block" id="TestMetaData"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestMetaData">[docs]</a><span class="k">class</span> <span class="nc">TestMetaData</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="TestMetaData.test_basic"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestMetaData.test_basic">[docs]</a>    <span class="k">def</span> <span class="nf">test_basic</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">p1</span> <span class="o">=</span> <span class="n">AbortingGetter</span><span class="p">(</span><span class="s1">&#39;p1&#39;</span><span class="p">,</span> <span class="n">count</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+        <span class="n">sv</span> <span class="o">=</span> <span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">3</span><span class="p">:</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">loop</span> <span class="o">=</span> <span class="n">Loop</span><span class="p">(</span><span class="n">sv</span><span class="p">)</span>
+
+        <span class="c1"># not sure why you&#39;d do it, but you *can* snapshot a Loop</span>
+        <span class="n">expected</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;__class__&#39;</span><span class="p">:</span> <span class="s1">&#39;qcodes.loops.Loop&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;sweep_values&#39;</span><span class="p">:</span> <span class="n">sv</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(),</span>
+            <span class="s1">&#39;delay&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s1">&#39;then_actions&#39;</span><span class="p">:</span> <span class="p">[]</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">loop</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(),</span> <span class="n">expected</span><span class="p">)</span>
+        <span class="n">loop</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">then</span><span class="p">(</span><span class="n">Task</span><span class="p">(</span><span class="n">p1</span><span class="o">.</span><span class="n">set</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">Wait</span><span class="p">(</span><span class="mf">0.123</span><span class="p">))</span>
+        <span class="n">expected</span><span class="p">[</span><span class="s1">&#39;then_actions&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;Task&#39;</span><span class="p">,</span> <span class="s1">&#39;func&#39;</span><span class="p">:</span> <span class="nb">repr</span><span class="p">(</span><span class="n">p1</span><span class="o">.</span><span class="n">set</span><span class="p">)},</span>
+            <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;Wait&#39;</span><span class="p">,</span> <span class="s1">&#39;delay&#39;</span><span class="p">:</span> <span class="mf">0.123</span><span class="p">}</span>
+        <span class="p">]</span>
+
+        <span class="c1"># then test snapshot on an ActiveLoop</span>
+        <span class="n">breaker</span> <span class="o">=</span> <span class="n">BreakIf</span><span class="p">(</span><span class="n">p1</span><span class="o">.</span><span class="n">get_latest</span> <span class="o">&gt;</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">breaker</span><span class="o">.</span><span class="n">snapshot</span><span class="p">()[</span><span class="s1">&#39;type&#39;</span><span class="p">],</span> <span class="s1">&#39;BreakIf&#39;</span><span class="p">)</span>
+        <span class="c1"># TODO: once we have reprs for DeferredOperations, test that</span>
+        <span class="c1"># the right thing shows up in breaker.snapshot()[&#39;condition&#39;]</span>
+        <span class="n">loop</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="n">p1</span><span class="p">,</span> <span class="n">breaker</span><span class="p">)</span>
+        <span class="n">expected</span><span class="p">[</span><span class="s1">&#39;__class__&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;qcodes.loops.ActiveLoop&#39;</span>
+        <span class="n">expected</span><span class="p">[</span><span class="s1">&#39;actions&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">p1</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(),</span> <span class="n">breaker</span><span class="o">.</span><span class="n">snapshot</span><span class="p">()]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">loop</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(),</span> <span class="n">expected</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.1.1',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

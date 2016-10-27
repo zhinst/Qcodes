@@ -1,0 +1,865 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>qcodes.tests.test_data &mdash; QCoDeS 0.1.1 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+    <link rel="top" title="QCoDeS 0.1.1 documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> QCoDeS
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1.1
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../start/index.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../help.html">Get Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../user/index.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../community/index.html">Community Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/index.html">Classes and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../auto/qcodes.instrument_drivers.html">qcodes.instrument_drivers package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../roadmap.html">Qcodes project plan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changes/index.html">Changelogs</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../../index.html">QCoDeS</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      
+    <li>qcodes.tests.test_data</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for qcodes.tests.test_data</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">unittest</span> <span class="kn">import</span> <span class="n">TestCase</span>
+<span class="kn">from</span> <span class="nn">unittest.mock</span> <span class="kn">import</span> <span class="n">patch</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="kn">from</span> <span class="nn">qcodes.data.data_array</span> <span class="kn">import</span> <span class="n">DataArray</span>
+<span class="kn">from</span> <span class="nn">qcodes.data.manager</span> <span class="kn">import</span> <span class="n">get_data_manager</span><span class="p">,</span> <span class="n">NoData</span>
+<span class="kn">from</span> <span class="nn">qcodes.data.io</span> <span class="kn">import</span> <span class="n">DiskIO</span>
+<span class="kn">from</span> <span class="nn">qcodes.data.data_set</span> <span class="kn">import</span> <span class="n">load_data</span><span class="p">,</span> <span class="n">new_data</span><span class="p">,</span> <span class="n">DataMode</span><span class="p">,</span> <span class="n">DataSet</span>
+<span class="kn">from</span> <span class="nn">qcodes.process.helpers</span> <span class="kn">import</span> <span class="n">kill_processes</span>
+<span class="kn">from</span> <span class="nn">qcodes.utils.helpers</span> <span class="kn">import</span> <span class="n">LogCapture</span>
+<span class="kn">from</span> <span class="nn">qcodes</span> <span class="kn">import</span> <span class="n">active_children</span>
+
+<span class="kn">from</span> <span class="nn">.data_mocks</span> <span class="kn">import</span> <span class="p">(</span><span class="n">MockDataManager</span><span class="p">,</span> <span class="n">MockFormatter</span><span class="p">,</span> <span class="n">MatchIO</span><span class="p">,</span>
+                         <span class="n">MockLive</span><span class="p">,</span> <span class="n">MockArray</span><span class="p">,</span> <span class="n">DataSet2D</span><span class="p">,</span> <span class="n">DataSet1D</span><span class="p">,</span>
+                         <span class="n">DataSetCombined</span><span class="p">,</span> <span class="n">RecordingMockFormatter</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">.common</span> <span class="kn">import</span> <span class="n">strip_qc</span>
+
+
+<div class="viewcode-block" id="TestDataArray"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestDataArray">[docs]</a><span class="k">class</span> <span class="nc">TestDataArray</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TestDataArray.test_attributes"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestDataArray.test_attributes">[docs]</a>    <span class="k">def</span> <span class="nf">test_attributes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">pname</span> <span class="o">=</span> <span class="s1">&#39;Betty Sue&#39;</span>
+        <span class="n">plabel</span> <span class="o">=</span> <span class="s1">&#39;The best apple pie this side of Wenatchee&#39;</span>
+        <span class="n">pfullname</span> <span class="o">=</span> <span class="s1">&#39;bert&#39;</span>
+
+        <span class="k">class</span> <span class="nc">MockParam</span><span class="p">:</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">pname</span>
+            <span class="n">label</span> <span class="o">=</span> <span class="n">plabel</span>
+
+            <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">full_name</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">full_name</span> <span class="o">=</span> <span class="n">full_name</span>
+
+        <span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;Oscar&#39;</span>
+        <span class="n">label</span> <span class="o">=</span> <span class="s1">&#39;The grouch. GRR!&#39;</span>
+        <span class="n">fullname</span> <span class="o">=</span> <span class="s1">&#39;ernie&#39;</span>
+        <span class="n">array_id</span> <span class="o">=</span> <span class="mi">24601</span>
+        <span class="n">set_arrays</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;awesomeness&#39;</span><span class="p">,</span> <span class="s1">&#39;chocolate content&#39;</span><span class="p">)</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="s1">&#39;Ginornous&#39;</span>
+        <span class="n">action_indices</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+
+        <span class="n">p_data</span> <span class="o">=</span> <span class="n">DataArray</span><span class="p">(</span><span class="n">parameter</span><span class="o">=</span><span class="n">MockParam</span><span class="p">(</span><span class="n">pfullname</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">,</span> <span class="n">full_name</span><span class="o">=</span><span class="n">fullname</span><span class="p">)</span>
+        <span class="n">p_data2</span> <span class="o">=</span> <span class="n">DataArray</span><span class="p">(</span><span class="n">parameter</span><span class="o">=</span><span class="n">MockParam</span><span class="p">(</span><span class="n">pfullname</span><span class="p">))</span>
+
+        <span class="c1"># explicitly given name and label override parameter vals</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">p_data</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">p_data</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">p_data</span><span class="o">.</span><span class="n">full_name</span><span class="p">,</span> <span class="n">fullname</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">p_data2</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">pname</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">p_data2</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="n">plabel</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">p_data2</span><span class="o">.</span><span class="n">full_name</span><span class="p">,</span> <span class="n">pfullname</span><span class="p">)</span>
+        <span class="c1"># test default values</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNone</span><span class="p">(</span><span class="n">p_data</span><span class="o">.</span><span class="n">array_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">p_data</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">p_data</span><span class="o">.</span><span class="n">action_indices</span><span class="p">,</span> <span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">p_data</span><span class="o">.</span><span class="n">set_arrays</span><span class="p">,</span> <span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNone</span><span class="p">(</span><span class="n">p_data</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span>
+
+        <span class="n">np_data</span> <span class="o">=</span> <span class="n">DataArray</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">,</span> <span class="n">array_id</span><span class="o">=</span><span class="n">array_id</span><span class="p">,</span>
+                            <span class="n">set_arrays</span><span class="o">=</span><span class="n">set_arrays</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span>
+                            <span class="n">action_indices</span><span class="o">=</span><span class="n">action_indices</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">np_data</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">np_data</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+        <span class="c1"># no full name or parameter - use name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">np_data</span><span class="o">.</span><span class="n">full_name</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+        <span class="c1"># test simple assignments</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">np_data</span><span class="o">.</span><span class="n">array_id</span><span class="p">,</span> <span class="n">array_id</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">np_data</span><span class="o">.</span><span class="n">set_arrays</span><span class="p">,</span> <span class="n">set_arrays</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">np_data</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">shape</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">np_data</span><span class="o">.</span><span class="n">action_indices</span><span class="p">,</span> <span class="n">action_indices</span><span class="p">)</span>
+
+        <span class="n">name_data</span> <span class="o">=</span> <span class="n">DataArray</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">name_data</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+
+        <span class="n">blank_data</span> <span class="o">=</span> <span class="n">DataArray</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNone</span><span class="p">(</span><span class="n">blank_data</span><span class="o">.</span><span class="n">name</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestDataArray.test_preset_data"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestDataArray.test_preset_data">[docs]</a>    <span class="k">def</span> <span class="nf">test_preset_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">onetwothree</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="c1"># lists and tuples work</span>
+            <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">],</span>
+            <span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">),</span>
+
+            <span class="c1"># iterators get automatically cast to floats</span>
+            <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">)),</span>
+            <span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">)),</span>
+
+            <span class="c1"># and of course numpy arrays themselves work</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">]),</span>
+        <span class="p">]</span>
+
+        <span class="n">expected123</span> <span class="o">=</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">onetwothree</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">DataArray</span><span class="p">(</span><span class="n">preset_data</span><span class="o">=</span><span class="n">item</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">ndarray</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="n">expected123</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="p">))</span>
+
+        <span class="c1"># you can re-initialize a DataArray with the same shape data,</span>
+        <span class="c1"># but not with a different shape</span>
+        <span class="n">list456</span> <span class="o">=</span> <span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">]</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">init_data</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">list456</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">ndarray</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="n">list456</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">init_data</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">ndarray</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="n">list456</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="p">))</span>
+
+        <span class="c1"># you can call init_data again with no data, and nothing changes</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">init_data</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">ndarray</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="n">list456</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="p">))</span>
+
+        <span class="c1"># multidimensional works too</span>
+        <span class="n">list2d</span> <span class="o">=</span> <span class="p">[[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">]]</span>
+        <span class="n">data2</span> <span class="o">=</span> <span class="n">DataArray</span><span class="p">(</span><span class="n">preset_data</span><span class="o">=</span><span class="n">list2d</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data2</span><span class="o">.</span><span class="n">ndarray</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="n">list2d</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data2</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestDataArray.test_init_data_error"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestDataArray.test_init_data_error">[docs]</a>    <span class="k">def</span> <span class="nf">test_init_data_error</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">DataArray</span><span class="p">(</span><span class="n">preset_data</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="p">)</span>
+
+        <span class="c1"># not sure when this would happen... but if you call init_data</span>
+        <span class="c1"># and it notices an inconsistency between shape and the actual</span>
+        <span class="c1"># data that&#39;s already there, it raises an error</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">init_data</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TestDataArray.test_clear"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestDataArray.test_clear">[docs]</a>    <span class="k">def</span> <span class="nf">test_clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">nan</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;nan&#39;</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">DataArray</span><span class="p">(</span><span class="n">preset_data</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="c1"># sometimes it&#39;s annoying that nan != nan</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">ndarray</span><span class="o">.</span><span class="n">tolist</span><span class="p">()),</span> <span class="nb">repr</span><span class="p">([</span><span class="n">nan</span><span class="p">,</span> <span class="n">nan</span><span class="p">]))</span></div>
+
+<div class="viewcode-block" id="TestDataArray.test_edit_and_mark"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestDataArray.test_edit_and_mark">[docs]</a>    <span class="k">def</span> <span class="nf">test_edit_and_mark</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">DataArray</span><span class="p">(</span><span class="n">preset_data</span><span class="o">=</span><span class="p">[[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">]])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="n">data</span><span class="o">.</span><span class="n">modified_range</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNone</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">last_saved_index</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">),</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">])</span>
+        <span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">7</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">ndarray</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">],</span> <span class="p">[</span><span class="mi">7</span><span class="p">,</span> <span class="mi">4</span><span class="p">]])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">modified_range</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+
+        <span class="c1"># as if we saved the first two points... the third should still</span>
+        <span class="c1"># show as modified</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">mark_saved</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">last_saved_index</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">modified_range</span><span class="p">,</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+
+        <span class="c1"># now we save the third point... no modifications left.</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">mark_saved</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">last_saved_index</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">modified_range</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+
+        <span class="n">data</span><span class="o">.</span><span class="n">clear_save</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">last_saved_index</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">modified_range</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestDataArray.test_edit_and_mark_slice"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestDataArray.test_edit_and_mark_slice">[docs]</a>    <span class="k">def</span> <span class="nf">test_edit_and_mark_slice</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">DataArray</span><span class="p">(</span><span class="n">preset_data</span><span class="o">=</span><span class="p">[[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="mi">5</span><span class="p">]</span> <span class="o">*</span> <span class="mi">6</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">modified_range</span> <span class="o">=</span> <span class="bp">None</span>
+
+        <span class="n">data</span><span class="p">[:</span><span class="mi">4</span><span class="p">:</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">:]</span> <span class="o">=</span> <span class="mi">2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[</span>
+            <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span>
+            <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+            <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span>
+            <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+            <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+            <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">modified_range</span><span class="p">,</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">14</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestDataArray.test_repr"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestDataArray.test_repr">[docs]</a>    <span class="k">def</span> <span class="nf">test_repr</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">array2d</span> <span class="o">=</span> <span class="p">[[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">]]</span>
+        <span class="n">arrayrepr</span> <span class="o">=</span> <span class="nb">repr</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">array2d</span><span class="p">))</span>
+        <span class="n">array_id</span> <span class="o">=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">DataArray</span><span class="p">(</span><span class="n">preset_data</span><span class="o">=</span><span class="n">array2d</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">data</span><span class="p">),</span> <span class="s1">&#39;DataArray[2,2]:</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="n">arrayrepr</span><span class="p">)</span>
+
+        <span class="n">data</span><span class="o">.</span><span class="n">array_id</span> <span class="o">=</span> <span class="n">array_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">data</span><span class="p">),</span> <span class="s1">&#39;DataArray[2,2]: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">array_id</span><span class="p">)</span> <span class="o">+</span>
+                         <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="n">arrayrepr</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestDataArray.test_nest_empty"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestDataArray.test_nest_empty">[docs]</a>    <span class="k">def</span> <span class="nf">test_nest_empty</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">DataArray</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="p">())</span>
+
+        <span class="n">mock_set_array</span> <span class="o">=</span> <span class="s1">&#39;not really an array but we don</span><span class="se">\&#39;</span><span class="s1">t check&#39;</span>
+        <span class="n">mock_set_array2</span> <span class="o">=</span> <span class="s1">&#39;another one&#39;</span>
+
+        <span class="n">data</span><span class="o">.</span><span class="n">nest</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">action_index</span><span class="o">=</span><span class="mi">44</span><span class="p">,</span> <span class="n">set_array</span><span class="o">=</span><span class="n">mock_set_array</span><span class="p">)</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">nest</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">action_index</span><span class="o">=</span><span class="mi">66</span><span class="p">,</span> <span class="n">set_array</span><span class="o">=</span><span class="n">mock_set_array2</span><span class="p">)</span>
+
+        <span class="c1"># the array doesn&#39;t exist until you initialize it</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNone</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span>
+
+        <span class="c1"># but other attributes are set</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">action_indices</span><span class="p">,</span> <span class="p">(</span><span class="mi">66</span><span class="p">,</span> <span class="mi">44</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">set_arrays</span><span class="p">,</span> <span class="p">(</span><span class="n">mock_set_array2</span><span class="p">,</span> <span class="n">mock_set_array</span><span class="p">))</span>
+
+        <span class="n">data</span><span class="o">.</span><span class="n">init_data</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">ndarray</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+
+        <span class="c1"># after initializing data, you can&#39;t nest anymore because this isn&#39;t</span>
+        <span class="c1"># a preset array</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">nest</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestDataArray.test_nest_preset"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestDataArray.test_nest_preset">[docs]</a>    <span class="k">def</span> <span class="nf">test_nest_preset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">DataArray</span><span class="p">(</span><span class="n">preset_data</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">nest</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">ndarray</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]]</span> <span class="o">*</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">action_indices</span><span class="p">,</span> <span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">set_arrays</span><span class="p">,</span> <span class="p">(</span><span class="n">data</span><span class="p">,))</span>
+
+        <span class="c1"># test that the modified range gets correctly set to</span>
+        <span class="c1"># (0, 2*3-1 = 5)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">modified_range</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+
+        <span class="c1"># you need a set array for all but the inner nesting</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">nest</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestDataArray.test_data_set_property"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestDataArray.test_data_set_property">[docs]</a>    <span class="k">def</span> <span class="nf">test_data_set_property</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">DataArray</span><span class="p">(</span><span class="n">preset_data</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNone</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">data_set</span><span class="p">)</span>
+
+        <span class="n">mock_data_set</span> <span class="o">=</span> <span class="s1">&#39;pretend this is a DataSet, we don</span><span class="se">\&#39;</span><span class="s1">t check type&#39;</span>
+        <span class="n">mock_data_set2</span> <span class="o">=</span> <span class="s1">&#39;you can only assign to another after first clearing&#39;</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">data_set</span> <span class="o">=</span> <span class="n">mock_data_set</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">data_set</span><span class="p">,</span> <span class="n">mock_data_set</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">data_set</span> <span class="o">=</span> <span class="n">mock_data_set2</span>
+
+        <span class="n">data</span><span class="o">.</span><span class="n">data_set</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNone</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">data_set</span><span class="p">)</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">data_set</span> <span class="o">=</span> <span class="n">mock_data_set2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">data_set</span><span class="p">,</span> <span class="n">mock_data_set2</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestDataArray.test_fraction_complete"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestDataArray.test_fraction_complete">[docs]</a>    <span class="k">def</span> <span class="nf">test_fraction_complete</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">DataArray</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNone</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">fraction_complete</span><span class="p">(),</span> <span class="mf">0.0</span><span class="p">)</span>
+
+        <span class="n">data</span><span class="o">.</span><span class="n">init_data</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">fraction_complete</span><span class="p">(),</span> <span class="mf">0.0</span><span class="p">)</span>
+
+        <span class="c1"># index = 1 * 10 + 7 - add 1 (for index 0) and you get 18</span>
+        <span class="c1"># each index is 2% of the total, so this is 36%</span>
+        <span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">7</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">fraction_complete</span><span class="p">(),</span> <span class="mi">18</span><span class="o">/</span><span class="mi">50</span><span class="p">)</span>
+
+        <span class="c1"># add a last_saved_index but modified_range is still bigger</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">mark_saved</span><span class="p">(</span><span class="mi">13</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">fraction_complete</span><span class="p">(),</span> <span class="mi">18</span><span class="o">/</span><span class="mi">50</span><span class="p">)</span>
+
+        <span class="c1"># now last_saved_index wins</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">mark_saved</span><span class="p">(</span><span class="mi">19</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">fraction_complete</span><span class="p">(),</span> <span class="mi">20</span><span class="o">/</span><span class="mi">50</span><span class="p">)</span>
+
+        <span class="c1"># now pretend we get more info from syncing</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">synced_index</span> <span class="o">=</span> <span class="mi">22</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">fraction_complete</span><span class="p">(),</span> <span class="mi">23</span><span class="o">/</span><span class="mi">50</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="TestLoadData"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestLoadData">[docs]</a><span class="k">class</span> <span class="nc">TestLoadData</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TestLoadData.setUp"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestLoadData.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">kill_processes</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TestLoadData.test_no_live_data"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestLoadData.test_no_live_data">[docs]</a>    <span class="k">def</span> <span class="nf">test_no_live_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># live data with no DataManager at all</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
+            <span class="n">load_data</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">active_children</span><span class="p">()),</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># now make a DataManager and try again</span>
+        <span class="n">get_data_manager</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">active_children</span><span class="p">()),</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="c1"># same result but different code path</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
+            <span class="n">load_data</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TestLoadData.test_no_saved_data"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestLoadData.test_no_saved_data">[docs]</a>    <span class="k">def</span> <span class="nf">test_no_saved_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">IOError</span><span class="p">):</span>
+            <span class="n">load_data</span><span class="p">(</span><span class="s1">&#39;_no/such/file_&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestLoadData.test_load_false"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestLoadData.test_load_false">[docs]</a>    <span class="k">def</span> <span class="nf">test_load_false</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">load_data</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestLoadData.test_get_live"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestLoadData.test_get_live">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_live</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">loc</span> <span class="o">=</span> <span class="s1">&#39;live from New York!&#39;</span>
+
+        <span class="k">class</span> <span class="nc">MockLive</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+        <span class="n">live_data</span> <span class="o">=</span> <span class="n">MockLive</span><span class="p">()</span>
+
+        <span class="n">dm</span> <span class="o">=</span> <span class="n">MockDataManager</span><span class="p">()</span>
+        <span class="n">dm</span><span class="o">.</span><span class="n">location</span> <span class="o">=</span> <span class="n">loc</span>
+        <span class="n">dm</span><span class="o">.</span><span class="n">live_data</span> <span class="o">=</span> <span class="n">live_data</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">load_data</span><span class="p">(</span><span class="n">data_manager</span><span class="o">=</span><span class="n">dm</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">loc</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">live_data</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">nd</span> <span class="ow">in</span> <span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="n">NoData</span><span class="p">()):</span>
+            <span class="n">dm</span><span class="o">.</span><span class="n">live_data</span> <span class="o">=</span> <span class="n">nd</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
+                <span class="n">load_data</span><span class="p">(</span><span class="n">data_manager</span><span class="o">=</span><span class="n">dm</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">loc</span><span class="p">)</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
+                <span class="n">load_data</span><span class="p">(</span><span class="n">data_manager</span><span class="o">=</span><span class="n">dm</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestLoadData.test_get_read"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestLoadData.test_get_read">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_read</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">dm</span> <span class="o">=</span> <span class="n">MockDataManager</span><span class="p">()</span>
+        <span class="n">dm</span><span class="o">.</span><span class="n">location</span> <span class="o">=</span> <span class="s1">&#39;somewhere else&#39;</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">load_data</span><span class="p">(</span><span class="n">formatter</span><span class="o">=</span><span class="n">MockFormatter</span><span class="p">(),</span> <span class="n">data_manager</span><span class="o">=</span><span class="n">dm</span><span class="p">,</span>
+                         <span class="n">location</span><span class="o">=</span><span class="s1">&#39;here!&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">has_read_data</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">has_read_metadata</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="TestDataSetMetaData"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestDataSetMetaData">[docs]</a><span class="k">class</span> <span class="nc">TestDataSetMetaData</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TestDataSetMetaData.test_snapshot"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestDataSetMetaData.test_snapshot">[docs]</a>    <span class="k">def</span> <span class="nf">test_snapshot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">new_data</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+        <span class="n">expected_snap</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;__class__&#39;</span><span class="p">:</span> <span class="s1">&#39;qcodes.data.data_set.DataSet&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;location&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
+            <span class="s1">&#39;arrays&#39;</span><span class="p">:</span> <span class="p">{},</span>
+            <span class="s1">&#39;formatter&#39;</span><span class="p">:</span> <span class="s1">&#39;qcodes.data.gnuplot_format.GNUPlotFormat&#39;</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="n">snap</span> <span class="o">=</span> <span class="n">strip_qc</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">snapshot</span><span class="p">())</span>
+
+        <span class="c1"># handle io separately so we don&#39;t need to figure out our path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s1">&#39;DiskIO&#39;</span><span class="p">,</span> <span class="n">snap</span><span class="p">[</span><span class="s1">&#39;io&#39;</span><span class="p">])</span>
+        <span class="k">del</span> <span class="n">snap</span><span class="p">[</span><span class="s1">&#39;io&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">snap</span><span class="p">,</span> <span class="n">expected_snap</span><span class="p">)</span>
+
+        <span class="c1"># even though we removed io from the snapshot, it&#39;s still in .metadata</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s1">&#39;io&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">metadata</span><span class="p">)</span>
+
+        <span class="c1"># then do the same transformations to metadata to check it too</span>
+        <span class="k">del</span> <span class="n">data</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;io&#39;</span><span class="p">]</span>
+        <span class="n">strip_qc</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">metadata</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">metadata</span><span class="p">,</span> <span class="n">expected_snap</span><span class="p">)</span>
+
+        <span class="c1"># location is False so read_metadata should be a noop</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;food&#39;</span><span class="p">:</span> <span class="s1">&#39;Fried chicken&#39;</span><span class="p">}</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">read_metadata</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">metadata</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;food&#39;</span><span class="p">:</span> <span class="s1">&#39;Fried chicken&#39;</span><span class="p">})</span>
+
+        <span class="c1"># snapshot should never delete things from metadata, only add or update</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;location&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;Idaho&#39;</span>
+        <span class="n">snap</span> <span class="o">=</span> <span class="n">strip_qc</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">snapshot</span><span class="p">())</span>
+        <span class="n">expected_snap</span><span class="p">[</span><span class="s1">&#39;food&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;Fried chicken&#39;</span>
+        <span class="k">del</span> <span class="n">snap</span><span class="p">[</span><span class="s1">&#39;io&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">snap</span><span class="p">,</span> <span class="n">expected_snap</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="TestNewData"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestNewData">[docs]</a><span class="k">class</span> <span class="nc">TestNewData</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="TestNewData.setUpClass"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestNewData.setUpClass">[docs]</a>    <span class="k">def</span> <span class="nf">setUpClass</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+        <span class="n">kill_processes</span><span class="p">()</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">original_lp</span> <span class="o">=</span> <span class="n">DataSet</span><span class="o">.</span><span class="n">location_provider</span></div>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="TestNewData.tearDownClass"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestNewData.tearDownClass">[docs]</a>    <span class="k">def</span> <span class="nf">tearDownClass</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+        <span class="n">DataSet</span><span class="o">.</span><span class="n">location_provider</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">original_lp</span></div>
+
+<div class="viewcode-block" id="TestNewData.test_overwrite"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestNewData.test_overwrite">[docs]</a>    <span class="k">def</span> <span class="nf">test_overwrite</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">io</span> <span class="o">=</span> <span class="n">MatchIO</span><span class="p">([</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">FileExistsError</span><span class="p">):</span>
+            <span class="n">new_data</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="s1">&#39;somewhere&#39;</span><span class="p">,</span> <span class="n">io</span><span class="o">=</span><span class="n">io</span><span class="p">,</span> <span class="n">data_manager</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">new_data</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="s1">&#39;somewhere&#39;</span><span class="p">,</span> <span class="n">io</span><span class="o">=</span><span class="n">io</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                        <span class="n">data_manager</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="s1">&#39;somewhere&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestNewData.test_mode_error"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestNewData.test_mode_error">[docs]</a>    <span class="k">def</span> <span class="nf">test_mode_error</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">new_data</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">DataMode</span><span class="o">.</span><span class="n">PUSH_TO_SERVER</span><span class="p">,</span> <span class="n">data_manager</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestNewData.test_location_functions"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestNewData.test_location_functions">[docs]</a>    <span class="k">def</span> <span class="nf">test_location_functions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">my_location</span><span class="p">(</span><span class="n">io</span><span class="p">,</span> <span class="n">record</span><span class="p">):</span>
+            <span class="k">return</span> <span class="s1">&#39;data/{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">((</span><span class="n">record</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="s1">&#39;LOOP!&#39;</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">my_location2</span><span class="p">(</span><span class="n">io</span><span class="p">,</span> <span class="n">record</span><span class="p">):</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="p">(</span><span class="n">record</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="s1">&#39;loop?&#39;</span>
+            <span class="k">return</span> <span class="s1">&#39;data/{}/folder&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+        <span class="n">DataSet</span><span class="o">.</span><span class="n">location_provider</span> <span class="o">=</span> <span class="n">my_location</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">new_data</span><span class="p">(</span><span class="n">data_manager</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="s1">&#39;data/LOOP!&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">new_data</span><span class="p">(</span><span class="n">data_manager</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;cheese&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">location</span><span class="p">,</span>
+                         <span class="s1">&#39;data/cheese&#39;</span><span class="p">)</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">new_data</span><span class="p">(</span><span class="n">data_manager</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">my_location2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="s1">&#39;data/loop?/folder&#39;</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">new_data</span><span class="p">(</span><span class="n">data_manager</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">my_location2</span><span class="p">,</span>
+                        <span class="n">name</span><span class="o">=</span><span class="s1">&#39;iceCream&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="s1">&#39;data/iceCream/folder&#39;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="TestDataSet"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestDataSet">[docs]</a><span class="k">class</span> <span class="nc">TestDataSet</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TestDataSet.tearDown"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestDataSet.tearDown">[docs]</a>    <span class="k">def</span> <span class="nf">tearDown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">kill_processes</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TestDataSet.test_constructor_errors"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestDataSet.test_constructor_errors">[docs]</a>    <span class="k">def</span> <span class="nf">test_constructor_errors</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># no location - only allowed with load_data</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">DataSet</span><span class="p">()</span>
+        <span class="c1"># wrong type</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">DataSet</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
+
+        <span class="c1"># OK to have location=False, but wrong mode</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">DataSet</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;happy&#39;</span><span class="p">)</span></div>
+
+    <span class="nd">@patch</span><span class="p">(</span><span class="s1">&#39;qcodes.data.data_set.get_data_manager&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="TestDataSet.test_from_server"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestDataSet.test_from_server">[docs]</a>    <span class="k">def</span> <span class="nf">test_from_server</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gdm_mock</span><span class="p">):</span>
+        <span class="n">mock_dm</span> <span class="o">=</span> <span class="n">MockDataManager</span><span class="p">()</span>
+        <span class="n">gdm_mock</span><span class="o">.</span><span class="n">return_value</span> <span class="o">=</span> <span class="n">mock_dm</span>
+        <span class="n">mock_dm</span><span class="o">.</span><span class="n">location</span> <span class="o">=</span> <span class="s1">&#39;Mars&#39;</span>
+        <span class="n">mock_dm</span><span class="o">.</span><span class="n">live_data</span> <span class="o">=</span> <span class="n">MockLive</span><span class="p">()</span>
+
+        <span class="c1"># wrong location or False location - converts to local</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">DataSet</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="s1">&#39;Jupiter&#39;</span><span class="p">,</span> <span class="n">data_manager</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">DataMode</span><span class="o">.</span><span class="n">PULL_FROM_SERVER</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span> <span class="n">DataMode</span><span class="o">.</span><span class="n">LOCAL</span><span class="p">)</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">DataSet</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>  <span class="n">data_manager</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">DataMode</span><span class="o">.</span><span class="n">PULL_FROM_SERVER</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span> <span class="n">DataMode</span><span class="o">.</span><span class="n">LOCAL</span><span class="p">)</span>
+
+        <span class="c1"># location matching server - stays in server mode</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">DataSet</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="s1">&#39;Mars&#39;</span><span class="p">,</span>  <span class="n">data_manager</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">DataMode</span><span class="o">.</span><span class="n">PULL_FROM_SERVER</span><span class="p">,</span>
+                       <span class="n">formatter</span><span class="o">=</span><span class="n">MockFormatter</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span> <span class="n">DataMode</span><span class="o">.</span><span class="n">PULL_FROM_SERVER</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">arrays</span><span class="p">,</span> <span class="n">MockLive</span><span class="o">.</span><span class="n">arrays</span><span class="p">)</span>
+
+        <span class="c1"># cannot write except in LOCAL mode</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+
+        <span class="c1"># cannot finalize in PULL_FROM_SERVER mode</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">finalize</span><span class="p">()</span>
+
+        <span class="c1"># now test when the server says it&#39;s not there anymore</span>
+        <span class="n">mock_dm</span><span class="o">.</span><span class="n">location</span> <span class="o">=</span> <span class="s1">&#39;Saturn&#39;</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span> <span class="n">DataMode</span><span class="o">.</span><span class="n">LOCAL</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">has_read_data</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
+
+        <span class="c1"># now it&#39;s LOCAL so we *can* write.</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">has_written_data</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
+
+        <span class="c1"># location=False: write, read and sync are noops.</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">has_read_data</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">has_written_data</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">location</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">has_read_data</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">has_written_data</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span></div>
+
+    <span class="nd">@patch</span><span class="p">(</span><span class="s1">&#39;qcodes.data.data_set.get_data_manager&#39;</span><span class="p">)</span>
+<div class="viewcode-block" id="TestDataSet.test_to_server"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestDataSet.test_to_server">[docs]</a>    <span class="k">def</span> <span class="nf">test_to_server</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gdm_mock</span><span class="p">):</span>
+        <span class="n">mock_dm</span> <span class="o">=</span> <span class="n">MockDataManager</span><span class="p">()</span>
+        <span class="n">mock_dm</span><span class="o">.</span><span class="n">needs_restart</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="n">gdm_mock</span><span class="o">.</span><span class="n">return_value</span> <span class="o">=</span> <span class="n">mock_dm</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">DataSet</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="s1">&#39;Venus&#39;</span><span class="p">,</span> <span class="n">data_manager</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">DataMode</span><span class="o">.</span><span class="n">PUSH_TO_SERVER</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">mock_dm</span><span class="o">.</span><span class="n">needs_restart</span><span class="p">,</span> <span class="bp">False</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">mock_dm</span><span class="o">.</span><span class="n">data_set</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">data_manager</span><span class="p">,</span> <span class="n">mock_dm</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span> <span class="n">DataMode</span><span class="o">.</span><span class="n">PUSH_TO_SERVER</span><span class="p">)</span>
+
+        <span class="c1"># cannot write except in LOCAL mode</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">write</span><span class="p">()</span>
+
+        <span class="c1"># now do what the DataServer does with this DataSet: init_on_server</span>
+        <span class="c1"># fails until there is an array</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">init_on_server</span><span class="p">()</span>
+
+        <span class="n">data</span><span class="o">.</span><span class="n">add_array</span><span class="p">(</span><span class="n">MockArray</span><span class="p">())</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">init_on_server</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">noise</span><span class="o">.</span><span class="n">ready</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
+
+        <span class="c1"># we can only add a given array_id once</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">add_array</span><span class="p">(</span><span class="n">MockArray</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="TestDataSet.test_write_copy"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestDataSet.test_write_copy">[docs]</a>    <span class="k">def</span> <span class="nf">test_write_copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">DataSet1D</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+        <span class="n">mockbase</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="s1">&#39;some_folder&#39;</span><span class="p">)</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">io</span> <span class="o">=</span> <span class="n">DiskIO</span><span class="p">(</span><span class="n">mockbase</span><span class="p">)</span>
+
+        <span class="n">mr</span> <span class="o">=</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="n">mr_full</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+        <span class="n">lsi</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">x_set</span><span class="o">.</span><span class="n">modified_range</span> <span class="o">=</span> <span class="n">mr</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">y</span><span class="o">.</span><span class="n">modified_range</span> <span class="o">=</span> <span class="n">mr</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">x_set</span><span class="o">.</span><span class="n">last_saved_index</span> <span class="o">=</span> <span class="n">lsi</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">y</span><span class="o">.</span><span class="n">last_saved_index</span> <span class="o">=</span> <span class="n">lsi</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">write_copy</span><span class="p">()</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">write_copy</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="s1">&#39;some/path&#39;</span><span class="p">,</span> <span class="n">io_manager</span><span class="o">=</span><span class="n">DiskIO</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">))</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">write_copy</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="s1">&#39;some/path&#39;</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="s1">&#39;something/else&#39;</span><span class="p">)</span>
+
+        <span class="n">data</span><span class="o">.</span><span class="n">formatter</span> <span class="o">=</span> <span class="n">RecordingMockFormatter</span><span class="p">()</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">write_copy</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="s1">&#39;/some/abs/path&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">write_calls</span><span class="p">,</span>
+                         <span class="p">[(</span><span class="bp">None</span><span class="p">,</span> <span class="s1">&#39;/some/abs/path&#39;</span><span class="p">)])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">write_metadata_calls</span><span class="p">,</span>
+                         <span class="p">[(</span><span class="bp">None</span><span class="p">,</span> <span class="s1">&#39;/some/abs/path&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">)])</span>
+        <span class="c1"># check that the formatter gets called as if nothing has been saved</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">modified_ranges</span><span class="p">,</span>
+                         <span class="p">[{</span><span class="s1">&#39;x_set&#39;</span><span class="p">:</span> <span class="n">mr_full</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="n">mr_full</span><span class="p">}])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">last_saved_indices</span><span class="p">,</span>
+                         <span class="p">[{</span><span class="s1">&#39;x_set&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">}])</span>
+        <span class="c1"># but the dataset afterward has its original mods back</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">x_set</span><span class="o">.</span><span class="n">modified_range</span><span class="p">,</span> <span class="n">mr</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">y</span><span class="o">.</span><span class="n">modified_range</span><span class="p">,</span> <span class="n">mr</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">x_set</span><span class="o">.</span><span class="n">last_saved_index</span><span class="p">,</span> <span class="n">lsi</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">y</span><span class="o">.</span><span class="n">last_saved_index</span><span class="p">,</span> <span class="n">lsi</span><span class="p">)</span>
+
+        <span class="c1"># recreate the formatter to clear the calls attributes</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">formatter</span> <span class="o">=</span> <span class="n">RecordingMockFormatter</span><span class="p">()</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">write_copy</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="s1">&#39;some/rel/path&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">write_calls</span><span class="p">,</span>
+                         <span class="p">[(</span><span class="n">mockbase</span><span class="p">,</span> <span class="s1">&#39;some/rel/path&#39;</span><span class="p">)])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">write_metadata_calls</span><span class="p">,</span>
+                         <span class="p">[(</span><span class="n">mockbase</span><span class="p">,</span> <span class="s1">&#39;some/rel/path&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">)])</span>
+
+        <span class="n">mockbase2</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="s1">&#39;some/other/folder&#39;</span><span class="p">)</span>
+        <span class="n">io2</span> <span class="o">=</span> <span class="n">DiskIO</span><span class="p">(</span><span class="n">mockbase2</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="c1"># if location=False we need to specify it in write_copy</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">write_copy</span><span class="p">(</span><span class="n">io_manager</span><span class="o">=</span><span class="n">io2</span><span class="p">)</span>
+
+        <span class="n">data</span><span class="o">.</span><span class="n">location</span> <span class="o">=</span> <span class="s1">&#39;yet/another/path&#39;</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">formatter</span> <span class="o">=</span> <span class="n">RecordingMockFormatter</span><span class="p">()</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">write_copy</span><span class="p">(</span><span class="n">io_manager</span><span class="o">=</span><span class="n">io2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">write_calls</span><span class="p">,</span>
+                         <span class="p">[(</span><span class="n">mockbase2</span><span class="p">,</span> <span class="s1">&#39;yet/another/path&#39;</span><span class="p">)])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">formatter</span><span class="o">.</span><span class="n">write_metadata_calls</span><span class="p">,</span>
+                         <span class="p">[(</span><span class="n">mockbase2</span><span class="p">,</span> <span class="s1">&#39;yet/another/path&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">)])</span></div>
+
+<div class="viewcode-block" id="TestDataSet.test_pickle_dataset"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestDataSet.test_pickle_dataset">[docs]</a>    <span class="k">def</span> <span class="nf">test_pickle_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Test pickling of DataSet object</span>
+        <span class="c1"># If the data_manager is set to None, then the object should pickle.</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="n">DataSet2D</span><span class="p">()</span>
+        <span class="n">pickle</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">m</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestDataSet.test_fraction_complete"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestDataSet.test_fraction_complete">[docs]</a>    <span class="k">def</span> <span class="nf">test_fraction_complete</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">empty_data</span> <span class="o">=</span> <span class="n">new_data</span><span class="p">(</span><span class="n">arrays</span><span class="o">=</span><span class="p">(),</span> <span class="n">location</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">empty_data</span><span class="o">.</span><span class="n">fraction_complete</span><span class="p">(),</span> <span class="mf">0.0</span><span class="p">)</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">DataSetCombined</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">fraction_complete</span><span class="p">(),</span> <span class="mf">1.0</span><span class="p">)</span>
+
+        <span class="c1"># alter only the measured arrays, check that only these are used</span>
+        <span class="c1"># to calculate fraction_complete</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">y1</span><span class="o">.</span><span class="n">modified_range</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>  <span class="c1"># 1 of 2</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">y2</span><span class="o">.</span><span class="n">modified_range</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>  <span class="c1"># 1 of 2</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">z1</span><span class="o">.</span><span class="n">modified_range</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>  <span class="c1"># 3 of 6</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">z2</span><span class="o">.</span><span class="n">modified_range</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>  <span class="c1"># 3 of 6</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">fraction_complete</span><span class="p">(),</span> <span class="mf">0.5</span><span class="p">)</span>
+
+        <span class="c1"># mark more things complete using last_saved_index and synced_index</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">y1</span><span class="o">.</span><span class="n">last_saved_index</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># 2 of 2</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">z1</span><span class="o">.</span><span class="n">synced_index</span> <span class="o">=</span> <span class="mi">5</span>  <span class="c1"># 6 of 6</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">fraction_complete</span><span class="p">(),</span> <span class="mf">0.75</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestDataSet.mock_sync"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestDataSet.mock_sync">[docs]</a>    <span class="k">def</span> <span class="nf">mock_sync</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># import pdb; pdb.set_trace()</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync_index</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">syncing_array</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sync_index</span> <span class="o">=</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">sync_index</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">syncing_array</span><span class="o">.</span><span class="n">size</span></div>
+
+<div class="viewcode-block" id="TestDataSet.failing_func"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestDataSet.failing_func">[docs]</a>    <span class="k">def</span> <span class="nf">failing_func</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;it is called failing_func for a reason!&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestDataSet.logging_func"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestDataSet.logging_func">[docs]</a>    <span class="k">def</span> <span class="nf">logging_func</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;background at index {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sync_index</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestDataSet.test_complete"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_data.TestDataSet.test_complete">[docs]</a>    <span class="k">def</span> <span class="nf">test_complete</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">array</span> <span class="o">=</span> <span class="n">DataArray</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">5</span><span class="p">,))</span>
+        <span class="n">array</span><span class="o">.</span><span class="n">init_data</span><span class="p">()</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">new_data</span><span class="p">(</span><span class="n">arrays</span><span class="o">=</span><span class="p">(</span><span class="n">array</span><span class="p">,),</span> <span class="n">location</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">syncing_array</span> <span class="o">=</span> <span class="n">array</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sync_index</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">sync</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mock_sync</span>
+        <span class="n">bf</span> <span class="o">=</span> <span class="n">DataSet</span><span class="o">.</span><span class="n">background_functions</span>
+        <span class="n">bf</span><span class="p">[</span><span class="s1">&#39;fail&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">failing_func</span>
+        <span class="n">bf</span><span class="p">[</span><span class="s1">&#39;log&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">logging_func</span>
+
+        <span class="k">with</span> <span class="n">LogCapture</span><span class="p">()</span> <span class="k">as</span> <span class="n">logs</span><span class="p">:</span>
+            <span class="c1"># grab info and warnings but not debug messages</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">complete</span><span class="p">(</span><span class="n">delay</span><span class="o">=</span><span class="mf">0.001</span><span class="p">)</span>
+
+        <span class="n">logs</span> <span class="o">=</span> <span class="n">logs</span><span class="o">.</span><span class="n">value</span>
+
+        <span class="n">expected_logs</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="s1">&#39;waiting for DataSet &lt;False&gt; to complete&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;DataSet: 0</span><span class="si">% c</span><span class="s1">omplete&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;RuntimeError: it is called failing_func for a reason!&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;background at index 1&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;DataSet: 20</span><span class="si">% c</span><span class="s1">omplete&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;RuntimeError: it is called failing_func for a reason!&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;background function fail failed twice in a row, removing it&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;background at index 2&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;DataSet: 40</span><span class="si">% c</span><span class="s1">omplete&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;background at index 3&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;DataSet: 60</span><span class="si">% c</span><span class="s1">omplete&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;background at index 4&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;DataSet: 80</span><span class="si">% c</span><span class="s1">omplete&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;background at index 5&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;DataSet &lt;False&gt; is complete&#39;</span>
+        <span class="p">]</span>
+
+        <span class="n">log_index</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">expected_logs</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="n">line</span><span class="p">,</span> <span class="n">logs</span><span class="p">,</span> <span class="n">logs</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">log_index_new</span> <span class="o">=</span> <span class="n">logs</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">line</span><span class="p">,</span> <span class="n">log_index</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;line {} not found after {} in: </span><span class="se">\n</span><span class="s1"> {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">line</span><span class="p">,</span> <span class="n">log_index</span><span class="p">,</span> <span class="n">logs</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">log_index_new</span> <span class="o">&gt;=</span> <span class="n">log_index</span><span class="p">,</span> <span class="n">logs</span><span class="p">)</span>
+            <span class="n">log_index</span> <span class="o">=</span> <span class="n">log_index_new</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">line</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>  <span class="c1"># +1 for \n</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">log_index</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">logs</span><span class="p">),</span> <span class="n">logs</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.1.1',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

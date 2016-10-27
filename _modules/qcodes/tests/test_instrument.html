@@ -1,0 +1,1178 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>qcodes.tests.test_instrument &mdash; QCoDeS 0.1.1 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+    <link rel="top" title="QCoDeS 0.1.1 documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> QCoDeS
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1.1
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../start/index.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../help.html">Get Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../user/index.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../community/index.html">Community Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/index.html">Classes and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../auto/qcodes.instrument_drivers.html">qcodes.instrument_drivers package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../roadmap.html">Qcodes project plan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changes/index.html">Changelogs</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../../index.html">QCoDeS</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      
+    <li>qcodes.tests.test_instrument</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for qcodes.tests.test_instrument</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Test suite for  instument.*</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span>
+<span class="kn">from</span> <span class="nn">unittest</span> <span class="kn">import</span> <span class="n">TestCase</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+<span class="kn">from</span> <span class="nn">qcodes.instrument.base</span> <span class="kn">import</span> <span class="n">Instrument</span>
+<span class="kn">from</span> <span class="nn">qcodes.instrument.mock</span> <span class="kn">import</span> <span class="n">MockInstrument</span>
+<span class="kn">from</span> <span class="nn">qcodes.instrument.parameter</span> <span class="kn">import</span> <span class="n">ManualParameter</span>
+<span class="kn">from</span> <span class="nn">qcodes.instrument.server</span> <span class="kn">import</span> <span class="n">get_instrument_server_manager</span>
+
+<span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="kn">import</span> <span class="n">Numbers</span><span class="p">,</span> <span class="n">Ints</span><span class="p">,</span> <span class="n">Strings</span><span class="p">,</span> <span class="n">MultiType</span><span class="p">,</span> <span class="n">Enum</span>
+<span class="kn">from</span> <span class="nn">qcodes.utils.command</span> <span class="kn">import</span> <span class="n">NoCommandError</span>
+<span class="kn">from</span> <span class="nn">qcodes.utils.helpers</span> <span class="kn">import</span> <span class="n">LogCapture</span>
+<span class="kn">from</span> <span class="nn">qcodes.process.helpers</span> <span class="kn">import</span> <span class="n">kill_processes</span>
+
+<span class="kn">from</span> <span class="nn">.instrument_mocks</span> <span class="kn">import</span> <span class="p">(</span><span class="n">AMockModel</span><span class="p">,</span> <span class="n">MockInstTester</span><span class="p">,</span>
+                               <span class="n">MockGates</span><span class="p">,</span> <span class="n">MockSource</span><span class="p">,</span> <span class="n">MockMeter</span><span class="p">,</span>
+                               <span class="n">DummyInstrument</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">.common</span> <span class="kn">import</span> <span class="n">strip_qc</span>
+
+
+<div class="viewcode-block" id="GatesBadDelayType"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.GatesBadDelayType">[docs]</a><span class="k">class</span> <span class="nc">GatesBadDelayType</span><span class="p">(</span><span class="n">MockGates</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;chan0bad&#39;</span><span class="p">,</span> <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;c0?&#39;</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slow_neg_set</span><span class="p">,</span>
+                           <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span> <span class="n">step</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span>
+                           <span class="n">delay</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span>
+                           <span class="n">max_delay</span><span class="o">=</span><span class="s1">&#39;forever&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GatesBadDelayValue"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.GatesBadDelayValue">[docs]</a><span class="k">class</span> <span class="nc">GatesBadDelayValue</span><span class="p">(</span><span class="n">MockGates</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;chan0bad&#39;</span><span class="p">,</span> <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;c0?&#39;</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">slow_neg_set</span><span class="p">,</span>
+                           <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span> <span class="n">step</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span>
+                           <span class="n">delay</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span>
+                           <span class="n">max_delay</span><span class="o">=</span><span class="mf">0.03</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="TestInstrument"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument">[docs]</a><span class="k">class</span> <span class="nc">TestInstrument</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="TestInstrument.setUpClass"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.setUpClass">[docs]</a>    <span class="k">def</span> <span class="nf">setUpClass</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">AMockModel</span><span class="p">()</span>
+
+        <span class="n">cls</span><span class="o">.</span><span class="n">gates</span> <span class="o">=</span> <span class="n">MockGates</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">cls</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">server_name</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">source</span> <span class="o">=</span> <span class="n">MockSource</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">cls</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">server_name</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">meter</span> <span class="o">=</span> <span class="n">MockMeter</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">cls</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">keep_history</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">server_name</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestInstrument.setUp"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># reset the model state via the gates function</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gates</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+
+        <span class="c1"># then reset each instrument&#39;s state, so we can avoid the time to</span>
+        <span class="c1"># completely reinstantiate with every test case</span>
+        <span class="k">for</span> <span class="n">inst</span> <span class="ow">in</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gates</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">meter</span><span class="p">):</span>
+            <span class="n">inst</span><span class="o">.</span><span class="n">restart</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">init_ts</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1"> %H:%M:%S&#39;</span><span class="p">)</span></div>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="TestInstrument.tearDownClass"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.tearDownClass">[docs]</a>    <span class="k">def</span> <span class="nf">tearDownClass</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">cls</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">instrument</span> <span class="ow">in</span> <span class="p">[</span><span class="n">cls</span><span class="o">.</span><span class="n">gates</span><span class="p">,</span> <span class="n">cls</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">cls</span><span class="o">.</span><span class="n">meter</span><span class="p">]:</span>
+                <span class="n">instrument</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+                <span class="c1"># do it twice - should not error, though the second is</span>
+                <span class="c1"># irrelevant</span>
+                <span class="n">instrument</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+        <span class="c1"># TODO: when an error occurs during constructing an instrument,</span>
+        <span class="c1"># we don&#39;t have the instrument but its server doesn&#39;t know to stop.</span>
+        <span class="c1"># should figure out a way to remove it. (I thought I had but it</span>
+        <span class="c1"># doesn&#39;t seem to have worked...)</span>
+        <span class="c1"># for test_mock_instrument_errors</span>
+        <span class="n">kill_processes</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TestInstrument.test_unpicklable"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.test_unpicklable">[docs]</a>    <span class="k">def</span> <span class="nf">test_unpicklable</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gates</span><span class="o">.</span><span class="n">add5</span><span class="p">(</span><span class="mi">6</span><span class="p">),</span> <span class="mi">11</span><span class="p">)</span>
+        <span class="c1"># compare docstrings to make sure we&#39;re really calling add5</span>
+        <span class="c1"># on the server, and seeing its docstring</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s1">&#39;The class copy of this should not get run&#39;</span><span class="p">,</span>
+                      <span class="n">MockInstTester</span><span class="o">.</span><span class="n">add5</span><span class="o">.</span><span class="n">__doc__</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s1">&#39;not the same function as the original method&#39;</span><span class="p">,</span>
+                      <span class="bp">self</span><span class="o">.</span><span class="n">gates</span><span class="o">.</span><span class="n">add5</span><span class="o">.</span><span class="n">__doc__</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestInstrument.test_slow_set"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.test_slow_set">[docs]</a>    <span class="k">def</span> <span class="nf">test_slow_set</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># at least for now, need a local instrument to test logging</span>
+        <span class="n">gatesLocal</span> <span class="o">=</span> <span class="n">MockGates</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">server_name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                               <span class="n">name</span><span class="o">=</span><span class="s1">&#39;gateslocal&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">param</span><span class="p">,</span> <span class="n">logcount</span> <span class="ow">in</span> <span class="p">((</span><span class="s1">&#39;chan0slow&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;chan0slow2&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+                                <span class="p">(</span><span class="s1">&#39;chan0slow3&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;chan0slow4&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+                                <span class="p">(</span><span class="s1">&#39;chan0slow5&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)):</span>
+            <span class="n">gatesLocal</span><span class="o">.</span><span class="n">chan0</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span><span class="p">)</span>
+
+            <span class="k">with</span> <span class="n">LogCapture</span><span class="p">()</span> <span class="k">as</span> <span class="n">logs</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">param</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;chan0slow&#39;</span><span class="p">,</span> <span class="s1">&#39;chan0slow2&#39;</span><span class="p">,</span> <span class="s1">&#39;chan0slow3&#39;</span><span class="p">):</span>
+                    <span class="c1"># these are the stepped parameters</span>
+                    <span class="n">gatesLocal</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># these are the non-stepped parameters that</span>
+                    <span class="c1"># still have delays</span>
+                    <span class="n">gatesLocal</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+                    <span class="n">gatesLocal</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+            <span class="n">loglines</span> <span class="o">=</span> <span class="n">logs</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="c1"># TODO: occasional extra negative delays here</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">loglines</span><span class="p">),</span> <span class="n">logcount</span><span class="p">,</span> <span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">logs</span><span class="o">.</span><span class="n">value</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">loglines</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;negative delay&#39;</span><span class="p">),</span> <span class="n">line</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestInstrument.test_max_delay_errors"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.test_max_delay_errors">[docs]</a>    <span class="k">def</span> <span class="nf">test_max_delay_errors</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="c1"># add_parameter works remotely with string commands, but</span>
+            <span class="c1"># function commands are not going to be picklable, since they</span>
+            <span class="c1"># need to talk to the hardware, so these need to be included</span>
+            <span class="c1"># from the beginning when the instrument is created on the</span>
+            <span class="c1"># server.</span>
+            <span class="n">GatesBadDelayType</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;gatesBDT&#39;</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">GatesBadDelayValue</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;gatesBDV&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestInstrument.check_ts"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.check_ts">[docs]</a>    <span class="k">def</span> <span class="nf">check_ts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ts_str</span><span class="p">):</span>
+        <span class="n">now</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1"> %H:%M:%S&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">init_ts</span> <span class="o">&lt;=</span> <span class="n">ts_str</span> <span class="o">&lt;=</span> <span class="n">now</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestInstrument.test_instances"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.test_instances">[docs]</a>    <span class="k">def</span> <span class="nf">test_instances</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">instruments</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">gates</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">meter</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">instrument</span> <span class="ow">in</span> <span class="n">instruments</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">other_instrument</span> <span class="ow">in</span> <span class="n">instruments</span><span class="p">:</span>
+                <span class="n">instances</span> <span class="o">=</span> <span class="n">instrument</span><span class="o">.</span><span class="n">instances</span><span class="p">()</span>
+                <span class="c1"># check that each instrument is in only its own</span>
+                <span class="c1"># instances list</span>
+                <span class="c1"># also test type checking in find_instrument,</span>
+                <span class="c1"># but we need to use find_component so it executes</span>
+                <span class="c1"># on the server</span>
+                <span class="k">if</span> <span class="n">other_instrument</span> <span class="ow">is</span> <span class="n">instrument</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="n">instrument</span><span class="p">,</span> <span class="n">instances</span><span class="p">)</span>
+
+                    <span class="n">name2</span> <span class="o">=</span> <span class="n">other_instrument</span><span class="o">.</span><span class="n">find_component</span><span class="p">(</span>
+                        <span class="n">instrument</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;.name&#39;</span><span class="p">,</span>
+                        <span class="n">other_instrument</span><span class="o">.</span><span class="n">_instrument_class</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">name2</span><span class="p">,</span> <span class="n">instrument</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">assertNotIn</span><span class="p">(</span><span class="n">other_instrument</span><span class="p">,</span> <span class="n">instances</span><span class="p">)</span>
+
+                    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+                        <span class="n">other_instrument</span><span class="o">.</span><span class="n">find_component</span><span class="p">(</span>
+                            <span class="n">instrument</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;.name&#39;</span><span class="p">,</span>
+                            <span class="n">other_instrument</span><span class="o">.</span><span class="n">_instrument_class</span><span class="p">)</span>
+
+                <span class="c1"># check that we can find each instrument from any other</span>
+                <span class="c1"># find_instrument is explicitly mapped in RemoteInstrument</span>
+                <span class="c1"># so this call gets executed in the main process</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+                    <span class="n">instrument</span><span class="p">,</span>
+                    <span class="n">other_instrument</span><span class="o">.</span><span class="n">find_instrument</span><span class="p">(</span><span class="n">instrument</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+
+                <span class="c1"># but find_component is not, so it executes on the server</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+                    <span class="n">instrument</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                    <span class="n">other_instrument</span><span class="o">.</span><span class="n">find_component</span><span class="p">(</span><span class="n">instrument</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;.name&#39;</span><span class="p">))</span>
+
+            <span class="c1"># check that we can find this instrument from the base class</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">instrument</span><span class="p">,</span>
+                             <span class="n">Instrument</span><span class="o">.</span><span class="n">find_instrument</span><span class="p">(</span><span class="n">instrument</span><span class="o">.</span><span class="n">name</span><span class="p">))</span></div>
+
+        <span class="c1"># somehow instances never go away... there are always 3</span>
+        <span class="c1"># extra references to every instrument object, so del doesn&#39;t</span>
+        <span class="c1"># work. For this reason, instrument tests should take</span>
+        <span class="c1"># the *last* instance to test.</span>
+        <span class="c1"># so we can&#39;t test that the list of defined instruments is actually</span>
+        <span class="c1"># *only* what we want to see defined.</span>
+
+<div class="viewcode-block" id="TestInstrument.test_instance_name_uniqueness"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.test_instance_name_uniqueness">[docs]</a>    <span class="k">def</span> <span class="nf">test_instance_name_uniqueness</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">KeyError</span><span class="p">):</span>
+            <span class="n">MockGates</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestInstrument.test_remove_instance"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.test_remove_instance">[docs]</a>    <span class="k">def</span> <span class="nf">test_remove_instance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gates</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gates</span><span class="o">.</span><span class="n">instances</span><span class="p">(),</span> <span class="p">[])</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">KeyError</span><span class="p">):</span>
+            <span class="n">Instrument</span><span class="o">.</span><span class="n">find_instrument</span><span class="p">(</span><span class="s1">&#39;gates&#39;</span><span class="p">)</span>
+
+        <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">gates</span> <span class="o">=</span> <span class="n">MockGates</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">server_name</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gates</span><span class="o">.</span><span class="n">instances</span><span class="p">(),</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">gates</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">Instrument</span><span class="o">.</span><span class="n">find_instrument</span><span class="p">(</span><span class="s1">&#39;gates&#39;</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">gates</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestInstrument.test_creation_failure"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.test_creation_failure">[docs]</a>    <span class="k">def</span> <span class="nf">test_creation_failure</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># this we already know should fail (see test_max_delay_errors)</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;gatesFailing&#39;</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">GatesBadDelayValue</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">server_name</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+
+        <span class="c1"># this instrument should not be in the instance list</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">KeyError</span><span class="p">):</span>
+            <span class="n">Instrument</span><span class="o">.</span><span class="n">find_instrument</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+        <span class="c1"># now do the same with a local instrument</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;gatesFailing2&#39;</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">GatesBadDelayValue</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">server_name</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+
+        <span class="c1"># this instrument should not be in the instance list</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">KeyError</span><span class="p">):</span>
+            <span class="n">Instrument</span><span class="o">.</span><span class="n">find_instrument</span><span class="p">(</span><span class="n">name</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestInstrument.test_mock_instrument"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.test_mock_instrument">[docs]</a>    <span class="k">def</span> <span class="nf">test_mock_instrument</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">gates</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="n">meter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gates</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">meter</span>
+
+        <span class="c1"># initial state</span>
+        <span class="c1"># short form of getter</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">gates</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;chan0&#39;</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="c1"># shortcut to the parameter, longer form of get</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">gates</span><span class="p">[</span><span class="s1">&#39;chan0&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="c1"># explicit long form of getter</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">gates</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;chan0&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="c1"># all 3 should produce the same history entry</span>
+        <span class="n">hist</span> <span class="o">=</span> <span class="n">gates</span><span class="o">.</span><span class="n">getattr</span><span class="p">(</span><span class="s1">&#39;history&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">hist</span><span class="p">),</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">hist</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="p">(</span><span class="s1">&#39;ask&#39;</span><span class="p">,</span> <span class="s1">&#39;c0&#39;</span><span class="p">))</span>
+
+        <span class="c1"># errors trying to set (or validate) invalid param values</span>
+        <span class="c1"># put here so we ensure that these errors don&#39;t make it to</span>
+        <span class="c1"># the history (ie they don&#39;t result in hardware commands)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="n">gates</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;chan1&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="n">gates</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;chan1&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="s1">&#39;1&#39;</span><span class="p">)</span>
+
+        <span class="c1"># change one param at a time</span>
+        <span class="n">gates</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;chan0&#39;</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">gates</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;chan0&#39;</span><span class="p">),</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">meter</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;amplitude&#39;</span><span class="p">),</span> <span class="mf">0.05</span><span class="p">)</span>
+
+        <span class="n">gates</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;chan1&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">gates</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;chan1&#39;</span><span class="p">),</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">meter</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;amplitude&#39;</span><span class="p">),</span> <span class="mf">0.45</span><span class="p">)</span>
+
+        <span class="n">gates</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;chan2&#39;</span><span class="p">,</span> <span class="o">-</span><span class="mf">3.2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">gates</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;chan2&#39;</span><span class="p">),</span> <span class="o">-</span><span class="mf">3.2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">meter</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;amplitude&#39;</span><span class="p">),</span> <span class="o">-</span><span class="mf">2.827</span><span class="p">)</span>
+
+        <span class="n">source</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;amplitude&#39;</span><span class="p">,</span> <span class="mf">0.6</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">source</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;amplitude&#39;</span><span class="p">),</span> <span class="mf">0.6</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">meter</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;amplitude&#39;</span><span class="p">),</span> <span class="o">-</span><span class="mf">16.961</span><span class="p">)</span>
+
+        <span class="n">gatehist</span> <span class="o">=</span> <span class="n">gates</span><span class="o">.</span><span class="n">getattr</span><span class="p">(</span><span class="s1">&#39;history&#39;</span><span class="p">)</span>
+        <span class="n">sourcehist</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">getattr</span><span class="p">(</span><span class="s1">&#39;history&#39;</span><span class="p">)</span>
+        <span class="n">meterhist</span> <span class="o">=</span> <span class="n">meter</span><span class="o">.</span><span class="n">getattr</span><span class="p">(</span><span class="s1">&#39;history&#39;</span><span class="p">)</span>
+        <span class="c1"># check just the size and timestamps of histories</span>
+        <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">gatehist</span> <span class="o">+</span> <span class="n">sourcehist</span> <span class="o">+</span> <span class="n">meterhist</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">check_ts</span><span class="p">(</span><span class="n">entry</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">gatehist</span><span class="p">),</span> <span class="mi">9</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">sourcehist</span><span class="p">),</span> <span class="mi">5</span><span class="p">)</span>
+        <span class="c1"># meter does not keep history but should still have a history attr</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">meterhist</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># plus enough setters to check the parameter sweep</span>
+        <span class="c1"># first source has to get the starting value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">sourcehist</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">:],</span> <span class="p">(</span><span class="s1">&#39;ask&#39;</span><span class="p">,</span> <span class="s1">&#39;ampl&#39;</span><span class="p">))</span>
+        <span class="c1"># then it writes each</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">sourcehist</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">:],</span> <span class="p">(</span><span class="s1">&#39;write&#39;</span><span class="p">,</span> <span class="s1">&#39;ampl&#39;</span><span class="p">,</span> <span class="s1">&#39;0.3000&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">sourcehist</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">1</span><span class="p">:],</span> <span class="p">(</span><span class="s1">&#39;write&#39;</span><span class="p">,</span> <span class="s1">&#39;ampl&#39;</span><span class="p">,</span> <span class="s1">&#39;0.5000&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">sourcehist</span><span class="p">[</span><span class="mi">3</span><span class="p">][</span><span class="mi">1</span><span class="p">:],</span> <span class="p">(</span><span class="s1">&#39;write&#39;</span><span class="p">,</span> <span class="s1">&#39;ampl&#39;</span><span class="p">,</span> <span class="s1">&#39;0.6000&#39;</span><span class="p">))</span>
+
+        <span class="n">source</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;amplitude&#39;</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">source</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;amplitude&#39;</span><span class="p">),</span> <span class="mf">0.8</span><span class="p">)</span>
+        <span class="n">gates</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;chan1&#39;</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">gates</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;chan1&#39;</span><span class="p">),</span> <span class="o">-</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="c1"># test functions</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">meter</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="s1">&#39;echo&#39;</span><span class="p">,</span> <span class="mf">1.2345</span><span class="p">),</span> <span class="mf">1.23</span><span class="p">)</span>  <span class="c1"># model returns .2f</span>
+        <span class="c1"># too many ways to do this...</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">meter</span><span class="o">.</span><span class="n">echo</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="mf">1.2345</span><span class="p">),</span> <span class="mf">1.23</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">meter</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="mf">1.2345</span><span class="p">),</span> <span class="mf">1.23</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">meter</span><span class="p">[</span><span class="s1">&#39;echo&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="mf">1.2345</span><span class="p">),</span> <span class="mf">1.23</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">meter</span><span class="p">[</span><span class="s1">&#39;echo&#39;</span><span class="p">](</span><span class="mf">1.2345</span><span class="p">),</span> <span class="mf">1.23</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="n">meter</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="s1">&#39;echo&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="n">meter</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="s1">&#39;echo&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span>
+
+        <span class="c1"># validating before actually trying to call</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="n">meter</span><span class="o">.</span><span class="n">functions</span><span class="p">[</span><span class="s1">&#39;echo&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="n">meter</span><span class="o">.</span><span class="n">functions</span><span class="p">[</span><span class="s1">&#39;echo&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="s1">&#39;1&#39;</span><span class="p">)</span>
+        <span class="n">gates</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="s1">&#39;reset&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">gates</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;chan0&#39;</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">meter</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="s1">&#39;echo&#39;</span><span class="p">,</span> <span class="mf">4.567</span><span class="p">),</span> <span class="mf">4.57</span><span class="p">)</span>
+        <span class="n">gates</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;chan0&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">gates</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;chan0&#39;</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">gates</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="s1">&#39;reset&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">gates</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;chan0&#39;</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestInstrument.test_mock_idn"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.test_mock_idn">[docs]</a>    <span class="k">def</span> <span class="nf">test_mock_idn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gates</span><span class="o">.</span><span class="n">IDN</span><span class="p">(),</span> <span class="p">{</span>
+            <span class="s1">&#39;vendor&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+            <span class="s1">&#39;model&#39;</span><span class="p">:</span> <span class="s1">&#39;MockGates&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;serial&#39;</span><span class="p">:</span> <span class="s1">&#39;gates&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;firmware&#39;</span><span class="p">:</span> <span class="bp">None</span>
+        <span class="p">})</span></div>
+
+<div class="viewcode-block" id="TestInstrument.test_mock_set_sweep"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.test_mock_set_sweep">[docs]</a>    <span class="k">def</span> <span class="nf">test_mock_set_sweep</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">gates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gates</span>
+        <span class="n">gates</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;chan0step&#39;</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="n">gatehist</span> <span class="o">=</span> <span class="n">gates</span><span class="o">.</span><span class="n">getattr</span><span class="p">(</span><span class="s1">&#39;history&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">gatehist</span><span class="p">),</span> <span class="mi">6</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+            <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">h</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span> <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="n">gatehist</span> <span class="k">if</span> <span class="n">h</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;write&#39;</span><span class="p">],</span>
+            <span class="p">[</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">,</span> <span class="mf">0.4</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="TestInstrument.test_mock_instrument_errors"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.test_mock_instrument_errors">[docs]</a>    <span class="k">def</span> <span class="nf">test_mock_instrument_errors</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">gates</span><span class="p">,</span> <span class="n">meter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gates</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">meter</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">gates</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;no question&#39;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">gates</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;question?yes but more after&#39;</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">gates</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;ampl?&#39;</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="n">MockInstrument</span><span class="p">(</span><span class="s1">&#39;mockbaddelay1&#39;</span><span class="p">,</span> <span class="n">delay</span><span class="o">=</span><span class="s1">&#39;forever&#39;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="c1"># TODO: since this instrument didn&#39;t work, it should be OK</span>
+            <span class="c1"># to use the same name again... how do we allow that?</span>
+            <span class="n">MockInstrument</span><span class="p">(</span><span class="s1">&#39;mockbaddelay2&#39;</span><span class="p">,</span> <span class="n">delay</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># TODO: when an error occurs during constructing an instrument,</span>
+        <span class="c1"># we don&#39;t have the instrument but its server doesn&#39;t know to stop.</span>
+        <span class="c1"># should figure out a way to remove it. (I thought I had but it</span>
+        <span class="c1"># doesn&#39;t seem to have worked...)</span>
+        <span class="n">get_instrument_server_manager</span><span class="p">(</span><span class="s1">&#39;MockInstruments&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">AttributeError</span><span class="p">):</span>
+            <span class="n">MockInstrument</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">KeyError</span><span class="p">):</span>
+            <span class="n">gates</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;chan0&#39;</span><span class="p">,</span> <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;boo&#39;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">KeyError</span><span class="p">):</span>
+            <span class="n">gates</span><span class="o">.</span><span class="n">add_function</span><span class="p">(</span><span class="s1">&#39;reset&#39;</span><span class="p">,</span> <span class="n">call_cmd</span><span class="o">=</span><span class="s1">&#39;hoo&#39;</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">NotImplementedError</span><span class="p">):</span>
+            <span class="n">meter</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;amplitude&#39;</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="n">meter</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;gain&#39;</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;gain {:.3f}&#39;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">NotImplementedError</span><span class="p">):</span>
+            <span class="n">meter</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;gain&#39;</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="n">gates</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;fugacity&#39;</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;f {:.4f}&#39;</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="TestInstrument.check_set_amplitude2"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.check_set_amplitude2">[docs]</a>    <span class="k">def</span> <span class="nf">check_set_amplitude2</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">,</span> <span class="n">log_count</span><span class="p">,</span> <span class="n">history_count</span><span class="p">):</span>
+        <span class="n">source</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sourceLocal</span>
+        <span class="k">with</span> <span class="n">LogCapture</span><span class="p">()</span> <span class="k">as</span> <span class="n">logs</span><span class="p">:</span>
+            <span class="n">source</span><span class="o">.</span><span class="n">amplitude2</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+
+        <span class="n">loglines</span> <span class="o">=</span> <span class="n">logs</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">loglines</span><span class="p">),</span> <span class="n">log_count</span><span class="p">,</span> <span class="n">logs</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">loglines</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s1">&#39;cannot sweep&#39;</span><span class="p">,</span> <span class="n">line</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+        <span class="n">hist</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">getattr</span><span class="p">(</span><span class="s1">&#39;history&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">hist</span><span class="p">),</span> <span class="n">history_count</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestInstrument.test_sweep_steps_edge_case"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.test_sweep_steps_edge_case">[docs]</a>    <span class="k">def</span> <span class="nf">test_sweep_steps_edge_case</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># MultiType with sweeping is weird - not sure why one would do this,</span>
+        <span class="c1"># but we should handle it</span>
+        <span class="c1"># at least for now, need a local instrument to check logging</span>
+        <span class="n">source</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sourceLocal</span> <span class="o">=</span> <span class="n">MockSource</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span>
+                                               <span class="n">server_name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                                               <span class="n">name</span><span class="o">=</span><span class="s1">&#39;sourcelocal&#39;</span><span class="p">)</span>
+        <span class="n">source</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;amplitude2&#39;</span><span class="p">,</span> <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;ampl?&#39;</span><span class="p">,</span>
+                             <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;ampl:{}&#39;</span><span class="p">,</span> <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+                             <span class="n">vals</span><span class="o">=</span><span class="n">MultiType</span><span class="p">(</span><span class="n">Numbers</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">Strings</span><span class="p">()),</span>
+                             <span class="n">step</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">delay</span><span class="o">=</span><span class="mf">0.02</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">source</span><span class="o">.</span><span class="n">getattr</span><span class="p">(</span><span class="s1">&#39;history&#39;</span><span class="p">)),</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># 2 history items - get then set, and one warning (cannot sweep</span>
+        <span class="c1"># number to string value)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_set_amplitude2</span><span class="p">(</span><span class="s1">&#39;Off&#39;</span><span class="p">,</span> <span class="n">log_count</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">history_count</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="c1"># one more history item - single set, and one warning (cannot sweep</span>
+        <span class="c1"># string to number)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_set_amplitude2</span><span class="p">(</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">log_count</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">history_count</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+
+        <span class="c1"># the only real sweep (0.2 to 0.8) adds 3 set&#39;s to history and no logs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_set_amplitude2</span><span class="p">(</span><span class="mf">0.8</span><span class="p">,</span> <span class="n">log_count</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">history_count</span><span class="o">=</span><span class="mi">6</span><span class="p">)</span>
+
+        <span class="c1"># single set added to history, and another sweep warning num-&gt;string</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_set_amplitude2</span><span class="p">(</span><span class="s1">&#39;Off&#39;</span><span class="p">,</span> <span class="n">log_count</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">history_count</span><span class="o">=</span><span class="mi">7</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestInstrument.test_set_sweep_errors"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.test_set_sweep_errors">[docs]</a>    <span class="k">def</span> <span class="nf">test_set_sweep_errors</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">gates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gates</span>
+
+        <span class="c1"># for reference, some add_parameter&#39;s that should work</span>
+        <span class="n">gates</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;t0&#39;</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;{}&#39;</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(),</span>
+                            <span class="n">step</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">delay</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)</span>
+        <span class="n">gates</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;t2&#39;</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;{}&#39;</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">Ints</span><span class="p">(),</span>
+                            <span class="n">step</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">delay</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span>
+                            <span class="n">max_val_age</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="c1"># can&#39;t sweep non-numerics</span>
+            <span class="n">gates</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;t1&#39;</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;{}&#39;</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">Strings</span><span class="p">(),</span>
+                                <span class="n">step</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">delay</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="c1"># need a numeric step too</span>
+            <span class="n">gates</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;t1&#39;</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;{}&#39;</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(),</span>
+                                <span class="n">step</span><span class="o">=</span><span class="s1">&#39;a skosh&#39;</span><span class="p">,</span> <span class="n">delay</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="c1"># Ints requires and int step</span>
+            <span class="n">gates</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;t1&#39;</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;{}&#39;</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">Ints</span><span class="p">(),</span>
+                                <span class="n">step</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">delay</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="c1"># need a non-negative step</span>
+            <span class="n">gates</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;t1&#39;</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;{}&#39;</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(),</span>
+                                <span class="n">step</span><span class="o">=-</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">delay</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="c1"># need a numeric delay</span>
+            <span class="n">gates</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;t1&#39;</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;{}&#39;</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(),</span>
+                                <span class="n">step</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">delay</span><span class="o">=</span><span class="s1">&#39;a tad&#39;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="c1"># need a non-negative delay</span>
+            <span class="n">gates</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;t1&#39;</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;{}&#39;</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(),</span>
+                                <span class="n">step</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">delay</span><span class="o">=-</span><span class="mf">0.01</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="c1"># need a numeric max_val_age</span>
+            <span class="n">gates</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;t1&#39;</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;{}&#39;</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(),</span>
+                                <span class="n">step</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">delay</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span>
+                                <span class="n">max_val_age</span><span class="o">=</span><span class="s1">&#39;an hour&#39;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="c1"># need a non-negative max_val_age</span>
+            <span class="n">gates</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;t1&#39;</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;{}&#39;</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(),</span>
+                                <span class="n">step</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">delay</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span>
+                                <span class="n">max_val_age</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestInstrument.getmem"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.getmem">[docs]</a>    <span class="k">def</span> <span class="nf">getmem</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;mem{}?&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestInstrument.test_val_mapping"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.test_val_mapping">[docs]</a>    <span class="k">def</span> <span class="nf">test_val_mapping</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">gates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gates</span>
+
+        <span class="c1"># memraw has no mappings - it just sets and gets what the instrument</span>
+        <span class="c1"># uses to encode this parameter</span>
+        <span class="n">gates</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;memraw&#39;</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;mem0:{}&#39;</span><span class="p">,</span> <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;mem0?&#39;</span><span class="p">,</span>
+                            <span class="n">vals</span><span class="o">=</span><span class="n">Enum</span><span class="p">(</span><span class="s1">&#39;zero&#39;</span><span class="p">,</span> <span class="s1">&#39;one&#39;</span><span class="p">))</span>
+
+        <span class="c1"># memcoded maps the instrument codes (&#39;zero&#39; and &#39;one&#39;) into nicer</span>
+        <span class="c1"># user values 0 and 1</span>
+        <span class="n">gates</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;memcoded&#39;</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;mem0:{}&#39;</span><span class="p">,</span> <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;mem0?&#39;</span><span class="p">,</span>
+                            <span class="n">val_mapping</span><span class="o">=</span><span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="s1">&#39;zero&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">:</span> <span class="s1">&#39;one&#39;</span><span class="p">})</span>
+
+        <span class="n">gates</span><span class="o">.</span><span class="n">memcoded</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">gates</span><span class="o">.</span><span class="n">memraw</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span> <span class="s1">&#39;zero&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">gates</span><span class="o">.</span><span class="n">memcoded</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">getmem</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="s1">&#39;zero&#39;</span><span class="p">)</span>
+
+        <span class="n">gates</span><span class="o">.</span><span class="n">memraw</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;one&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">gates</span><span class="o">.</span><span class="n">memcoded</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">gates</span><span class="o">.</span><span class="n">memraw</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span> <span class="s1">&#39;one&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">getmem</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="s1">&#39;one&#39;</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">gates</span><span class="o">.</span><span class="n">memraw</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">gates</span><span class="o">.</span><span class="n">memcoded</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;zero&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestInstrument.test_val_mapping_ints"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.test_val_mapping_ints">[docs]</a>    <span class="k">def</span> <span class="nf">test_val_mapping_ints</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">gates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gates</span>
+
+        <span class="n">gates</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;moderaw&#39;</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;mem0:{}&#39;</span><span class="p">,</span> <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;mem0?&#39;</span><span class="p">,</span>
+                            <span class="n">vals</span><span class="o">=</span><span class="n">Enum</span><span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">))</span>
+
+        <span class="c1"># modecoded maps the instrument codes (&#39;0&#39; and &#39;1&#39;) into nicer</span>
+        <span class="c1"># user values &#39;AC&#39; and &#39;DC&#39;</span>
+        <span class="c1"># Here we&#39;re using integers in the mapping, rather than turning</span>
+        <span class="c1"># them into strings.</span>
+        <span class="n">gates</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;modecoded&#39;</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;mem0:{}&#39;</span><span class="p">,</span> <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;mem0?&#39;</span><span class="p">,</span>
+                            <span class="n">val_mapping</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;DC&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;AC&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">})</span>
+
+        <span class="n">gates</span><span class="o">.</span><span class="n">modecoded</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;AC&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">gates</span><span class="o">.</span><span class="n">moderaw</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">gates</span><span class="o">.</span><span class="n">modecoded</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span> <span class="s1">&#39;AC&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">getmem</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span>
+
+        <span class="n">gates</span><span class="o">.</span><span class="n">moderaw</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">gates</span><span class="o">.</span><span class="n">modecoded</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span> <span class="s1">&#39;DC&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">gates</span><span class="o">.</span><span class="n">moderaw</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span> <span class="s1">&#39;0&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">getmem</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="s1">&#39;0&#39;</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">gates</span><span class="o">.</span><span class="n">modecoded</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">gates</span><span class="o">.</span><span class="n">modecoded</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">gates</span><span class="o">.</span><span class="n">moderaw</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;DC&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestInstrument.test_val_mapping_parsers"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.test_val_mapping_parsers">[docs]</a>    <span class="k">def</span> <span class="nf">test_val_mapping_parsers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">gates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gates</span>
+
+        <span class="n">gates</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;moderaw&#39;</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;mem0:{}&#39;</span><span class="p">,</span> <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;mem0?&#39;</span><span class="p">,</span>
+                            <span class="n">vals</span><span class="o">=</span><span class="n">Enum</span><span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">))</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="c1"># set_parser is not allowed with val_mapping</span>
+            <span class="n">gates</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;modecoded&#39;</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;mem0:{}&#39;</span><span class="p">,</span>
+                                <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;mem0?&#39;</span><span class="p">,</span>
+                                <span class="n">val_mapping</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;DC&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;AC&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
+                                <span class="n">set_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+
+        <span class="n">gates</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;modecoded&#39;</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;mem0:{:.0f}&#39;</span><span class="p">,</span>
+                            <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;mem0?&#39;</span><span class="p">,</span>
+                            <span class="n">val_mapping</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;DC&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span> <span class="s1">&#39;AC&#39;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">},</span>
+                            <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+
+        <span class="n">gates</span><span class="o">.</span><span class="n">modecoded</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;AC&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">gates</span><span class="o">.</span><span class="n">moderaw</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">gates</span><span class="o">.</span><span class="n">modecoded</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span> <span class="s1">&#39;AC&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">getmem</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span>
+
+        <span class="n">gates</span><span class="o">.</span><span class="n">moderaw</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">gates</span><span class="o">.</span><span class="n">modecoded</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span> <span class="s1">&#39;DC&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">gates</span><span class="o">.</span><span class="n">moderaw</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span> <span class="s1">&#39;0&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">getmem</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="s1">&#39;0&#39;</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">gates</span><span class="o">.</span><span class="n">modecoded</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">gates</span><span class="o">.</span><span class="n">modecoded</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestInstrument.test_standard_snapshot"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.test_standard_snapshot">[docs]</a>    <span class="k">def</span> <span class="nf">test_standard_snapshot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">maxDiff</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="n">snap</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">meter</span><span class="o">.</span><span class="n">snapshot</span><span class="p">()</span>
+        <span class="n">strip_qc</span><span class="p">(</span><span class="n">snap</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">psnap</span> <span class="ow">in</span> <span class="n">snap</span><span class="p">[</span><span class="s1">&#39;parameters&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">strip_qc</span><span class="p">(</span><span class="n">psnap</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">snap</span><span class="p">,</span> <span class="p">{</span>
+            <span class="s1">&#39;__class__&#39;</span><span class="p">:</span> <span class="s1">&#39;tests.instrument_mocks.MockMeter&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;meter&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;parameters&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;IDN&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;__class__&#39;</span><span class="p">:</span> <span class="p">(</span>
+                        <span class="s1">&#39;qcodes.instrument.parameter.StandardParameter&#39;</span><span class="p">),</span>
+                    <span class="s1">&#39;instrument&#39;</span><span class="p">:</span> <span class="s1">&#39;tests.instrument_mocks.MockMeter&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;instrument_name&#39;</span><span class="p">:</span> <span class="s1">&#39;meter&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="s1">&#39;IDN&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;IDN&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+                    <span class="s1">&#39;units&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="bp">None</span>
+                <span class="p">},</span>
+                <span class="s1">&#39;amplitude&#39;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s1">&#39;__class__&#39;</span><span class="p">:</span> <span class="p">(</span>
+                        <span class="s1">&#39;qcodes.instrument.parameter.StandardParameter&#39;</span><span class="p">),</span>
+                    <span class="s1">&#39;instrument&#39;</span><span class="p">:</span> <span class="s1">&#39;tests.instrument_mocks.MockMeter&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;instrument_name&#39;</span><span class="p">:</span> <span class="s1">&#39;meter&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="s1">&#39;amplitude&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;amplitude&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+                    <span class="s1">&#39;units&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="bp">None</span>
+                <span class="p">}</span>
+            <span class="p">},</span>
+            <span class="s1">&#39;functions&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;echo&#39;</span><span class="p">:</span> <span class="p">{}}</span>
+        <span class="p">})</span>
+
+        <span class="n">ampsnap</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">meter</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="bp">True</span><span class="p">)[</span><span class="s1">&#39;parameters&#39;</span><span class="p">][</span><span class="s1">&#39;amplitude&#39;</span><span class="p">]</span>
+        <span class="n">amp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">meter</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;amplitude&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">ampsnap</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">],</span> <span class="n">amp</span><span class="p">)</span>
+        <span class="n">amp_ts</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">ampsnap</span><span class="p">[</span><span class="s1">&#39;ts&#39;</span><span class="p">],</span> <span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1"> %H:%M:%S&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertLessEqual</span><span class="p">(</span><span class="n">amp_ts</span><span class="p">,</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertGreater</span><span class="p">(</span><span class="n">amp_ts</span><span class="p">,</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">-</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="mf">1.1</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestInstrument.test_manual_snapshot"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.test_manual_snapshot">[docs]</a>    <span class="k">def</span> <span class="nf">test_manual_snapshot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;noise&#39;</span><span class="p">,</span> <span class="n">parameter_class</span><span class="o">=</span><span class="n">ManualParameter</span><span class="p">)</span>
+        <span class="n">noise</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">noise</span>
+
+        <span class="n">noisesnap</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">snapshot</span><span class="p">()[</span><span class="s1">&#39;parameters&#39;</span><span class="p">][</span><span class="s1">&#39;noise&#39;</span><span class="p">]</span>
+        <span class="n">strip_qc</span><span class="p">(</span><span class="n">noisesnap</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">noisesnap</span><span class="p">,</span> <span class="p">{</span>
+            <span class="s1">&#39;__class__&#39;</span><span class="p">:</span> <span class="s1">&#39;qcodes.instrument.parameter.ManualParameter&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;instrument&#39;</span><span class="p">:</span> <span class="s1">&#39;tests.instrument_mocks.MockSource&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;instrument_name&#39;</span><span class="p">:</span> <span class="s1">&#39;source&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="s1">&#39;noise&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;noise&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+            <span class="s1">&#39;units&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="bp">None</span>
+        <span class="p">})</span>
+
+        <span class="n">noise</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+        <span class="n">noisesnap</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">snapshot</span><span class="p">()[</span><span class="s1">&#39;parameters&#39;</span><span class="p">][</span><span class="s1">&#39;noise&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">noisesnap</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">],</span> <span class="mi">100</span><span class="p">)</span>
+
+        <span class="n">noise_ts</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">noisesnap</span><span class="p">[</span><span class="s1">&#39;ts&#39;</span><span class="p">],</span> <span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1"> %H:%M:%S&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertLessEqual</span><span class="p">(</span><span class="n">noise_ts</span><span class="p">,</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertGreater</span><span class="p">(</span><span class="n">noise_ts</span><span class="p">,</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">-</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="mf">1.1</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestInstrument.tests_get_latest"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.tests_get_latest">[docs]</a>    <span class="k">def</span> <span class="nf">tests_get_latest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;noise&#39;</span><span class="p">,</span> <span class="n">parameter_class</span><span class="o">=</span><span class="n">ManualParameter</span><span class="p">)</span>
+        <span class="n">noise</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">noise</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNone</span><span class="p">(</span><span class="n">noise</span><span class="o">.</span><span class="n">get_latest</span><span class="p">())</span>
+
+        <span class="n">noise</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+
+        <span class="n">mock_ts</span> <span class="o">=</span> <span class="n">datetime</span><span class="p">(</span><span class="mi">2000</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+        <span class="n">ts_str</span> <span class="o">=</span> <span class="n">mock_ts</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1"> %H:%M:%S&#39;</span><span class="p">)</span>
+        <span class="n">noise</span><span class="o">.</span><span class="n">setattr</span><span class="p">(</span><span class="s1">&#39;_latest_ts&#39;</span><span class="p">,</span> <span class="n">mock_ts</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">noise</span><span class="o">.</span><span class="n">snapshot</span><span class="p">()[</span><span class="s1">&#39;ts&#39;</span><span class="p">],</span> <span class="n">ts_str</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">noise</span><span class="o">.</span><span class="n">get_latest</span><span class="p">(),</span> <span class="mi">100</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">noise</span><span class="o">.</span><span class="n">get_latest</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span> <span class="mi">100</span><span class="p">)</span>
+
+        <span class="c1"># get_latest should not update ts</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">noise</span><span class="o">.</span><span class="n">snapshot</span><span class="p">()[</span><span class="s1">&#39;ts&#39;</span><span class="p">],</span> <span class="n">ts_str</span><span class="p">)</span>
+
+        <span class="c1"># get_latest is not settable</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">AttributeError</span><span class="p">):</span>
+            <span class="n">noise</span><span class="o">.</span><span class="n">get_latest</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="mi">50</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestInstrument.test_base_instrument_errors"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.test_base_instrument_errors">[docs]</a>    <span class="k">def</span> <span class="nf">test_base_instrument_errors</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="n">Instrument</span><span class="p">(</span><span class="s1">&#39;silent&#39;</span><span class="p">,</span> <span class="n">server_name</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">NotImplementedError</span><span class="p">):</span>
+            <span class="n">b</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;hello!&#39;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">NotImplementedError</span><span class="p">):</span>
+            <span class="n">b</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;how are you?&#39;</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="n">b</span><span class="o">.</span><span class="n">add_function</span><span class="p">(</span><span class="s1">&#39;skip&#39;</span><span class="p">,</span> <span class="n">call_cmd</span><span class="o">=</span><span class="s1">&#39;skip {}&#39;</span><span class="p">,</span>
+                           <span class="n">args</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;not a validator&#39;</span><span class="p">])</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">NoCommandError</span><span class="p">):</span>
+            <span class="n">b</span><span class="o">.</span><span class="n">add_function</span><span class="p">(</span><span class="s1">&#39;jump&#39;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">NoCommandError</span><span class="p">):</span>
+            <span class="n">b</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;height&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestInstrument.test_manual_parameter"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.test_manual_parameter">[docs]</a>    <span class="k">def</span> <span class="nf">test_manual_parameter</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;bias_resistor&#39;</span><span class="p">,</span>
+                                  <span class="n">parameter_class</span><span class="o">=</span><span class="n">ManualParameter</span><span class="p">,</span>
+                                  <span class="n">initial_value</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">bias_resistor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span> <span class="mi">1000</span><span class="p">)</span>
+
+        <span class="n">res</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="mf">1e9</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span> <span class="mf">1e9</span><span class="p">)</span>
+        <span class="c1"># default vals is all numbers</span>
+        <span class="c1"># set / get with __call__ shortcut</span>
+        <span class="n">res</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">res</span><span class="p">(),</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;alignment&#39;</span><span class="p">,</span>
+                                  <span class="n">parameter_class</span><span class="o">=</span><span class="n">ManualParameter</span><span class="p">,</span>
+                                  <span class="n">vals</span><span class="o">=</span><span class="n">Enum</span><span class="p">(</span><span class="s1">&#39;lawful&#39;</span><span class="p">,</span> <span class="s1">&#39;neutral&#39;</span><span class="p">,</span> <span class="s1">&#39;chaotic&#39;</span><span class="p">))</span>
+        <span class="n">alignment</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">alignment</span>
+
+        <span class="c1"># a ManualParameter can have initial_value=None (default) even if</span>
+        <span class="c1"># that&#39;s not a valid value to set later</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNone</span><span class="p">(</span><span class="n">alignment</span><span class="o">.</span><span class="n">get</span><span class="p">())</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">alignment</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
+
+        <span class="n">alignment</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;lawful&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">alignment</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span> <span class="s1">&#39;lawful&#39;</span><span class="p">)</span>
+
+        <span class="c1"># None is the only invalid initial_value you can use</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;alignment2&#39;</span><span class="p">,</span>
+                                      <span class="n">parameter_class</span><span class="o">=</span><span class="n">ManualParameter</span><span class="p">,</span>
+                                      <span class="n">initial_value</span><span class="o">=</span><span class="s1">&#39;nearsighted&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestInstrument.test_deferred_ops"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.test_deferred_ops">[docs]</a>    <span class="k">def</span> <span class="nf">test_deferred_ops</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">gates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gates</span>
+        <span class="n">c0</span><span class="p">,</span> <span class="n">c1</span><span class="p">,</span> <span class="n">c2</span> <span class="o">=</span> <span class="n">gates</span><span class="o">.</span><span class="n">chan0</span><span class="p">,</span> <span class="n">gates</span><span class="o">.</span><span class="n">chan1</span><span class="p">,</span> <span class="n">gates</span><span class="o">.</span><span class="n">chan2</span>
+
+        <span class="n">c0</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">c1</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">c2</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">((</span><span class="n">c0</span> <span class="o">+</span> <span class="n">c1</span> <span class="o">+</span> <span class="n">c2</span><span class="p">)(),</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">((</span><span class="mi">10</span> <span class="o">+</span> <span class="p">(</span><span class="n">c0</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">c1</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">c2</span><span class="o">**</span><span class="mi">2</span><span class="p">))(),</span> <span class="mi">15</span><span class="p">)</span>
+
+        <span class="n">d</span> <span class="o">=</span> <span class="n">c1</span><span class="o">.</span><span class="n">get_latest</span> <span class="o">/</span> <span class="n">c0</span><span class="o">.</span><span class="n">get_latest</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ZeroDivisionError</span><span class="p">):</span>
+            <span class="n">d</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TestInstrument.test_attr_access"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.test_attr_access">[docs]</a>    <span class="k">def</span> <span class="nf">test_attr_access</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">instrument</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gates</span>
+
+        <span class="c1"># set one attribute with nested levels</span>
+        <span class="n">instrument</span><span class="o">.</span><span class="n">setattr</span><span class="p">(</span><span class="s1">&#39;d1&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="p">{</span><span class="mi">1</span><span class="p">:</span> <span class="mi">2</span><span class="p">}})</span>
+
+        <span class="c1"># get the whole dict</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">instrument</span><span class="o">.</span><span class="n">getattr</span><span class="p">(</span><span class="s1">&#39;d1&#39;</span><span class="p">),</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="p">{</span><span class="mi">1</span><span class="p">:</span> <span class="mi">2</span><span class="p">}})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">instrument</span><span class="o">.</span><span class="n">getattr</span><span class="p">(</span><span class="s1">&#39;d1&#39;</span><span class="p">,</span> <span class="mi">55</span><span class="p">),</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="p">{</span><span class="mi">1</span><span class="p">:</span> <span class="mi">2</span><span class="p">}})</span>
+
+        <span class="c1"># get parts</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">instrument</span><span class="o">.</span><span class="n">getattr</span><span class="p">(</span><span class="s1">&#39;d1[&quot;a&quot;]&#39;</span><span class="p">),</span> <span class="p">{</span><span class="mi">1</span><span class="p">:</span> <span class="mi">2</span><span class="p">})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">instrument</span><span class="o">.</span><span class="n">getattr</span><span class="p">(</span><span class="s2">&quot;d1[&#39;a&#39;][1]&quot;</span><span class="p">),</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">instrument</span><span class="o">.</span><span class="n">getattr</span><span class="p">(</span><span class="s1">&#39;d1[&quot;a&quot;][1]&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="c1"># add an attribute inside, then delete it again</span>
+        <span class="n">instrument</span><span class="o">.</span><span class="n">setattr</span><span class="p">(</span><span class="s1">&#39;d1[&quot;a&quot;][2]&#39;</span><span class="p">,</span> <span class="mi">23</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">instrument</span><span class="o">.</span><span class="n">getattr</span><span class="p">(</span><span class="s1">&#39;d1&#39;</span><span class="p">),</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="p">{</span><span class="mi">1</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">:</span> <span class="mi">23</span><span class="p">}})</span>
+        <span class="n">instrument</span><span class="o">.</span><span class="n">delattr</span><span class="p">(</span><span class="s1">&#39;d1[&quot;a&quot;][2]&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">instrument</span><span class="o">.</span><span class="n">getattr</span><span class="p">(</span><span class="s1">&#39;d1&#39;</span><span class="p">),</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="p">{</span><span class="mi">1</span><span class="p">:</span> <span class="mi">2</span><span class="p">}})</span>
+
+        <span class="c1"># test restarting the InstrumentServer - this clears these attrs</span>
+        <span class="n">instrument</span><span class="o">.</span><span class="n">_manager</span><span class="o">.</span><span class="n">restart</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNone</span><span class="p">(</span><span class="n">instrument</span><span class="o">.</span><span class="n">getattr</span><span class="p">(</span><span class="s1">&#39;d1&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestInstrument.test_component_attr_access"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.test_component_attr_access">[docs]</a>    <span class="k">def</span> <span class="nf">test_component_attr_access</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">instrument</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gates</span>
+        <span class="n">method</span> <span class="o">=</span> <span class="n">instrument</span><span class="o">.</span><span class="n">add5</span>
+        <span class="n">parameter</span> <span class="o">=</span> <span class="n">instrument</span><span class="o">.</span><span class="n">chan1</span>
+        <span class="n">function</span> <span class="o">=</span> <span class="n">instrument</span><span class="o">.</span><span class="n">reset</span>
+
+        <span class="c1"># RemoteMethod objects have no attributes besides __doc__, so test</span>
+        <span class="c1"># that this gets appropriately decorated</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s1">&#39;RemoteMethod add5 in RemoteInstrument&#39;</span><span class="p">,</span> <span class="n">method</span><span class="o">.</span><span class="n">__doc__</span><span class="p">)</span>
+        <span class="c1"># and also contains the remote doc</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s1">&#39;not the same function as the original method&#39;</span><span class="p">,</span>
+                      <span class="n">method</span><span class="o">.</span><span class="n">__doc__</span><span class="p">)</span>
+
+        <span class="c1"># units is a remote attribute of parameters</span>
+        <span class="c1"># this one is initially blank</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">parameter</span><span class="o">.</span><span class="n">units</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+        <span class="n">parameter</span><span class="o">.</span><span class="n">units</span> <span class="o">=</span> <span class="s1">&#39;Smoots&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">parameter</span><span class="o">.</span><span class="n">units</span><span class="p">,</span> <span class="s1">&#39;Smoots&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertNotIn</span><span class="p">(</span><span class="s1">&#39;units&#39;</span><span class="p">,</span> <span class="n">parameter</span><span class="o">.</span><span class="n">__dict__</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">instrument</span><span class="o">.</span><span class="n">getattr</span><span class="p">(</span><span class="n">parameter</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;.units&#39;</span><span class="p">),</span>
+                         <span class="s1">&#39;Smoots&#39;</span><span class="p">)</span>
+        <span class="c1"># we can delete it remotely, and this is reflected in dir()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s1">&#39;units&#39;</span><span class="p">,</span> <span class="nb">dir</span><span class="p">(</span><span class="n">parameter</span><span class="p">))</span>
+        <span class="k">del</span> <span class="n">parameter</span><span class="o">.</span><span class="n">units</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertNotIn</span><span class="p">(</span><span class="s1">&#39;units&#39;</span><span class="p">,</span> <span class="nb">dir</span><span class="p">(</span><span class="n">parameter</span><span class="p">))</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">AttributeError</span><span class="p">):</span>
+            <span class="n">parameter</span><span class="o">.</span><span class="n">units</span>
+
+        <span class="c1"># and set it again, it&#39;s still remote.</span>
+        <span class="n">parameter</span><span class="o">.</span><span class="n">units</span> <span class="o">=</span> <span class="s1">&#39;Furlongs per fortnight&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s1">&#39;units&#39;</span><span class="p">,</span> <span class="nb">dir</span><span class="p">(</span><span class="n">parameter</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">parameter</span><span class="o">.</span><span class="n">units</span><span class="p">,</span> <span class="s1">&#39;Furlongs per fortnight&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertNotIn</span><span class="p">(</span><span class="s1">&#39;units&#39;</span><span class="p">,</span> <span class="n">parameter</span><span class="o">.</span><span class="n">__dict__</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">instrument</span><span class="o">.</span><span class="n">getattr</span><span class="p">(</span><span class="n">parameter</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;.units&#39;</span><span class="p">),</span>
+                         <span class="s1">&#39;Furlongs per fortnight&#39;</span><span class="p">)</span>
+        <span class="c1"># we get the correct result if someone else sets it on the server</span>
+        <span class="n">instrument</span><span class="o">.</span><span class="n">_write_server</span><span class="p">(</span><span class="s1">&#39;setattr&#39;</span><span class="p">,</span> <span class="n">parameter</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;.units&#39;</span><span class="p">,</span> <span class="s1">&#39;T&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">parameter</span><span class="o">.</span><span class="n">units</span><span class="p">,</span> <span class="s1">&#39;T&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">parameter</span><span class="o">.</span><span class="n">getattr</span><span class="p">(</span><span class="s1">&#39;units&#39;</span><span class="p">),</span> <span class="s1">&#39;T&#39;</span><span class="p">)</span>
+
+        <span class="c1"># attributes not specified as remote are local</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">AttributeError</span><span class="p">):</span>
+            <span class="n">parameter</span><span class="o">.</span><span class="n">something</span>
+        <span class="n">parameter</span><span class="o">.</span><span class="n">something</span> <span class="o">=</span> <span class="mi">42</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">parameter</span><span class="o">.</span><span class="n">something</span><span class="p">,</span> <span class="mi">42</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">parameter</span><span class="o">.</span><span class="n">__dict__</span><span class="p">[</span><span class="s1">&#39;something&#39;</span><span class="p">],</span> <span class="mi">42</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">AttributeError</span><span class="p">):</span>
+            <span class="n">instrument</span><span class="o">.</span><span class="n">getattr</span><span class="p">(</span><span class="n">parameter</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;.something&#39;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">AttributeError</span><span class="p">):</span>
+            <span class="c1"># getattr method is only for remote attributes</span>
+            <span class="n">parameter</span><span class="o">.</span><span class="n">getattr</span><span class="p">(</span><span class="s1">&#39;something&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s1">&#39;something&#39;</span><span class="p">,</span> <span class="nb">dir</span><span class="p">(</span><span class="n">parameter</span><span class="p">))</span>
+        <span class="k">del</span> <span class="n">parameter</span><span class="o">.</span><span class="n">something</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertNotIn</span><span class="p">(</span><span class="s1">&#39;something&#39;</span><span class="p">,</span> <span class="nb">dir</span><span class="p">(</span><span class="n">parameter</span><span class="p">))</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">AttributeError</span><span class="p">):</span>
+            <span class="n">parameter</span><span class="o">.</span><span class="n">something</span>
+
+        <span class="c1"># call a remote method</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">parameter</span><span class="o">.</span><span class="n">callattr</span><span class="p">(</span><span class="s1">&#39;get_attrs&#39;</span><span class="p">)),</span>
+                         <span class="n">parameter</span><span class="o">.</span><span class="n">_attrs</span><span class="p">)</span>
+
+        <span class="c1"># functions have remote attributes too</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">function</span><span class="o">.</span><span class="n">_args</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertNotIn</span><span class="p">(</span><span class="s1">&#39;_args&#39;</span><span class="p">,</span> <span class="n">function</span><span class="o">.</span><span class="n">__dict__</span><span class="p">)</span>
+        <span class="n">function</span><span class="o">.</span><span class="n">_args</span> <span class="o">=</span> <span class="s1">&#39;args!&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">function</span><span class="o">.</span><span class="n">_args</span><span class="p">,</span> <span class="s1">&#39;args!&#39;</span><span class="p">)</span>
+
+        <span class="c1"># a component with no docstring still gets the decoration</span>
+        <span class="n">foo</span> <span class="o">=</span> <span class="n">instrument</span><span class="o">.</span><span class="n">foo</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">foo</span><span class="o">.</span><span class="n">__doc__</span><span class="p">,</span>
+                         <span class="s1">&#39;RemoteParameter foo in RemoteInstrument gates&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestInstrument.test_update_components"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.test_update_components">[docs]</a>    <span class="k">def</span> <span class="nf">test_update_components</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">gates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gates</span>
+
+        <span class="n">gates</span><span class="o">.</span><span class="n">delattr</span><span class="p">(</span><span class="s1">&#39;chan0.label&#39;</span><span class="p">)</span>
+        <span class="n">gates</span><span class="o">.</span><span class="n">setattr</span><span class="p">(</span><span class="s1">&#39;chan0.cheese&#39;</span><span class="p">,</span> <span class="s1">&#39;gorgonzola&#39;</span><span class="p">)</span>
+        <span class="c1"># we&#39;ve altered the server copy, but not the RemoteParameter</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s1">&#39;label&#39;</span><span class="p">,</span> <span class="n">gates</span><span class="o">.</span><span class="n">chan0</span><span class="o">.</span><span class="n">_attrs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertNotIn</span><span class="p">(</span><span class="s1">&#39;cheese&#39;</span><span class="p">,</span> <span class="n">gates</span><span class="o">.</span><span class="n">chan0</span><span class="o">.</span><span class="n">_attrs</span><span class="p">)</span>
+        <span class="c1"># keep a reference to the original chan0 RemoteParameter to make sure</span>
+        <span class="c1"># it is still the same object later</span>
+        <span class="n">chan0_original</span> <span class="o">=</span> <span class="n">gates</span><span class="o">.</span><span class="n">chan0</span>
+
+        <span class="n">gates</span><span class="o">.</span><span class="n">update</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIs</span><span class="p">(</span><span class="n">gates</span><span class="o">.</span><span class="n">chan0</span><span class="p">,</span> <span class="n">chan0_original</span><span class="p">)</span>
+        <span class="c1"># now the RemoteParameter should have the updates</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertNotIn</span><span class="p">(</span><span class="s1">&#39;label&#39;</span><span class="p">,</span> <span class="n">gates</span><span class="o">.</span><span class="n">chan0</span><span class="o">.</span><span class="n">_attrs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s1">&#39;cheese&#39;</span><span class="p">,</span> <span class="n">gates</span><span class="o">.</span><span class="n">chan0</span><span class="o">.</span><span class="n">_attrs</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestInstrument.test_add_delete_components"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.test_add_delete_components">[docs]</a>    <span class="k">def</span> <span class="nf">test_add_delete_components</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">gates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gates</span>
+
+        <span class="c1"># rather than call gates.add_parameter, which has a special proxy</span>
+        <span class="c1"># on the remote so it updates the components immediately, we&#39;ll call</span>
+        <span class="c1"># the server version directly</span>
+        <span class="n">attr_list</span> <span class="o">=</span> <span class="n">gates</span><span class="o">.</span><span class="n">callattr</span><span class="p">(</span><span class="s1">&#39;add_parameter&#39;</span><span class="p">,</span> <span class="s1">&#39;chan0X&#39;</span><span class="p">,</span> <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;c0?&#39;</span><span class="p">,</span>
+                                   <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;c0:{:.4f}&#39;</span><span class="p">,</span> <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="n">gates</span><span class="o">.</span><span class="n">delattr</span><span class="p">(</span><span class="s1">&#39;parameters[&quot;chan0&quot;]&#39;</span><span class="p">)</span>
+
+        <span class="c1"># the RemoteInstrument does not have these changes yet</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s1">&#39;chan0&#39;</span><span class="p">,</span> <span class="n">gates</span><span class="o">.</span><span class="n">parameters</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertNotIn</span><span class="p">(</span><span class="s1">&#39;chan0X&#39;</span><span class="p">,</span> <span class="n">gates</span><span class="o">.</span><span class="n">parameters</span><span class="p">)</span>
+
+        <span class="n">gates</span><span class="o">.</span><span class="n">update</span><span class="p">()</span>
+
+        <span class="c1"># now the RemoteInstrument has the changes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertNotIn</span><span class="p">(</span><span class="s1">&#39;chan0&#39;</span><span class="p">,</span> <span class="n">gates</span><span class="o">.</span><span class="n">parameters</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s1">&#39;chan0X&#39;</span><span class="p">,</span> <span class="n">gates</span><span class="o">.</span><span class="n">parameters</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">gates</span><span class="o">.</span><span class="n">chan0X</span><span class="o">.</span><span class="n">_attrs</span><span class="p">,</span> <span class="nb">set</span><span class="p">(</span><span class="n">attr_list</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestInstrument.test_reprs"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.test_reprs">[docs]</a>    <span class="k">def</span> <span class="nf">test_reprs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">gates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gates</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="n">gates</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="nb">repr</span><span class="p">(</span><span class="n">gates</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s1">&#39;chan1&#39;</span><span class="p">,</span> <span class="nb">repr</span><span class="p">(</span><span class="n">gates</span><span class="o">.</span><span class="n">chan1</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s1">&#39;reset&#39;</span><span class="p">,</span> <span class="nb">repr</span><span class="p">(</span><span class="n">gates</span><span class="o">.</span><span class="n">reset</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestInstrument.test_remote_sweep_values"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.test_remote_sweep_values">[docs]</a>    <span class="k">def</span> <span class="nf">test_remote_sweep_values</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">chan1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gates</span><span class="o">.</span><span class="n">chan1</span>
+
+        <span class="n">sv1</span> <span class="o">=</span> <span class="n">chan1</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">4</span><span class="p">:</span><span class="mi">1</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">sv1</span><span class="p">),</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">sv1</span><span class="p">)</span>
+
+        <span class="n">sv2</span> <span class="o">=</span> <span class="n">chan1</span><span class="o">.</span><span class="n">sweep</span><span class="p">(</span><span class="n">start</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">stop</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="mi">6</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">sv2</span><span class="p">),</span> <span class="mi">6</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="mf">2.2</span><span class="p">,</span> <span class="n">sv2</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestInstrument.test_add_function"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument.test_add_function">[docs]</a>    <span class="k">def</span> <span class="nf">test_add_function</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">gates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gates</span>
+        <span class="c1"># add a function remotely</span>
+        <span class="n">gates</span><span class="o">.</span><span class="n">add_function</span><span class="p">(</span><span class="s1">&#39;reset2&#39;</span><span class="p">,</span> <span class="n">call_cmd</span><span class="o">=</span><span class="s1">&#39;rst&#39;</span><span class="p">)</span>
+        <span class="n">gates</span><span class="o">.</span><span class="n">chan1</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">gates</span><span class="o">.</span><span class="n">chan1</span><span class="p">(),</span> <span class="mi">4</span><span class="p">)</span>
+        <span class="n">gates</span><span class="o">.</span><span class="n">reset2</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">gates</span><span class="o">.</span><span class="n">chan1</span><span class="p">(),</span> <span class="mi">0</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="TestLocalMock"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestLocalMock">[docs]</a><span class="k">class</span> <span class="nc">TestLocalMock</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="TestLocalMock.setUpClass"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestLocalMock.setUpClass">[docs]</a>    <span class="k">def</span> <span class="nf">setUpClass</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">AMockModel</span><span class="p">()</span>
+
+        <span class="n">cls</span><span class="o">.</span><span class="n">gates</span> <span class="o">=</span> <span class="n">MockGates</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">cls</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">server_name</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">source</span> <span class="o">=</span> <span class="n">MockSource</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">cls</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">server_name</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">meter</span> <span class="o">=</span> <span class="n">MockMeter</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">cls</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="n">server_name</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span></div>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="TestLocalMock.tearDownClass"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestLocalMock.tearDownClass">[docs]</a>    <span class="k">def</span> <span class="nf">tearDownClass</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">instrument</span> <span class="ow">in</span> <span class="p">[</span><span class="n">cls</span><span class="o">.</span><span class="n">gates</span><span class="p">,</span> <span class="n">cls</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">cls</span><span class="o">.</span><span class="n">meter</span><span class="p">]:</span>
+            <span class="n">instrument</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TestLocalMock.test_local"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestLocalMock.test_local">[docs]</a>    <span class="k">def</span> <span class="nf">test_local</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gates</span><span class="o">.</span><span class="n">chan1</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="mf">3.33</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gates</span><span class="o">.</span><span class="n">chan1</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span> <span class="mf">3.33</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">gates</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gates</span><span class="o">.</span><span class="n">chan1</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gates</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;knock knock? Oh never mind.&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestLocalMock.test_instances"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestLocalMock.test_instances">[docs]</a>    <span class="k">def</span> <span class="nf">test_instances</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># copied from the main (server-based) version</span>
+        <span class="c1"># make sure it all works the same here</span>
+        <span class="n">instruments</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">gates</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">meter</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">instrument</span> <span class="ow">in</span> <span class="n">instruments</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">other_instrument</span> <span class="ow">in</span> <span class="n">instruments</span><span class="p">:</span>
+                <span class="n">instances</span> <span class="o">=</span> <span class="n">instrument</span><span class="o">.</span><span class="n">instances</span><span class="p">()</span>
+                <span class="c1"># check that each instrument is in only its own</span>
+                <span class="c1"># instances list</span>
+                <span class="k">if</span> <span class="n">other_instrument</span> <span class="ow">is</span> <span class="n">instrument</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="n">instrument</span><span class="p">,</span> <span class="n">instances</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">assertNotIn</span><span class="p">(</span><span class="n">other_instrument</span><span class="p">,</span> <span class="n">instances</span><span class="p">)</span>
+
+                <span class="c1"># check that we can find each instrument from any other</span>
+                <span class="c1"># use find_component here to test that it rolls over to</span>
+                <span class="c1"># find_instrument if only a name is given</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+                    <span class="n">instrument</span><span class="p">,</span>
+                    <span class="n">other_instrument</span><span class="o">.</span><span class="n">find_component</span><span class="p">(</span><span class="n">instrument</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+                    <span class="n">instrument</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                    <span class="n">other_instrument</span><span class="o">.</span><span class="n">find_component</span><span class="p">(</span><span class="n">instrument</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;.name&#39;</span><span class="p">))</span>
+
+            <span class="c1"># check that we can find this instrument from the base class</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">instrument</span><span class="p">,</span>
+                             <span class="n">Instrument</span><span class="o">.</span><span class="n">find_instrument</span><span class="p">(</span><span class="n">instrument</span><span class="o">.</span><span class="n">name</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="TestModelAttrAccess"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestModelAttrAccess">[docs]</a><span class="k">class</span> <span class="nc">TestModelAttrAccess</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TestModelAttrAccess.setUp"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestModelAttrAccess.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">AMockModel</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TestModelAttrAccess.tearDown"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestModelAttrAccess.tearDown">[docs]</a>    <span class="k">def</span> <span class="nf">tearDown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TestModelAttrAccess.test_attr_access"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestModelAttrAccess.test_attr_access">[docs]</a>    <span class="k">def</span> <span class="nf">test_attr_access</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span>
+
+        <span class="n">model</span><span class="o">.</span><span class="n">a</span> <span class="o">=</span> <span class="s1">&#39;local&#39;</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">AttributeError</span><span class="p">):</span>
+            <span class="n">model</span><span class="o">.</span><span class="n">getattr</span><span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">getattr</span><span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;dflt&#39;</span><span class="p">),</span> <span class="s1">&#39;dflt&#39;</span><span class="p">)</span>
+
+        <span class="n">model</span><span class="o">.</span><span class="n">setattr</span><span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;remote&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">a</span><span class="p">,</span> <span class="s1">&#39;local&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">getattr</span><span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">),</span> <span class="s1">&#39;remote&#39;</span><span class="p">)</span>
+
+        <span class="n">model</span><span class="o">.</span><span class="n">delattr</span><span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">getattr</span><span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;dflt&#39;</span><span class="p">),</span> <span class="s1">&#39;dflt&#39;</span><span class="p">)</span>
+
+        <span class="n">model</span><span class="o">.</span><span class="n">fmt</span> <span class="o">=</span> <span class="s1">&#39;local override of a remote method&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">callattr</span><span class="p">(</span><span class="s1">&#39;fmt&#39;</span><span class="p">,</span> <span class="mi">42</span><span class="p">),</span> <span class="s1">&#39;42.000&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">callattr</span><span class="p">(</span><span class="s1">&#39;fmt&#39;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mf">12.4</span><span class="p">),</span> <span class="s1">&#39;12.400&#39;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="TestInstrument2"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument2">[docs]</a><span class="k">class</span> <span class="nc">TestInstrument2</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TestInstrument2.setUp"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument2.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">instrument</span> <span class="o">=</span> <span class="n">DummyInstrument</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="s1">&#39;testdummy&#39;</span><span class="p">,</span> <span class="n">gates</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;dac1&#39;</span><span class="p">,</span> <span class="s1">&#39;dac2&#39;</span><span class="p">,</span> <span class="s1">&#39;dac3&#39;</span><span class="p">],</span> <span class="n">server_name</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestInstrument2.tearDown"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument2.tearDown">[docs]</a>    <span class="k">def</span> <span class="nf">tearDown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># TODO (giulioungaretti) remove ( does nothing ?)</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="TestInstrument2.test_attr_access"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_instrument.TestInstrument2.test_attr_access">[docs]</a>    <span class="k">def</span> <span class="nf">test_attr_access</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">instrument</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">instrument</span>
+
+        <span class="c1"># test the instrument works</span>
+        <span class="n">instrument</span><span class="o">.</span><span class="n">dac1</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+        <span class="n">val</span> <span class="o">=</span> <span class="n">instrument</span><span class="o">.</span><span class="n">dac1</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+
+        <span class="c1"># close the instrument</span>
+        <span class="n">instrument</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="c1"># make sure we can still print the instrument</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">instrument</span><span class="o">.</span><span class="n">__repr__</span><span class="p">()</span>
+
+        <span class="c1"># make sure the gate is removed</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="n">instrument</span><span class="p">,</span> <span class="s1">&#39;dac1&#39;</span><span class="p">),</span> <span class="bp">False</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.1.1',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

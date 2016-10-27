@@ -1,0 +1,386 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>qcodes.instrument.server &mdash; QCoDeS 0.1.1 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+    <link rel="top" title="QCoDeS 0.1.1 documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> QCoDeS
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1.1
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../start/index.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../help.html">Get Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../user/index.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../community/index.html">Community Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/index.html">Classes and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../auto/qcodes.instrument_drivers.html">qcodes.instrument_drivers package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../roadmap.html">Qcodes project plan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changes/index.html">Changelogs</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../../index.html">QCoDeS</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      
+    <li>qcodes.instrument.server</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for qcodes.instrument.server</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">multiprocessing</span> <span class="kn">as</span> <span class="nn">mp</span>
+
+<span class="kn">from</span> <span class="nn">qcodes.process.server</span> <span class="kn">import</span> <span class="n">ServerManager</span><span class="p">,</span> <span class="n">BaseServer</span>
+
+
+<div class="viewcode-block" id="get_instrument_server_manager"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.server.get_instrument_server_manager">[docs]</a><span class="k">def</span> <span class="nf">get_instrument_server_manager</span><span class="p">(</span><span class="n">server_name</span><span class="p">,</span> <span class="n">shared_kwargs</span><span class="o">=</span><span class="p">{}):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Find or make a given `InstrumentServerManager`.</span>
+
+<span class="sd">    An `InstrumentServer` holds one or more Instrument objects, and an</span>
+<span class="sd">    `InstrumentServerManager` allows other processes to communicate with this</span>
+<span class="sd">    `InstrumentServer`.</span>
+
+<span class="sd">    Both the name and the shared attributes must match exactly. If no manager</span>
+<span class="sd">    exists with this name, it will be created with the given `shared_kwargs`.</span>
+<span class="sd">    If an manager exists with this name but different `shared_kwargs` we</span>
+<span class="sd">    raise an error.</span>
+
+<span class="sd">    server_name: (default &#39;Instruments&#39;) which server to put the instrument on.</span>
+<span class="sd">        If a server with this name exists, the instrument will be added to it.</span>
+<span class="sd">        If not, a new server is created with this name.</span>
+
+<span class="sd">    shared_kwargs: unpicklable items needed by the instruments on the</span>
+<span class="sd">        server, will get sent with the manager when it&#39;s started up</span>
+<span class="sd">        and included in the kwargs to construct each new instrument</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">server_name</span><span class="p">:</span>
+        <span class="n">server_name</span> <span class="o">=</span> <span class="s1">&#39;Instruments&#39;</span>
+
+    <span class="n">instances</span> <span class="o">=</span> <span class="n">InstrumentServerManager</span><span class="o">.</span><span class="n">instances</span>
+    <span class="n">manager</span> <span class="o">=</span> <span class="n">instances</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">server_name</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">manager</span> <span class="ow">and</span> <span class="n">manager</span><span class="o">.</span><span class="n">_server</span> <span class="ow">in</span> <span class="n">mp</span><span class="o">.</span><span class="n">active_children</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">shared_kwargs</span> <span class="ow">and</span> <span class="n">manager</span><span class="o">.</span><span class="n">shared_kwargs</span> <span class="o">!=</span> <span class="n">shared_kwargs</span><span class="p">:</span>
+            <span class="c1"># it&#39;s OK to add another instrument that has  *no* shared_kwargs</span>
+            <span class="c1"># but if there are some and they&#39;re different from what&#39;s</span>
+            <span class="c1"># already associated with this server, that&#39;s an error.</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">((</span><span class="s1">&#39;An InstrumentServer with name &quot;{}&quot; already &#39;</span>
+                              <span class="s1">&#39;exists but with different shared_attrs&#39;</span>
+                              <span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">server_name</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">manager</span> <span class="o">=</span> <span class="n">InstrumentServerManager</span><span class="p">(</span><span class="n">server_name</span><span class="p">,</span> <span class="n">shared_kwargs</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">manager</span></div>
+
+
+<div class="viewcode-block" id="InstrumentServerManager"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.server.InstrumentServerManager">[docs]</a><span class="k">class</span> <span class="nc">InstrumentServerManager</span><span class="p">(</span><span class="n">ServerManager</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Creates and manages connections to an InstrumentServer</span>
+
+<span class="sd">    name: the name of the server to create</span>
+<span class="sd">    kwargs: extra items to send to the server on creation (such as</span>
+<span class="sd">        additional queues, that can only be shared on creation)</span>
+<span class="sd">        These items will be set as attributes of any instrument that</span>
+<span class="sd">        connects to the server</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">instances</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">shared_kwargs</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">shared_kwargs</span> <span class="o">=</span> <span class="n">shared_kwargs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">instances</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">instruments</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">server_class</span><span class="o">=</span><span class="n">InstrumentServer</span><span class="p">,</span>
+                         <span class="n">shared_attrs</span><span class="o">=</span><span class="n">shared_kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="InstrumentServerManager.restart"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.server.InstrumentServerManager.restart">[docs]</a>    <span class="k">def</span> <span class="nf">restart</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Restart the InstrumentServer and reconnect the instruments that</span>
+<span class="sd">        had been connected previously</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">restart</span><span class="p">()</span>
+
+        <span class="n">instruments</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">instruments</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">instruments</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">instrument</span> <span class="ow">in</span> <span class="n">instruments</span><span class="p">:</span>
+            <span class="n">instrument</span><span class="o">.</span><span class="n">connect</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="InstrumentServerManager.connect"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.server.InstrumentServerManager.connect">[docs]</a>    <span class="k">def</span> <span class="nf">connect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">remote_instrument</span><span class="p">,</span> <span class="n">instrument_class</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">new_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;new_id&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;new&#39;</span><span class="p">,</span> <span class="n">instrument_class</span><span class="p">,</span> <span class="n">new_id</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">instruments</span><span class="p">[</span><span class="n">new_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">remote_instrument</span>
+
+        <span class="k">except</span><span class="p">:</span>
+            <span class="c1"># if anything went wrong adding a new instrument, delete it</span>
+            <span class="c1"># in case it still exists there half-formed.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">new_id</span><span class="p">)</span>
+            <span class="k">raise</span>
+
+        <span class="k">return</span> <span class="n">info</span></div>
+
+<div class="viewcode-block" id="InstrumentServerManager.delete"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.server.InstrumentServerManager.delete">[docs]</a>    <span class="k">def</span> <span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instrument_id</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;delete&#39;</span><span class="p">,</span> <span class="n">instrument_id</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">instruments</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">instrument_id</span><span class="p">,</span> <span class="bp">None</span><span class="p">):</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">instruments</span><span class="p">[</span><span class="n">instrument_id</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">instruments</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">instances</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="InstrumentServer"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.server.InstrumentServer">[docs]</a><span class="k">class</span> <span class="nc">InstrumentServer</span><span class="p">(</span><span class="n">BaseServer</span><span class="p">):</span>
+    <span class="c1"># just for testing - how long to allow it to wait on a queue.get</span>
+    <span class="n">timeout</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query_queue</span><span class="p">,</span> <span class="n">response_queue</span><span class="p">,</span> <span class="n">shared_kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">query_queue</span><span class="p">,</span> <span class="n">response_queue</span><span class="p">,</span> <span class="n">shared_kwargs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">instruments</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">next_id</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="c1"># Ensure no references of instruments defined in the main process</span>
+        <span class="c1"># are copied to the server process. With the spawn multiprocessing</span>
+        <span class="c1"># method this is not an issue, as the class is reimported in the</span>
+        <span class="c1"># new process, but with fork it can be a problem ironically.</span>
+        <span class="kn">from</span> <span class="nn">qcodes.instrument.base</span> <span class="kn">import</span> <span class="n">Instrument</span>
+        <span class="n">Instrument</span><span class="o">.</span><span class="n">_all_instruments</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_event_loop</span><span class="p">()</span>
+
+<div class="viewcode-block" id="InstrumentServer.handle_new_id"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.server.InstrumentServer.handle_new_id">[docs]</a>    <span class="k">def</span> <span class="nf">handle_new_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        split out id generation from adding an instrument</span>
+<span class="sd">        so that we can delete it if something goes wrong!</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">new_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">next_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">next_id</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="n">new_id</span></div>
+
+<div class="viewcode-block" id="InstrumentServer.handle_new"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.server.InstrumentServer.handle_new">[docs]</a>    <span class="k">def</span> <span class="nf">handle_new</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instrument_class</span><span class="p">,</span> <span class="n">new_id</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Add a new instrument to the server.</span>
+
+<span class="sd">        After the initial load, the instrument is referred to by its ID.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            instrument_class (class): The type of instrument to construct.</span>
+
+<span class="sd">            new_id (int): The ID by which this instrument will be known on the</span>
+<span class="sd">                server.</span>
+
+<span class="sd">            *args: positional arguments to the instrument constructor.</span>
+
+<span class="sd">            **kwargs: keyword arguments to the instrument constructor.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict: info to reconstruct this instrument&#39;s API in the remote.</span>
+<span class="sd">                See ``Instrument.connection_attrs`` for details.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># merge shared_kwargs into kwargs for the constructor,</span>
+        <span class="c1"># but only if this instrument_class is expecting them.</span>
+        <span class="c1"># The *first* instrument put on a given server must have</span>
+        <span class="c1"># all the shared_kwargs sent with it, but others may skip</span>
+        <span class="c1"># (for now others must have *none* but later maybe they could</span>
+        <span class="c1"># just skip some of them)</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shared_attrs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">instrument_class</span><span class="o">.</span><span class="n">shared_kwargs</span><span class="p">:</span>
+                <span class="n">kwargs</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="n">ins</span> <span class="o">=</span> <span class="n">instrument_class</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">server_name</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">instruments</span><span class="p">[</span><span class="n">new_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">ins</span>
+
+        <span class="c1"># info to reconstruct the instrument API in the RemoteInstrument</span>
+        <span class="k">return</span> <span class="n">ins</span><span class="o">.</span><span class="n">connection_attrs</span><span class="p">(</span><span class="n">new_id</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="InstrumentServer.handle_delete"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.server.InstrumentServer.handle_delete">[docs]</a>    <span class="k">def</span> <span class="nf">handle_delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instrument_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Delete an instrument from the server, and stop the server if their</span>
+<span class="sd">        are no more instruments left after this.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">instrument_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">instruments</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">instruments</span><span class="p">[</span><span class="n">instrument_id</span><span class="p">]</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">instruments</span><span class="p">[</span><span class="n">instrument_id</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">instruments</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">handle_halt</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="InstrumentServer.handle_cmd"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.instrument.server.InstrumentServer.handle_cmd">[docs]</a>    <span class="k">def</span> <span class="nf">handle_cmd</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instrument_id</span><span class="p">,</span> <span class="n">func_name</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Run some method of an instrument</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">func</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">instruments</span><span class="p">[</span><span class="n">instrument_id</span><span class="p">],</span> <span class="n">func_name</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.1.1',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

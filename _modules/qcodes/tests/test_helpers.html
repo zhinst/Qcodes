@@ -1,0 +1,827 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>qcodes.tests.test_helpers &mdash; QCoDeS 0.1.1 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+    <link rel="top" title="QCoDeS 0.1.1 documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> QCoDeS
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1.1
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../start/index.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../help.html">Get Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../user/index.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../community/index.html">Community Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/index.html">Classes and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../auto/qcodes.instrument_drivers.html">qcodes.instrument_drivers package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../roadmap.html">Qcodes project plan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changes/index.html">Changelogs</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../../index.html">QCoDeS</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      
+    <li>qcodes.tests.test_helpers</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for qcodes.tests.test_helpers</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">unittest</span> <span class="kn">import</span> <span class="n">TestCase</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">import</span> <span class="nn">asyncio</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">qcodes.utils.helpers</span> <span class="kn">import</span> <span class="p">(</span><span class="n">is_sequence</span><span class="p">,</span> <span class="n">permissive_range</span><span class="p">,</span> <span class="n">wait_secs</span><span class="p">,</span>
+                                  <span class="n">make_unique</span><span class="p">,</span> <span class="n">DelegateAttributes</span><span class="p">,</span>
+                                  <span class="n">LogCapture</span><span class="p">,</span> <span class="n">strip_attrs</span><span class="p">,</span> <span class="n">full_class</span><span class="p">,</span>
+                                  <span class="n">named_repr</span><span class="p">,</span> <span class="n">make_sweep</span><span class="p">,</span> <span class="n">is_sequence_of</span><span class="p">,</span>
+                                  <span class="n">compare_dictionaries</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">qcodes.utils.deferred_operations</span> <span class="kn">import</span> <span class="n">is_function</span>
+
+
+<div class="viewcode-block" id="TestIsFunction"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestIsFunction">[docs]</a><span class="k">class</span> <span class="nc">TestIsFunction</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="TestIsFunction.test_non_function"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestIsFunction.test_non_function">[docs]</a>    <span class="k">def</span> <span class="nf">test_non_function</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">is_function</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">is_function</span><span class="p">(</span><span class="s1">&#39;hello!&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">is_function</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestIsFunction.test_function"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestIsFunction.test_function">[docs]</a>    <span class="k">def</span> <span class="nf">test_function</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">f0</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;function should not get called&#39;</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">f1</span><span class="p">(</span><span class="n">a</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;function should not get called&#39;</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">f2</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;function should not get called&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">is_function</span><span class="p">(</span><span class="n">f0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">is_function</span><span class="p">(</span><span class="n">f1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">is_function</span><span class="p">(</span><span class="n">f2</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">is_function</span><span class="p">(</span><span class="n">f0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="ow">or</span> <span class="n">is_function</span><span class="p">(</span><span class="n">f0</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">is_function</span><span class="p">(</span><span class="n">f1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">or</span> <span class="n">is_function</span><span class="p">(</span><span class="n">f1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">is_function</span><span class="p">(</span><span class="n">f2</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">or</span> <span class="n">is_function</span><span class="p">(</span><span class="n">f2</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+
+        <span class="c1"># make sure we only accept valid arg_count</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="n">is_function</span><span class="p">(</span><span class="n">f0</span><span class="p">,</span> <span class="s1">&#39;lots&#39;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="n">is_function</span><span class="p">(</span><span class="n">f0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestIsFunction.AClass"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestIsFunction.AClass">[docs]</a>    <span class="k">class</span> <span class="nc">AClass</span><span class="p">:</span>
+<div class="viewcode-block" id="TestIsFunction.AClass.method_a"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestIsFunction.AClass.method_a">[docs]</a>        <span class="k">def</span> <span class="nf">method_a</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;function should not get called&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestIsFunction.AClass.method_b"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestIsFunction.AClass.method_b">[docs]</a>        <span class="k">def</span> <span class="nf">method_b</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">v</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;function should not get called&#39;</span><span class="p">)</span></div>
+
+        <span class="nd">@asyncio.coroutine</span>
+<div class="viewcode-block" id="TestIsFunction.AClass.method_c"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestIsFunction.AClass.method_c">[docs]</a>        <span class="k">def</span> <span class="nf">method_c</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">v</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;function should not get called&#39;</span><span class="p">)</span></div></div>
+
+<div class="viewcode-block" id="TestIsFunction.test_methods"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestIsFunction.test_methods">[docs]</a>    <span class="k">def</span> <span class="nf">test_methods</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">AClass</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">is_function</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">method_a</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">is_function</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">method_a</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">is_function</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">method_b</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">is_function</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">method_c</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">coroutine</span><span class="o">=</span><span class="bp">True</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestIsFunction.test_type_cast"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestIsFunction.test_type_cast">[docs]</a>    <span class="k">def</span> <span class="nf">test_type_cast</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">is_function</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">is_function</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">is_function</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">is_function</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">or</span> <span class="n">is_function</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">is_function</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">or</span> <span class="n">is_function</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">is_function</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">or</span> <span class="n">is_function</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestIsFunction.test_coroutine_check"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestIsFunction.test_coroutine_check">[docs]</a>    <span class="k">def</span> <span class="nf">test_coroutine_check</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">f_sync</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;function should not get called&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">is_function</span><span class="p">(</span><span class="n">f_sync</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">is_function</span><span class="p">(</span><span class="n">f_sync</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">coroutine</span><span class="o">=</span><span class="bp">False</span><span class="p">))</span>
+
+        <span class="c1"># support pre-py3.5 async syntax</span>
+        <span class="nd">@asyncio.coroutine</span>
+        <span class="k">def</span> <span class="nf">f_async_old</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;function should not get called&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">is_function</span><span class="p">(</span><span class="n">f_async_old</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">coroutine</span><span class="o">=</span><span class="bp">False</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">is_function</span><span class="p">(</span><span class="n">f_async_old</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">coroutine</span><span class="o">=</span><span class="bp">True</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">is_function</span><span class="p">(</span><span class="n">f_async_old</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+
+        <span class="c1"># test py3.5 syntax async functions</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">qcodes.tests.py35_syntax</span> <span class="kn">import</span> <span class="n">f_async</span>
+            <span class="n">py35</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="n">py35</span> <span class="o">=</span> <span class="bp">False</span>
+
+        <span class="k">if</span> <span class="n">py35</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">is_function</span><span class="p">(</span><span class="n">f_async</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">coroutine</span><span class="o">=</span><span class="bp">False</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">is_function</span><span class="p">(</span><span class="n">f_async</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">coroutine</span><span class="o">=</span><span class="bp">True</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">is_function</span><span class="p">(</span><span class="n">f_async</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="TestIsSequence"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestIsSequence">[docs]</a><span class="k">class</span> <span class="nc">TestIsSequence</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="TestIsSequence.a_func"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestIsSequence.a_func">[docs]</a>    <span class="k">def</span> <span class="nf">a_func</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;this function shouldn</span><span class="se">\&#39;</span><span class="s1">t get called&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestIsSequence.AClass"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestIsSequence.AClass">[docs]</a>    <span class="k">class</span> <span class="nc">AClass</span><span class="p">():</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="TestIsSequence.test_yes"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestIsSequence.test_yes">[docs]</a>    <span class="k">def</span> <span class="nf">test_yes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">yes_sequence</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">[],</span>
+            <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span>
+            <span class="nb">range</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span>
+            <span class="p">(),</span>
+            <span class="p">(</span><span class="s1">&#39;lions&#39;</span><span class="p">,</span> <span class="s1">&#39;tigers&#39;</span><span class="p">,</span> <span class="s1">&#39;bears&#39;</span><span class="p">),</span>
+
+            <span class="c1"># we do have to be careful about generators...</span>
+            <span class="c1"># ie don&#39;t call len() or iterate twice</span>
+            <span class="p">(</span><span class="n">i</span><span class="o">**</span><span class="mi">2</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">5</span><span class="p">)),</span>
+        <span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">yes_sequence</span><span class="p">:</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">subTest</span><span class="p">(</span><span class="n">val</span><span class="o">=</span><span class="n">val</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">is_sequence</span><span class="p">(</span><span class="n">val</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TestIsSequence.test_no"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestIsSequence.test_no">[docs]</a>    <span class="k">def</span> <span class="nf">test_no</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">__file__</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">no_sequence</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="mi">1</span><span class="p">,</span>
+                <span class="mf">1.0</span><span class="p">,</span>
+                <span class="bp">True</span><span class="p">,</span>
+                <span class="bp">None</span><span class="p">,</span>
+                <span class="s1">&#39;you can iterate a string but we won</span><span class="se">\&#39;</span><span class="s1">t&#39;</span><span class="p">,</span>
+                <span class="n">b</span><span class="s1">&#39;nor will we iterate bytes&#39;</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">a_func</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">AClass</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">AClass</span><span class="p">(),</span>
+                <span class="c1"># previously dicts, sets, and files all returned True, but</span>
+                <span class="c1"># we&#39;ve eliminated them now.</span>
+                <span class="p">{</span><span class="mi">1</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">:</span> <span class="mi">4</span><span class="p">},</span>
+                <span class="nb">set</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">)),</span>
+                <span class="n">f</span>
+            <span class="p">]</span>
+
+            <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">no_sequence</span><span class="p">:</span>
+                <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">subTest</span><span class="p">(</span><span class="n">val</span><span class="o">=</span><span class="n">val</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">is_sequence</span><span class="p">(</span><span class="n">val</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="TestPermissiveRange"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestPermissiveRange">[docs]</a><span class="k">class</span> <span class="nc">TestPermissiveRange</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="TestPermissiveRange.test_bad_calls"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestPermissiveRange.test_bad_calls">[docs]</a>    <span class="k">def</span> <span class="nf">test_bad_calls</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">bad_args</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">[],</span>
+            <span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+            <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span>
+            <span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">.</span><span class="mi">1</span><span class="p">],</span>
+            <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="o">.</span><span class="mi">1</span><span class="p">],</span>
+            <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;not too far&#39;</span><span class="p">]</span>
+        <span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">args</span> <span class="ow">in</span> <span class="n">bad_args</span><span class="p">:</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+                <span class="n">permissive_range</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestPermissiveRange.test_good_calls"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestPermissiveRange.test_good_calls">[docs]</a>    <span class="k">def</span> <span class="nf">test_good_calls</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">good_args</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">2</span><span class="p">):</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span>
+            <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">4</span><span class="p">):</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span>
+            <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">7</span><span class="p">):</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+            <span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">2</span><span class="p">):</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">],</span>
+            <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mf">7.0</span><span class="p">,</span> <span class="mi">2</span><span class="p">):</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">],</span>
+            <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">):</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">],</span>
+            <span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">7.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">):</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">],</span>
+            <span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">7.000000001</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">):</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">,</span> <span class="mf">7.0</span><span class="p">],</span>
+            <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">):</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span>
+            <span class="p">(</span><span class="mi">7</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">):</span> <span class="p">[</span><span class="mi">7</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span>
+            <span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">7.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">2.0</span><span class="p">):</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">],</span>
+            <span class="p">(</span><span class="mf">7.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">):</span> <span class="p">[</span><span class="mf">7.0</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">],</span>
+            <span class="p">(</span><span class="mf">7.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">2.0</span><span class="p">):</span> <span class="p">[</span><span class="mf">7.0</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">,</span> <span class="mf">3.0</span><span class="p">],</span>
+            <span class="p">(</span><span class="mf">1.5</span><span class="p">,</span> <span class="mf">1.8</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">):</span> <span class="p">[</span><span class="mf">1.5</span><span class="p">,</span> <span class="mf">1.6</span><span class="p">,</span> <span class="mf">1.7</span><span class="p">]</span>
+        <span class="p">}</span>
+
+        <span class="k">for</span> <span class="n">args</span><span class="p">,</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">good_args</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">permissive_range</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">),</span> <span class="n">result</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="TestMakeSweep"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestMakeSweep">[docs]</a><span class="k">class</span> <span class="nc">TestMakeSweep</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="TestMakeSweep.test_good_calls"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestMakeSweep.test_good_calls">[docs]</a>    <span class="k">def</span> <span class="nf">test_good_calls</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">swp</span> <span class="o">=</span> <span class="n">make_sweep</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="mi">6</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">swp</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mf">1.4</span><span class="p">,</span> <span class="mf">1.8</span><span class="p">,</span> <span class="mf">2.2</span><span class="p">,</span> <span class="mf">2.6</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
+
+        <span class="n">swp</span> <span class="o">=</span> <span class="n">make_sweep</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">swp</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mf">2.5</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
+
+        <span class="c1"># with step, test a lot of combinations with weird fractions</span>
+        <span class="c1"># to make sure we don&#39;t fail on a rounding error</span>
+        <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">15</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">steps</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">55</span><span class="p">,</span> <span class="mi">6</span><span class="p">):</span>
+                <span class="n">step</span> <span class="o">=</span> <span class="n">r</span> <span class="o">/</span> <span class="n">steps</span>
+                <span class="n">swp</span> <span class="o">=</span> <span class="n">make_sweep</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">r</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="n">step</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">swp</span><span class="p">),</span> <span class="n">steps</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">swp</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">swp</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">r</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestMakeSweep.test_bad_calls"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestMakeSweep.test_bad_calls">[docs]</a>    <span class="k">def</span> <span class="nf">test_bad_calls</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">AttributeError</span><span class="p">):</span>
+            <span class="n">make_sweep</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">make_sweep</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+
+        <span class="c1"># this first one should succeed</span>
+        <span class="n">make_sweep</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="c1"># but if we change step slightly (more than the tolerance of</span>
+        <span class="c1"># 1e-10 steps) it will fail.</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">make_sweep</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="mf">1.00000001</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">make_sweep</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="mf">0.99999999</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="TestWaitSecs"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestWaitSecs">[docs]</a><span class="k">class</span> <span class="nc">TestWaitSecs</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="TestWaitSecs.test_bad_calls"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestWaitSecs.test_bad_calls">[docs]</a>    <span class="k">def</span> <span class="nf">test_bad_calls</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">bad_args</span> <span class="o">=</span> <span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()]</span>
+        <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">bad_args</span><span class="p">:</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+                <span class="n">wait_secs</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestWaitSecs.test_good_calls"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestWaitSecs.test_good_calls">[docs]</a>    <span class="k">def</span> <span class="nf">test_good_calls</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">secs</span> <span class="ow">in</span> <span class="p">[</span><span class="mf">0.001</span><span class="p">,</span> <span class="mf">0.003</span><span class="p">,</span> <span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.03</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">,</span> <span class="mi">1</span><span class="p">]:</span>
+            <span class="n">finish_clock</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">+</span> <span class="n">secs</span>
+            <span class="n">secs_out</span> <span class="o">=</span> <span class="n">wait_secs</span><span class="p">(</span><span class="n">finish_clock</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertGreater</span><span class="p">(</span><span class="n">secs_out</span><span class="p">,</span> <span class="n">secs</span> <span class="o">-</span> <span class="mf">1e-4</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertLessEqual</span><span class="p">(</span><span class="n">secs_out</span><span class="p">,</span> <span class="n">secs</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestWaitSecs.test_warning"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestWaitSecs.test_warning">[docs]</a>    <span class="k">def</span> <span class="nf">test_warning</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">with</span> <span class="n">LogCapture</span><span class="p">()</span> <span class="k">as</span> <span class="n">logs</span><span class="p">:</span>
+            <span class="n">secs_out</span> <span class="o">=</span> <span class="n">wait_secs</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">secs_out</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">logs</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s1">&#39;negative delay&#39;</span><span class="p">),</span> <span class="mi">1</span><span class="p">,</span> <span class="n">logs</span><span class="o">.</span><span class="n">value</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="TestMakeUnique"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestMakeUnique">[docs]</a><span class="k">class</span> <span class="nc">TestMakeUnique</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="TestMakeUnique.test_no_changes"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestMakeUnique.test_no_changes">[docs]</a>    <span class="k">def</span> <span class="nf">test_no_changes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">s</span><span class="p">,</span> <span class="n">existing</span> <span class="ow">in</span> <span class="p">((</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="p">[]),</span> <span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="p">{}),</span> <span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39; a&#39;</span><span class="p">,</span> <span class="s1">&#39;a &#39;</span><span class="p">))):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">make_unique</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">existing</span><span class="p">),</span> <span class="n">s</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestMakeUnique.test_changes"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestMakeUnique.test_changes">[docs]</a>    <span class="k">def</span> <span class="nf">test_changes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">make_unique</span><span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,)),</span> <span class="s1">&#39;a_2&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">make_unique</span><span class="p">(</span><span class="s1">&#39;a_2&#39;</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;a_2&#39;</span><span class="p">,)),</span> <span class="s1">&#39;a_2_2&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">make_unique</span><span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;a_2&#39;</span><span class="p">,</span> <span class="s1">&#39;a_3&#39;</span><span class="p">)),</span> <span class="s1">&#39;a_4&#39;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="TestDelegateAttributes"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestDelegateAttributes">[docs]</a><span class="k">class</span> <span class="nc">TestDelegateAttributes</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="TestDelegateAttributes.test_delegate_dict"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestDelegateAttributes.test_delegate_dict">[docs]</a>    <span class="k">def</span> <span class="nf">test_delegate_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">class</span> <span class="nc">ToDict</span><span class="p">(</span><span class="n">DelegateAttributes</span><span class="p">):</span>
+            <span class="n">delegate_attr_dicts</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;d&#39;</span><span class="p">]</span>
+            <span class="n">apples</span> <span class="o">=</span> <span class="s1">&#39;green&#39;</span>
+
+        <span class="n">td</span> <span class="o">=</span> <span class="n">ToDict</span><span class="p">()</span>
+        <span class="c1"># td.d doesn&#39;t exist yet</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">AttributeError</span><span class="p">):</span>
+            <span class="n">td</span><span class="o">.</span><span class="n">d</span>
+
+        <span class="c1"># but you can still get other attributes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">td</span><span class="o">.</span><span class="n">apples</span><span class="p">,</span> <span class="s1">&#39;green&#39;</span><span class="p">)</span>
+
+        <span class="n">d</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;apples&#39;</span><span class="p">:</span> <span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="s1">&#39;oranges&#39;</span><span class="p">:</span> <span class="s1">&#39;orange&#39;</span><span class="p">}</span>
+        <span class="n">td</span><span class="o">.</span><span class="n">d</span> <span class="o">=</span> <span class="n">d</span>
+
+        <span class="c1"># you can get the whole dict still</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">td</span><span class="o">.</span><span class="n">d</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span>
+
+        <span class="c1"># class attributes override the dict</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">td</span><span class="o">.</span><span class="n">apples</span><span class="p">,</span> <span class="s1">&#39;green&#39;</span><span class="p">)</span>
+
+        <span class="c1"># instance attributes do too</span>
+        <span class="n">td</span><span class="o">.</span><span class="n">apples</span> <span class="o">=</span> <span class="s1">&#39;rotten&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">td</span><span class="o">.</span><span class="n">apples</span><span class="p">,</span> <span class="s1">&#39;rotten&#39;</span><span class="p">)</span>
+
+        <span class="c1"># other dict attributes come through and can be added on the fly</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">td</span><span class="o">.</span><span class="n">oranges</span><span class="p">,</span> <span class="s1">&#39;orange&#39;</span><span class="p">)</span>
+        <span class="n">d</span><span class="p">[</span><span class="s1">&#39;bananas&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;yellow&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">td</span><span class="o">.</span><span class="n">bananas</span><span class="p">,</span> <span class="s1">&#39;yellow&#39;</span><span class="p">)</span>
+
+        <span class="c1"># missing items still raise AttributeError, not KeyError</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">AttributeError</span><span class="p">):</span>
+            <span class="n">td</span><span class="o">.</span><span class="n">kiwis</span>
+
+        <span class="c1"># all appropriate items are in dir() exactly once</span>
+        <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;apples&#39;</span><span class="p">,</span> <span class="s1">&#39;oranges&#39;</span><span class="p">,</span> <span class="s1">&#39;bananas&#39;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">dir</span><span class="p">(</span><span class="n">td</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">attr</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestDelegateAttributes.test_delegate_dicts"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestDelegateAttributes.test_delegate_dicts">[docs]</a>    <span class="k">def</span> <span class="nf">test_delegate_dicts</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">class</span> <span class="nc">ToDicts</span><span class="p">(</span><span class="n">DelegateAttributes</span><span class="p">):</span>
+            <span class="n">delegate_attr_dicts</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;d&#39;</span><span class="p">,</span> <span class="s1">&#39;e&#39;</span><span class="p">]</span>
+
+        <span class="n">td</span> <span class="o">=</span> <span class="n">ToDicts</span><span class="p">()</span>
+        <span class="n">e</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;cats&#39;</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span> <span class="s1">&#39;dogs&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">}</span>
+        <span class="n">td</span><span class="o">.</span><span class="n">e</span> <span class="o">=</span> <span class="n">e</span>
+
+        <span class="c1"># you can still access the second one when the first doesn&#39;t exist</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">AttributeError</span><span class="p">):</span>
+            <span class="n">td</span><span class="o">.</span><span class="n">d</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">td</span><span class="o">.</span><span class="n">e</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">td</span><span class="o">.</span><span class="n">cats</span><span class="p">,</span> <span class="mi">12</span><span class="p">)</span>
+
+        <span class="c1"># the first beats out the second</span>
+        <span class="n">td</span><span class="o">.</span><span class="n">d</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;cats&#39;</span><span class="p">:</span> <span class="mi">42</span><span class="p">,</span> <span class="s1">&#39;chickens&#39;</span><span class="p">:</span> <span class="mi">1000</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">td</span><span class="o">.</span><span class="n">cats</span><span class="p">,</span> <span class="mi">42</span><span class="p">)</span>
+
+        <span class="c1"># but you can still access things only in the second</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">td</span><span class="o">.</span><span class="n">dogs</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+
+        <span class="c1"># all appropriate items are in dir() exactly once</span>
+        <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;cats&#39;</span><span class="p">,</span> <span class="s1">&#39;dogs&#39;</span><span class="p">,</span> <span class="s1">&#39;chickens&#39;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">dir</span><span class="p">(</span><span class="n">td</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">attr</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestDelegateAttributes.test_delegate_object"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestDelegateAttributes.test_delegate_object">[docs]</a>    <span class="k">def</span> <span class="nf">test_delegate_object</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">class</span> <span class="nc">Recipient</span><span class="p">:</span>
+            <span class="n">black</span> <span class="o">=</span> <span class="s1">&#39;#000&#39;</span>
+            <span class="n">white</span> <span class="o">=</span> <span class="s1">&#39;#fff&#39;</span>
+
+        <span class="k">class</span> <span class="nc">ToObject</span><span class="p">(</span><span class="n">DelegateAttributes</span><span class="p">):</span>
+            <span class="n">delegate_attr_objects</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;recipient&#39;</span><span class="p">]</span>
+            <span class="n">gray</span> <span class="o">=</span> <span class="s1">&#39;#888&#39;</span>
+
+        <span class="n">to_obj</span> <span class="o">=</span> <span class="n">ToObject</span><span class="p">()</span>
+        <span class="n">recipient</span> <span class="o">=</span> <span class="n">Recipient</span><span class="p">()</span>
+
+        <span class="c1"># recipient not connected yet but you can look at other attributes</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">AttributeError</span><span class="p">):</span>
+            <span class="n">to_obj</span><span class="o">.</span><span class="n">recipient</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">to_obj</span><span class="o">.</span><span class="n">gray</span><span class="p">,</span> <span class="s1">&#39;#888&#39;</span><span class="p">)</span>
+
+        <span class="n">to_obj</span><span class="o">.</span><span class="n">recipient</span> <span class="o">=</span> <span class="n">recipient</span>
+
+        <span class="c1"># now you can access recipient through to_obj</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">to_obj</span><span class="o">.</span><span class="n">black</span><span class="p">,</span> <span class="s1">&#39;#000&#39;</span><span class="p">)</span>
+
+        <span class="c1"># to_obj overrides but you can still access other recipient attributes</span>
+        <span class="n">to_obj</span><span class="o">.</span><span class="n">black</span> <span class="o">=</span> <span class="s1">&#39;#444&#39;</span>  <span class="c1"># &quot;soft&quot; black</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">to_obj</span><span class="o">.</span><span class="n">black</span><span class="p">,</span> <span class="s1">&#39;#444&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">to_obj</span><span class="o">.</span><span class="n">white</span><span class="p">,</span> <span class="s1">&#39;#fff&#39;</span><span class="p">)</span>
+
+        <span class="c1"># all appropriate items are in dir() exactly once</span>
+        <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;black&#39;</span><span class="p">,</span> <span class="s1">&#39;white&#39;</span><span class="p">,</span> <span class="s1">&#39;gray&#39;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">dir</span><span class="p">(</span><span class="n">to_obj</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">attr</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestDelegateAttributes.test_delegate_objects"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestDelegateAttributes.test_delegate_objects">[docs]</a>    <span class="k">def</span> <span class="nf">test_delegate_objects</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">class</span> <span class="nc">R1</span><span class="p">:</span>
+            <span class="n">a</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="n">b</span> <span class="o">=</span> <span class="mi">2</span>
+            <span class="n">c</span> <span class="o">=</span> <span class="mi">3</span>
+
+        <span class="k">class</span> <span class="nc">R2</span><span class="p">:</span>
+            <span class="n">a</span> <span class="o">=</span> <span class="mi">4</span>
+            <span class="n">b</span> <span class="o">=</span> <span class="mi">5</span>
+            <span class="n">d</span> <span class="o">=</span> <span class="mi">6</span>
+
+        <span class="k">class</span> <span class="nc">ToObjects</span><span class="p">(</span><span class="n">DelegateAttributes</span><span class="p">):</span>
+            <span class="n">delegate_attr_objects</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;r1&#39;</span><span class="p">,</span> <span class="s1">&#39;r2&#39;</span><span class="p">]</span>
+            <span class="n">a</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">e</span> <span class="o">=</span> <span class="mi">7</span>
+            <span class="n">r1</span> <span class="o">=</span> <span class="n">R1</span><span class="p">()</span>
+            <span class="n">r2</span> <span class="o">=</span> <span class="n">R2</span><span class="p">()</span>
+
+        <span class="n">to_objs</span> <span class="o">=</span> <span class="n">ToObjects</span><span class="p">()</span>
+
+        <span class="c1"># main object overrides recipients</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">to_objs</span><span class="o">.</span><span class="n">a</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">to_objs</span><span class="o">.</span><span class="n">e</span><span class="p">,</span> <span class="mi">7</span><span class="p">)</span>
+
+        <span class="c1"># first object overrides second</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">to_objs</span><span class="o">.</span><span class="n">b</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">to_objs</span><span class="o">.</span><span class="n">c</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+
+        <span class="c1"># second object gets the rest</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">to_objs</span><span class="o">.</span><span class="n">d</span><span class="p">,</span> <span class="mi">6</span><span class="p">)</span>
+
+        <span class="c1"># missing attributes still raise correctly</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">AttributeError</span><span class="p">):</span>
+            <span class="n">to_objs</span><span class="o">.</span><span class="n">f</span>
+
+        <span class="c1"># all appropriate items are in dir() exactly once</span>
+        <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="s1">&#39;abcde&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">dir</span><span class="p">(</span><span class="n">to_objs</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">attr</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestDelegateAttributes.test_delegate_both"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestDelegateAttributes.test_delegate_both">[docs]</a>    <span class="k">def</span> <span class="nf">test_delegate_both</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">class</span> <span class="nc">Recipient</span><span class="p">:</span>
+            <span class="n">rock</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">paper</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="n">scissors</span> <span class="o">=</span> <span class="mi">2</span>
+
+        <span class="n">my_recipient_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;paper&#39;</span><span class="p">:</span> <span class="s1">&#39;Petta et al.&#39;</span><span class="p">,</span> <span class="s1">&#39;year&#39;</span><span class="p">:</span> <span class="mi">2005</span><span class="p">}</span>
+
+        <span class="k">class</span> <span class="nc">ToBoth</span><span class="p">(</span><span class="n">DelegateAttributes</span><span class="p">):</span>
+            <span class="n">delegate_attr_objects</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;recipient_object&#39;</span><span class="p">]</span>
+            <span class="n">delegate_attr_dicts</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;recipient_dict&#39;</span><span class="p">]</span>
+            <span class="n">rock</span> <span class="o">=</span> <span class="s1">&#39;Eiger&#39;</span>
+            <span class="n">water</span> <span class="o">=</span> <span class="s1">&#39;Lac Leman&#39;</span>
+            <span class="n">recipient_dict</span> <span class="o">=</span> <span class="n">my_recipient_dict</span>
+            <span class="n">recipient_object</span> <span class="o">=</span> <span class="n">Recipient</span><span class="p">()</span>
+
+        <span class="n">tb</span> <span class="o">=</span> <span class="n">ToBoth</span><span class="p">()</span>
+
+        <span class="c1"># main object overrides recipients</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">tb</span><span class="o">.</span><span class="n">rock</span><span class="p">,</span> <span class="s1">&#39;Eiger&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">tb</span><span class="o">.</span><span class="n">water</span><span class="p">,</span> <span class="s1">&#39;Lac Leman&#39;</span><span class="p">)</span>
+
+        <span class="c1"># dict overrides object</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">tb</span><span class="o">.</span><span class="n">paper</span><span class="p">,</span> <span class="s1">&#39;Petta et al.&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">tb</span><span class="o">.</span><span class="n">year</span><span class="p">,</span> <span class="mi">2005</span><span class="p">)</span>
+
+        <span class="c1"># object comes last</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">tb</span><span class="o">.</span><span class="n">scissors</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="c1"># missing attributes still raise correctly</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">AttributeError</span><span class="p">):</span>
+            <span class="n">tb</span><span class="o">.</span><span class="n">ninja</span>
+
+        <span class="c1"># all appropriate items are in dir() exactly once</span>
+        <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;rock&#39;</span><span class="p">,</span> <span class="s1">&#39;paper&#39;</span><span class="p">,</span> <span class="s1">&#39;scissors&#39;</span><span class="p">,</span> <span class="s1">&#39;year&#39;</span><span class="p">,</span> <span class="s1">&#39;water&#39;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">dir</span><span class="p">(</span><span class="n">tb</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">attr</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="A"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.A">[docs]</a><span class="k">class</span> <span class="nc">A</span><span class="p">:</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="mi">5</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="mi">6</span></div>
+
+
+<div class="viewcode-block" id="BadKeysDict"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.BadKeysDict">[docs]</a><span class="k">class</span> <span class="nc">BadKeysDict</span><span class="p">(</span><span class="nb">dict</span><span class="p">):</span>
+<div class="viewcode-block" id="BadKeysDict.keys"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.BadKeysDict.keys">[docs]</a>    <span class="k">def</span> <span class="nf">keys</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;you can</span><span class="se">\&#39;</span><span class="s1">t have the keys!&#39;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="NoDelDict"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.NoDelDict">[docs]</a><span class="k">class</span> <span class="nc">NoDelDict</span><span class="p">(</span><span class="nb">dict</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__delitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s1">&#39;get your hands off me!&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="TestStripAttrs"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestStripAttrs">[docs]</a><span class="k">class</span> <span class="nc">TestStripAttrs</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="TestStripAttrs.test_normal"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestStripAttrs.test_normal">[docs]</a>    <span class="k">def</span> <span class="nf">test_normal</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">A</span><span class="p">()</span>
+        <span class="n">a</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="mi">15</span>
+        <span class="n">a</span><span class="o">.</span><span class="n">z</span> <span class="o">=</span> <span class="mi">25</span>
+
+        <span class="n">strip_attrs</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="mi">6</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestStripAttrs.test_pathological"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestStripAttrs.test_pathological">[docs]</a>    <span class="k">def</span> <span class="nf">test_pathological</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># just make sure this never errors, since it&#39;s meant to be used</span>
+        <span class="c1"># during deletion</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">A</span><span class="p">()</span>
+        <span class="n">a</span><span class="o">.</span><span class="n">__dict__</span> <span class="o">=</span> <span class="n">BadKeysDict</span><span class="p">()</span>
+
+        <span class="n">a</span><span class="o">.</span><span class="n">fruit</span> <span class="o">=</span> <span class="s1">&#39;mango&#39;</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
+            <span class="n">a</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+
+        <span class="n">strip_attrs</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+        <span class="c1"># no error, but the attribute is still there</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">fruit</span><span class="p">,</span> <span class="s1">&#39;mango&#39;</span><span class="p">)</span>
+
+        <span class="n">a</span> <span class="o">=</span> <span class="n">A</span><span class="p">()</span>
+        <span class="n">a</span><span class="o">.</span><span class="n">__dict__</span> <span class="o">=</span> <span class="n">NoDelDict</span><span class="p">()</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="s1">&#39;can</span><span class="se">\&#39;</span><span class="s1">t touch this!&#39;</span>
+        <span class="n">a</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">s</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>
+        <span class="c1"># not sure how this doesn&#39;t raise, but it doesn&#39;t.</span>
+        <span class="c1"># with self.assertRaises(KeyError):</span>
+        <span class="c1">#     del a.x</span>
+
+        <span class="n">strip_attrs</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="TestClassStrings"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestClassStrings">[docs]</a><span class="k">class</span> <span class="nc">TestClassStrings</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="c1"># use a standard library object so we don&#39;t need to worry about where</span>
+    <span class="c1"># this test is run. A little annoying to find one we can mutate though!</span>
+<div class="viewcode-block" id="TestClassStrings.setUp"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestClassStrings.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">j</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONEncoder</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TestClassStrings.test_full_class"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestClassStrings.test_full_class">[docs]</a>    <span class="k">def</span> <span class="nf">test_full_class</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">full_class</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">j</span><span class="p">),</span> <span class="s1">&#39;json.encoder.JSONEncoder&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestClassStrings.test_named_repr"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestClassStrings.test_named_repr">[docs]</a>    <span class="k">def</span> <span class="nf">test_named_repr</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">id_</span> <span class="o">=</span> <span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">j</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">j</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;Peppa&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">named_repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">j</span><span class="p">),</span>
+                         <span class="s1">&#39;&lt;json.encoder.JSONEncoder: Peppa at {}&gt;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">id_</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="TestIsSequenceOf"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestIsSequenceOf">[docs]</a><span class="k">class</span> <span class="nc">TestIsSequenceOf</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="TestIsSequenceOf.test_simple"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestIsSequenceOf.test_simple">[docs]</a>    <span class="k">def</span> <span class="nf">test_simple</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">good</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="c1"># empty lists pass without even checking that we provided a</span>
+            <span class="c1"># valid type spec</span>
+            <span class="p">([],</span> <span class="bp">None</span><span class="p">),</span> <span class="p">((),</span> <span class="bp">None</span><span class="p">),</span>
+            <span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="nb">int</span><span class="p">),</span>
+            <span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="nb">int</span><span class="p">),</span>
+            <span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">],</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)),</span>
+            <span class="p">([{},</span> <span class="bp">None</span><span class="p">],</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="bp">None</span><span class="p">),</span> <span class="nb">dict</span><span class="p">))</span>
+        <span class="p">]</span>
+        <span class="k">for</span> <span class="n">args</span> <span class="ow">in</span> <span class="n">good</span><span class="p">:</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">subTest</span><span class="p">(</span><span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">is_sequence_of</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">))</span>
+
+        <span class="n">bad</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span>
+            <span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">],</span> <span class="nb">int</span><span class="p">),</span>
+            <span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> <span class="nb">float</span><span class="p">),</span>
+            <span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> <span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="nb">dict</span><span class="p">))</span>
+        <span class="p">]</span>
+        <span class="k">for</span> <span class="n">args</span> <span class="ow">in</span> <span class="n">bad</span><span class="p">:</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">subTest</span><span class="p">(</span><span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">is_sequence_of</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">))</span>
+
+        <span class="c1"># second arg must be a type or tuple of types - failing this doesn&#39;t</span>
+        <span class="c1"># return False, it raises an error</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="n">is_sequence_of</span><span class="p">([</span><span class="mi">1</span><span class="p">],</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="n">is_sequence_of</span><span class="p">([</span><span class="mi">1</span><span class="p">],</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="n">is_sequence_of</span><span class="p">([</span><span class="mi">1</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="TestIsSequenceOf.test_depth"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestIsSequenceOf.test_depth">[docs]</a>    <span class="k">def</span> <span class="nf">test_depth</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">good</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> <span class="nb">int</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+            <span class="p">([[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">]],</span> <span class="nb">int</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+            <span class="p">([[</span><span class="mi">1</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">],</span> <span class="p">[]],</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span> <span class="mi">2</span><span class="p">),</span>
+            <span class="p">([[[</span><span class="mi">1</span><span class="p">]]],</span> <span class="nb">int</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="p">]</span>
+        <span class="k">for</span> <span class="n">args</span> <span class="ow">in</span> <span class="n">good</span><span class="p">:</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">subTest</span><span class="p">(</span><span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">is_sequence_of</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">))</span>
+
+        <span class="n">bad</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">([</span><span class="mi">1</span><span class="p">],</span> <span class="nb">int</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+            <span class="p">([[</span><span class="mi">1</span><span class="p">]],</span> <span class="nb">int</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+            <span class="p">([[</span><span class="mi">1</span><span class="p">]],</span> <span class="nb">float</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="p">]</span>
+        <span class="k">for</span> <span class="n">args</span> <span class="ow">in</span> <span class="n">bad</span><span class="p">:</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">subTest</span><span class="p">(</span><span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">is_sequence_of</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="TestCompareDictionaries"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestCompareDictionaries">[docs]</a><span class="k">class</span> <span class="nc">TestCompareDictionaries</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="TestCompareDictionaries.test_same"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestCompareDictionaries.test_same">[docs]</a>    <span class="k">def</span> <span class="nf">test_same</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># NOTE(alexcjohnson): the numpy array and list compare equal,</span>
+        <span class="c1"># even though a list and tuple would not. See TODO in</span>
+        <span class="c1"># compare_dictionaries.</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">:</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="p">{</span><span class="mi">5</span><span class="p">:</span> <span class="mi">6</span><span class="p">}],</span> <span class="s1">&#39;b&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="s1">&#39;d&#39;</span><span class="p">},</span> <span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">7</span><span class="p">,</span> <span class="mi">8</span><span class="p">])}</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">:</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="p">{</span><span class="mi">5</span><span class="p">:</span> <span class="mi">6</span><span class="p">}],</span> <span class="s1">&#39;b&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="s1">&#39;d&#39;</span><span class="p">},</span> <span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">7</span><span class="p">,</span> <span class="mi">8</span><span class="p">]}</span>
+
+        <span class="n">match</span><span class="p">,</span> <span class="n">err</span> <span class="o">=</span> <span class="n">compare_dictionaries</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">match</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">err</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestCompareDictionaries.test_bad_dict"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestCompareDictionaries.test_bad_dict">[docs]</a>    <span class="k">def</span> <span class="nf">test_bad_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># NOTE(alexcjohnson):</span>
+        <span class="c1"># this is a valid dict, but not good JSON because the tuple key cannot</span>
+        <span class="c1"># be converted into a string.</span>
+        <span class="c1"># It throws an error in compare_dictionaries, which is likely what we</span>
+        <span class="c1"># want, but we should be aware of it.</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="p">{(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">):</span> <span class="p">(</span><span class="mi">7</span><span class="p">,</span> <span class="mi">8</span><span class="p">)}</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+            <span class="n">compare_dictionaries</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">a</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestCompareDictionaries.test_key_diff"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestCompareDictionaries.test_key_diff">[docs]</a>    <span class="k">def</span> <span class="nf">test_key_diff</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">}</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;b&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">}</span>
+
+        <span class="n">match</span><span class="p">,</span> <span class="n">err</span> <span class="o">=</span> <span class="n">compare_dictionaries</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">match</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s1">&#39;Key d1[a] not in d2&#39;</span><span class="p">,</span> <span class="n">err</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s1">&#39;Key d2[b] not in d1&#39;</span><span class="p">,</span> <span class="n">err</span><span class="p">)</span>
+
+        <span class="c1"># try again with dict names for completeness</span>
+        <span class="n">match</span><span class="p">,</span> <span class="n">err</span> <span class="o">=</span> <span class="n">compare_dictionaries</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">match</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s1">&#39;Key a[a] not in b&#39;</span><span class="p">,</span> <span class="n">err</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s1">&#39;Key b[b] not in a&#39;</span><span class="p">,</span> <span class="n">err</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestCompareDictionaries.test_val_diff_simple"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestCompareDictionaries.test_val_diff_simple">[docs]</a>    <span class="k">def</span> <span class="nf">test_val_diff_simple</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">}</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">}</span>
+
+        <span class="n">match</span><span class="p">,</span> <span class="n">err</span> <span class="o">=</span> <span class="n">compare_dictionaries</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">match</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span>
+            <span class="s1">&#39;Value of &quot;d1[a]&quot; (&quot;1&quot;, type&quot;&lt;class </span><span class="se">\&#39;</span><span class="s1">int</span><span class="se">\&#39;</span><span class="s1">&gt;&quot;) not same as&#39;</span><span class="p">,</span> <span class="n">err</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span>
+            <span class="s1">&#39;&quot;d2[a]&quot; (&quot;2&quot;, type&quot;&lt;class </span><span class="se">\&#39;</span><span class="s1">int</span><span class="se">\&#39;</span><span class="s1">&gt;&quot;)&#39;</span><span class="p">,</span> <span class="n">err</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestCompareDictionaries.test_val_diff_seq"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestCompareDictionaries.test_val_diff_seq">[docs]</a>    <span class="k">def</span> <span class="nf">test_val_diff_seq</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># NOTE(alexcjohnson):</span>
+        <span class="c1"># we don&#39;t dive recursively into lists at the moment.</span>
+        <span class="c1"># Perhaps we want to? Seems like list equality does a deep comparison,</span>
+        <span class="c1"># so it&#39;s not necessary to get ``match`` right, but the error message</span>
+        <span class="c1"># could be more helpful if we did.</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">{</span><span class="mi">2</span><span class="p">:</span> <span class="mi">3</span><span class="p">},</span> <span class="mi">4</span><span class="p">]}</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">{</span><span class="mi">5</span><span class="p">:</span> <span class="mi">6</span><span class="p">},</span> <span class="mi">4</span><span class="p">]}</span>
+
+        <span class="n">match</span><span class="p">,</span> <span class="n">err</span> <span class="o">=</span> <span class="n">compare_dictionaries</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">match</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s1">&#39;Value of &quot;d1[a]&quot; (&quot;[1, {2: 3}, 4]&quot;, &#39;</span>
+                      <span class="s1">&#39;type&quot;&lt;class </span><span class="se">\&#39;</span><span class="s1">list</span><span class="se">\&#39;</span><span class="s1">&gt;&quot;) not same&#39;</span><span class="p">,</span> <span class="n">err</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s1">&#39;&quot;d2[a]&quot; (&quot;[1, {5: 6}, 4]&quot;, type&quot;&lt;class </span><span class="se">\&#39;</span><span class="s1">list</span><span class="se">\&#39;</span><span class="s1">&gt;&quot;)&#39;</span><span class="p">,</span>
+                      <span class="n">err</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TestCompareDictionaries.test_nested_key_diff"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestCompareDictionaries.test_nested_key_diff">[docs]</a>    <span class="k">def</span> <span class="nf">test_nested_key_diff</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;b&#39;</span><span class="p">:</span> <span class="s1">&#39;c&#39;</span><span class="p">}}</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;d&#39;</span><span class="p">:</span> <span class="s1">&#39;c&#39;</span><span class="p">}}</span>
+
+        <span class="n">match</span><span class="p">,</span> <span class="n">err</span> <span class="o">=</span> <span class="n">compare_dictionaries</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">match</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s1">&#39;Key d1[a][b] not in d2&#39;</span><span class="p">,</span> <span class="n">err</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s1">&#39;Key d2[a][d] not in d1&#39;</span><span class="p">,</span> <span class="n">err</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.1.1',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>
