@@ -134,18 +134,22 @@
            <div itemprop="articleBody">
             
   <h1>Source code for qcodes.tests.test_helpers</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span> <span class="nn">unittest</span> <span class="kn">import</span> <span class="n">TestCase</span>
-<span class="kn">import</span> <span class="nn">time</span>
-<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
-<span class="kn">import</span> <span class="nn">asyncio</span>
+<span></span><span class="kn">import</span> <span class="nn">asyncio</span>
 <span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">unittest</span> <span class="kn">import</span> <span class="n">TestCase</span>
+
+
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
 
 <span class="kn">from</span> <span class="nn">qcodes.utils.helpers</span> <span class="kn">import</span> <span class="p">(</span><span class="n">is_sequence</span><span class="p">,</span> <span class="n">permissive_range</span><span class="p">,</span> <span class="n">wait_secs</span><span class="p">,</span>
                                   <span class="n">make_unique</span><span class="p">,</span> <span class="n">DelegateAttributes</span><span class="p">,</span>
                                   <span class="n">LogCapture</span><span class="p">,</span> <span class="n">strip_attrs</span><span class="p">,</span> <span class="n">full_class</span><span class="p">,</span>
                                   <span class="n">named_repr</span><span class="p">,</span> <span class="n">make_sweep</span><span class="p">,</span> <span class="n">is_sequence_of</span><span class="p">,</span>
-                                  <span class="n">compare_dictionaries</span><span class="p">)</span>
+                                  <span class="n">compare_dictionaries</span><span class="p">,</span> <span class="n">NumpyJSONEncoder</span><span class="p">)</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.deferred_operations</span> <span class="kn">import</span> <span class="n">is_function</span>
 
 
@@ -686,6 +690,38 @@
             <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">subTest</span><span class="p">(</span><span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">):</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">is_sequence_of</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">))</span></div></div>
 
+<span class="c1"># tests related to JSON encoding</span>
+<div class="viewcode-block" id="TestJSONencoder"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestJSONencoder">[docs]</a><span class="k">class</span> <span class="nc">TestJSONencoder</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="TestJSONencoder.testNumpyJSONEncoder"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestJSONencoder.testNumpyJSONEncoder">[docs]</a>        <span class="k">def</span> <span class="nf">testNumpyJSONEncoder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="n">e</span> <span class="o">=</span> <span class="n">NumpyJSONEncoder</span><span class="p">()</span>
+
+            <span class="c1"># test basic python types</span>
+            <span class="n">od</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+            <span class="n">od</span><span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">od</span><span class="p">[</span><span class="s1">&#39;b&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="n">testinput</span><span class="o">=</span><span class="p">[</span><span class="mi">10</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="mf">10.</span><span class="p">),</span> <span class="s1">&#39;hello&#39;</span><span class="p">,</span> <span class="n">od</span><span class="p">]</span>
+            <span class="n">testoutput</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;10&#39;</span><span class="p">,</span> <span class="s1">&#39;10.0&#39;</span><span class="p">,</span> <span class="s1">&#39;&quot;hello&quot;&#39;</span><span class="p">,</span>  <span class="s1">&#39;{&quot;a&quot;: 0, &quot;b&quot;: 1}&#39;</span><span class="p">]</span>
+            <span class="c1"># int</span>
+            <span class="k">for</span> <span class="n">d</span><span class="p">,</span> <span class="n">r</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">testinput</span><span class="p">,</span> <span class="n">testoutput</span><span class="p">):</span>
+                <span class="n">v</span><span class="o">=</span><span class="n">e</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="o">==</span> <span class="nb">dict</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">assertDictEqual</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">r</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">r</span><span class="p">)</span>
+
+
+            <span class="c1"># test numpy array</span>
+            <span class="n">x</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">v</span><span class="o">=</span><span class="n">e</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="s1">&#39;[1, 0, 0]&#39;</span><span class="p">)</span>
+
+            <span class="c1"># test class</span>
+            <span class="k">class</span> <span class="nc">dummy</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+                <span class="k">pass</span>
+            <span class="c1"># test that does not raise, do not care about</span>
+            <span class="c1"># return value</span>
+            <span class="n">e</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">dummy</span><span class="p">())</span></div></div>
 
 <div class="viewcode-block" id="TestCompareDictionaries"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestCompareDictionaries">[docs]</a><span class="k">class</span> <span class="nc">TestCompareDictionaries</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
 <div class="viewcode-block" id="TestCompareDictionaries.test_same"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_helpers.TestCompareDictionaries.test_same">[docs]</a>    <span class="k">def</span> <span class="nf">test_same</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
