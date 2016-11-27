@@ -1,0 +1,417 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>qcodes.instrument_drivers.Harvard.Decadac &mdash; QCoDeS 0.1.2 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+    <link rel="top" title="QCoDeS 0.1.2 documentation" href="../../../../index.html"/>
+        <link rel="up" title="Module code" href="../../../index.html"/> 
+
+  
+  <script src="../../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../../index.html" class="icon icon-home"> QCoDeS
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1.2
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../start/index.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../help.html">Get Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../user/index.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../community/index.html">Community Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../api/index.html">Classes and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../auto/qcodes.instrument_drivers.html">qcodes.instrument_drivers package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../roadmap.html">Qcodes project plan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../changes/index.html">Changelogs</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../../../index.html">QCoDeS</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../../../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="../../../index.html">Module code</a> &raquo;</li>
+      
+    <li>qcodes.instrument_drivers.Harvard.Decadac</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for qcodes.instrument_drivers.Harvard.Decadac</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">time</span> <span class="kn">import</span> <span class="n">sleep</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">qcodes.instrument.visa</span> <span class="kn">import</span> <span class="n">VisaInstrument</span>
+
+
+<div class="viewcode-block" id="Decadac"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.Harvard.html#qcodes.instrument_drivers.Harvard.Decadac.Decadac">[docs]</a><span class="k">class</span> <span class="nc">Decadac</span><span class="p">(</span><span class="n">VisaInstrument</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The qcodes driver for the Decadac.</span>
+<span class="sd">    Each slot on the Deacadac is to be treated as a seperate</span>
+<span class="sd">    four-channel instrument.</span>
+
+<span class="sd">    Tested with a Decadec firmware revion number 14081 (Decadac 139).</span>
+
+<span class="sd">    The message strategy is the following: always keep the queue empty, so</span>
+<span class="sd">    that self.visa_handle.ask(XXX) will return the answer to XXX and not</span>
+<span class="sd">    some previous event.</span>
+
+<span class="sd">    The class comes with the following methods and attributes:</span>
+
+<span class="sd">    Methods:</span>
+
+<span class="sd">        set_ramping(state:bool, time:float): a shortcut to set</span>
+<span class="sd">            self.ramp_state and self.ramp_time</span>
+
+<span class="sd">        get_ramping: Queries the value of self.ramp_state and</span>
+<span class="sd">            self.ramp_time. Returns a string.</span>
+
+<span class="sd">    Attributes:</span>
+
+<span class="sd">        ramp_state (bool): If True, ramp state is ON. Default False.</span>
+
+<span class="sd">        ramp_time (num): The ramp time in ms. Default 100 ms.</span>
+
+<span class="sd">        voltranges (list): The voltranges for each channel. Can be read and</span>
+<span class="sd">        set (using a screwdriver) on the front of the physical instrument.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">port</span><span class="p">,</span> <span class="n">slot</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">baudrate</span><span class="o">=</span><span class="mi">9600</span><span class="p">,</span>
+                 <span class="n">bytesize</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        Creates an instance of the Decadac instrument corresponding to one slot</span>
+<span class="sd">        on the physical instrument.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name (str): What this instrument is called locally.</span>
+
+<span class="sd">            port (number): The number (only) of the COM port to connect to.</span>
+
+<span class="sd">            slot (int): The slot to use.</span>
+
+<span class="sd">            timeout (number): Seconds to wait for message response.</span>
+<span class="sd">            Default 0.3.</span>
+
+<span class="sd">            baudrate (number): The connection baudrate. Default 9600.</span>
+
+<span class="sd">            bytesize (number): The connection bytesize. Default 8.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">address</span> <span class="o">=</span> <span class="s1">&#39;ASRL{:d}::INSTR&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">port</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">slot</span> <span class="o">=</span> <span class="n">slot</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">address</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c1"># set instrument operation state variables</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ramp_state</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ramp_time</span> <span class="o">=</span> <span class="mi">100</span>
+
+        <span class="c1"># initialise hardware settings</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">voltranges</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+
+        <span class="c1"># set up four channels as qcodes parameters</span>
+        <span class="k">for</span> <span class="n">channelno</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">):</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;volt{:d}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channelno</span><span class="p">),</span>
+                               <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_getvoltage</span><span class="p">,</span>
+                                               <span class="n">channel</span><span class="o">=</span><span class="n">channelno</span><span class="p">),</span>
+                               <span class="n">set_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_setvoltage</span><span class="p">,</span>
+                                               <span class="n">channel</span><span class="o">=</span><span class="n">channelno</span><span class="p">),</span>
+                               <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Voltage&#39;</span><span class="p">,</span>
+                               <span class="n">units</span><span class="o">=</span><span class="s1">&#39;V&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_getvoltage</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Function to query the voltage. Flushes the message queue in that</span>
+<span class="sd">        process.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># set the relevant channel and slot to query</span>
+        <span class="n">mssg</span> <span class="o">=</span> <span class="s1">&#39;B {:d}; C {:d};&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slot</span><span class="p">,</span> <span class="n">channel</span><span class="p">)</span>
+        <span class="n">mssg</span> <span class="o">+=</span> <span class="s1">&#39;d;&#39;</span>
+
+        <span class="c1"># a bit of string juggling to extract the voltage</span>
+        <span class="n">rawresponse</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="n">mssg</span><span class="p">)</span>
+        <span class="n">temp</span> <span class="o">=</span> <span class="n">rawresponse</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">temp</span> <span class="o">=</span> <span class="n">temp</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="n">temp</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;D&#39;</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">temp</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_code2voltage</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="n">channel</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_setvoltage</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">voltage</span><span class="p">,</span> <span class="n">channel</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Function to set the voltage. Depending on whether self.ramp_state is</span>
+<span class="sd">        True or False, this function either ramps from the current voltage to</span>
+<span class="sd">        the specified voltage or directly makes the voltage jump there.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            voltage (number): the set voltage.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">code</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_voltage2code</span><span class="p">(</span><span class="n">voltage</span><span class="p">,</span> <span class="n">channel</span><span class="p">)</span>
+
+        <span class="n">mssg</span> <span class="o">=</span> <span class="s1">&#39;B {:d}; C {:d};&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">slot</span><span class="p">,</span> <span class="n">channel</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">ramp_state</span><span class="p">:</span>
+            <span class="n">mssg</span> <span class="o">+=</span> <span class="s1">&#39;D &#39;</span> <span class="o">+</span> <span class="n">code</span> <span class="o">+</span> <span class="s1">&#39;;&#39;</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">mssg</span><span class="p">)</span>
+
+            <span class="c1"># due to a quirk of the Decadac, we spare the user of an error</span>
+            <span class="c1"># sometimes encountered on first run</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">UnicodeDecodeError</span><span class="p">:</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot; Decadac returned nothing and did nothing. &quot;</span> <span class="o">+</span>
+                                <span class="s2">&quot;Please re-run the command&quot;</span><span class="p">)</span>
+                <span class="k">pass</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ramp_state</span><span class="p">:</span>
+            <span class="n">currentcode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_voltage2code</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_getvoltage</span><span class="p">(</span><span class="n">channel</span><span class="p">),</span>
+                                             <span class="n">channel</span><span class="p">)</span>
+            <span class="n">slope</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="nb">float</span><span class="p">(</span><span class="n">code</span><span class="p">)</span><span class="o">-</span><span class="nb">float</span><span class="p">(</span><span class="n">currentcode</span><span class="p">))</span> <span class="o">/</span>
+                        <span class="p">(</span><span class="mi">10</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">ramp_time</span><span class="p">)</span><span class="o">*</span><span class="mi">2</span><span class="o">**</span><span class="mi">16</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">slope</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">limit</span> <span class="o">=</span> <span class="s1">&#39;L&#39;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">limit</span> <span class="o">=</span> <span class="s1">&#39;U&#39;</span>
+
+            <span class="n">script</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;{&#39;</span><span class="p">,</span>
+                      <span class="s1">&#39;*1:&#39;</span><span class="p">,</span>
+                      <span class="s1">&#39;M2;&#39;</span><span class="p">,</span>
+                      <span class="s1">&#39;T 100;&#39;</span><span class="p">,</span>  <span class="c1"># 1 timestep: 100 micro s</span>
+                      <span class="n">limit</span> <span class="o">+</span> <span class="n">code</span> <span class="o">+</span> <span class="s1">&#39;;&#39;</span><span class="p">,</span>
+                      <span class="s1">&#39;S&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">slope</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;;&#39;</span><span class="p">,</span>
+                      <span class="s1">&#39;X0;&#39;</span><span class="p">,</span>
+                      <span class="s1">&#39;}&#39;</span><span class="p">]</span>
+            <span class="n">runcmd</span> <span class="o">=</span> <span class="s1">&#39;X 1;&#39;</span>
+            <span class="n">mssg</span> <span class="o">+=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">script</span><span class="p">)</span> <span class="o">+</span> <span class="n">runcmd</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">mssg</span><span class="p">)</span>
+            <span class="n">sleep</span><span class="p">(</span><span class="mf">0.0015</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">ramp_time</span><span class="p">)</span>  <span class="c1"># Required sleep.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>  
+
+            <span class="c1"># reset channel voltage ranges</span>
+            <span class="k">if</span> <span class="n">slope</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;L 0;&#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;U 65535;&#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+
+<div class="viewcode-block" id="Decadac.set_ramping"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.Harvard.html#qcodes.instrument_drivers.Harvard.Decadac.Decadac.set_ramping">[docs]</a>    <span class="k">def</span> <span class="nf">set_ramping</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">time</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Function to set ramp_state and ramp_time.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            state (bool): True sets ramping ON.</span>
+
+<span class="sd">            time (int): the ramp time in ms</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ramp_state</span> <span class="o">=</span> <span class="n">state</span>
+        <span class="k">if</span> <span class="n">time</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ramp_time</span> <span class="o">=</span> <span class="n">time</span></div>
+
+<div class="viewcode-block" id="Decadac.get_ramping"><a class="viewcode-back" href="../../../../auto/qcodes.instrument_drivers.Harvard.html#qcodes.instrument_drivers.Harvard.Decadac.Decadac.get_ramping">[docs]</a>    <span class="k">def</span> <span class="nf">get_ramping</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns a string with ramp state information&quot;&quot;&quot;</span>
+        <span class="n">switch</span> <span class="o">=</span> <span class="p">{</span><span class="bp">True</span><span class="p">:</span> <span class="s1">&#39;ON&#39;</span><span class="p">,</span>
+                  <span class="bp">False</span><span class="p">:</span> <span class="s1">&#39;OFF&#39;</span><span class="p">}</span>
+        <span class="n">mssg</span> <span class="o">=</span> <span class="s1">&#39;Ramp state: &#39;</span> <span class="o">+</span> <span class="n">switch</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ramp_state</span><span class="p">]</span>
+        <span class="n">mssg</span> <span class="o">+=</span> <span class="s1">&#39;. Ramp time: {:d} ms.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ramp_time</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">mssg</span></div>
+
+    <span class="k">def</span> <span class="nf">_code2voltage</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">code</span><span class="p">,</span> <span class="n">channel</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Helper function translating a 32 bit code used internally by</span>
+<span class="sd">        the Decadac into a voltage.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            code (str): The code string from the instrument.</span>
+
+<span class="sd">            channel (int): The relevant channel.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">code</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">code</span><span class="p">)</span>
+        <span class="n">translationdict</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="n">x</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="mi">20</span><span class="o">/</span><span class="mi">2</span><span class="o">**</span><span class="mi">16</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span>
+                           <span class="mi">2</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="n">x</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="mi">10</span><span class="o">/</span><span class="mi">2</span><span class="o">**</span><span class="mi">16</span><span class="p">,</span>
+                           <span class="mi">3</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="n">x</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="mi">10</span><span class="o">/</span><span class="mi">2</span><span class="o">**</span><span class="mi">16</span><span class="o">-</span><span class="mi">10</span><span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">translationdict</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">voltranges</span><span class="p">[</span><span class="n">channel</span><span class="p">]](</span><span class="n">code</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_voltage2code</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">voltage</span><span class="p">,</span> <span class="n">channel</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Helper function translating a voltage in V into a 32 bit code used</span>
+<span class="sd">        internally by the Decadac.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            voltage (float): The physical voltage.</span>
+
+<span class="sd">            channel (int): The relevant channel.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            code (str): The corresponding voltage code.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">translationdict</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="mi">2</span><span class="o">**</span><span class="mi">16</span><span class="o">/</span><span class="mi">20</span><span class="o">*</span><span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="mi">2</span><span class="o">**-</span><span class="mi">16</span><span class="o">+</span><span class="mi">10</span><span class="p">),</span>
+                           <span class="mi">2</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="mi">2</span><span class="o">**</span><span class="mi">16</span><span class="o">/</span><span class="mi">10</span><span class="o">*</span><span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="mi">2</span><span class="o">**-</span><span class="mi">16</span><span class="p">),</span>
+                           <span class="mi">3</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="mi">2</span><span class="o">**</span><span class="mi">16</span><span class="o">/</span><span class="mi">10</span><span class="o">*</span><span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="mi">2</span><span class="o">**-</span><span class="mi">16</span><span class="o">+</span><span class="mi">10</span><span class="p">)}</span>
+        <span class="n">voltage_float</span> <span class="o">=</span> <span class="n">translationdict</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">voltranges</span><span class="p">[</span><span class="n">channel</span><span class="p">]](</span><span class="n">voltage</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">voltage_float</span><span class="p">))</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../../',
+            VERSION:'0.1.2',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>
