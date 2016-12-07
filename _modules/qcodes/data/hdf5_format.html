@@ -149,6 +149,7 @@
 
 <span class="sd">    Capable of storing (write) and recovering (read) qcodes datasets.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+
 <div class="viewcode-block" id="HDF5Format.close_file"><a class="viewcode-back" href="../../../auto/qcodes.data.html#qcodes.data.hdf5_format.HDF5Format.close_file">[docs]</a>    <span class="k">def</span> <span class="nf">close_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_set</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Closes the hdf5 file open in the dataset.</span>
@@ -254,7 +255,7 @@
         <span class="k">return</span> <span class="n">data_set</span><span class="o">.</span><span class="n">_h5_base_group</span>
 
 <div class="viewcode-block" id="HDF5Format.write"><a class="viewcode-back" href="../../../auto/qcodes.data.html#qcodes.data.hdf5_format.HDF5Format.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_set</span><span class="p">,</span> <span class="n">io_manager</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-              <span class="n">force_write</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+              <span class="n">force_write</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">write_metadata</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Writes a data_set to an hdf5 file.</span>
 <span class="sd">        Input arguments:</span>
@@ -308,13 +309,15 @@
             <span class="n">new_datasetshape</span> <span class="o">=</span> <span class="p">(</span><span class="n">new_dlen</span><span class="p">,</span>
                                 <span class="n">datasetshape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
             <span class="n">dset</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">new_datasetshape</span><span class="p">)</span>
-            <span class="n">new_data_shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">new_dlen</span><span class="o">-</span><span class="n">old_dlen</span><span class="p">,</span> <span class="n">datasetshape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">new_data_shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">new_dlen</span> <span class="o">-</span> <span class="n">old_dlen</span><span class="p">,</span> <span class="n">datasetshape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
             <span class="n">dset</span><span class="p">[</span><span class="n">old_dlen</span><span class="p">:</span><span class="n">new_dlen</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">old_dlen</span><span class="p">:</span><span class="n">new_dlen</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span>
                 <span class="n">new_data_shape</span><span class="p">)</span>
             <span class="c1"># allow resizing extracted data, here so it gets written for</span>
             <span class="c1"># incremental writes aswell</span>
             <span class="n">dset</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s1">&#39;shape&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">write_metadata</span><span class="p">(</span><span class="n">data_set</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">write_metadata</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">write_metadata</span><span class="p">(</span>
+                <span class="n">data_set</span><span class="p">,</span> <span class="n">io_manager</span><span class="o">=</span><span class="n">io_manager</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="n">location</span><span class="p">)</span>
 
         <span class="c1"># flush ensures buffers are written to disk</span>
         <span class="c1"># (useful for ensuring openable by other files)</span>
@@ -367,7 +370,7 @@
 
         <span class="k">return</span> <span class="n">dset</span>
 
-<div class="viewcode-block" id="HDF5Format.write_metadata"><a class="viewcode-back" href="../../../auto/qcodes.data.html#qcodes.data.hdf5_format.HDF5Format.write_metadata">[docs]</a>    <span class="k">def</span> <span class="nf">write_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_set</span><span class="p">,</span> <span class="n">io</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+<div class="viewcode-block" id="HDF5Format.write_metadata"><a class="viewcode-back" href="../../../auto/qcodes.data.html#qcodes.data.hdf5_format.HDF5Format.write_metadata">[docs]</a>    <span class="k">def</span> <span class="nf">write_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_set</span><span class="p">,</span> <span class="n">io_manager</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Writes metadata of dataset to file using write_dict_to_hdf5 method</span>
 
