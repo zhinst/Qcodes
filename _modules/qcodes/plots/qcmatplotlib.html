@@ -1,0 +1,419 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>qcodes.plots.qcmatplotlib &mdash; QCoDeS 0.1.2 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../search.html"/>
+    <link rel="top" title="QCoDeS 0.1.2 documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> QCoDeS
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1.2
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../start/index.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../help.html">Get Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../user/index.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../community/index.html">Community Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/index.html">Classes and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../auto/qcodes.instrument_drivers.html">qcodes.instrument_drivers package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../roadmap.html">Qcodes project plan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changes/index.html">Changelogs</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../../index.html">QCoDeS</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      
+    <li>qcodes.plots.qcmatplotlib</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for qcodes.plots.qcmatplotlib</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Live plotting in Jupyter notebooks</span>
+<span class="sd">using the nbagg backend and matplotlib</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">Mapping</span>
+
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">from</span> <span class="nn">matplotlib.transforms</span> <span class="k">import</span> <span class="n">Bbox</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">numpy.ma</span> <span class="k">import</span> <span class="n">masked_invalid</span><span class="p">,</span> <span class="n">getmask</span>
+
+<span class="kn">from</span> <span class="nn">.base</span> <span class="k">import</span> <span class="n">BasePlot</span>
+
+
+<div class="viewcode-block" id="MatPlot"><a class="viewcode-back" href="../../../auto/qcodes.plots.html#qcodes.plots.qcmatplotlib.MatPlot">[docs]</a><span class="k">class</span> <span class="nc">MatPlot</span><span class="p">(</span><span class="n">BasePlot</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Plot x/y lines or x/y/z heatmap data. The first trace may be included</span>
+<span class="sd">    in the constructor, other traces can be added with MatPlot.add()</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        *args: shortcut to provide the x/y/z data. See BasePlot.add</span>
+
+<span class="sd">        figsize (Tuple[Float, Float]): (width, height) tuple in inches to pass to plt.figure</span>
+<span class="sd">            default (8, 5)</span>
+
+<span class="sd">        interval: period in seconds between update checks</span>
+
+<span class="sd">        subplots: either a sequence (args) or mapping (kwargs) to pass to</span>
+<span class="sd">            plt.subplots. default is a single simple subplot (1, 1)</span>
+<span class="sd">            you can use this to pass kwargs to the plt.figure constructor</span>
+
+<span class="sd">        num: integer or None</span>
+<span class="sd">            specifies the index of the matplotlib figure window to use. If None</span>
+<span class="sd">            then open a new window</span>
+
+<span class="sd">        **kwargs: passed along to MatPlot.add() to add the first data trace</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+<div class="viewcode-block" id="MatPlot.__init__"><a class="viewcode-back" href="../../../api/generated/qcodes.plots.qcmatplotlib.MatPlot.html#qcodes.plots.qcmatplotlib.MatPlot.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">interval</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">subplots</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">interval</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_init_plot</span><span class="p">(</span><span class="n">subplots</span><span class="p">,</span> <span class="n">figsize</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="n">num</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">args</span> <span class="ow">or</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_init_plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subplots</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">figsize</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">figsize</span> <span class="o">=</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">subplots</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">subplots</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">subplots</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fig</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">subplots</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="n">num</span><span class="p">,</span>
+                                                   <span class="o">**</span><span class="n">subplots</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fig</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">subplots</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="o">*</span><span class="n">subplots</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="n">num</span><span class="p">,</span>
+                                                   <span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subplots</span><span class="p">,</span> <span class="s1">&#39;__len__&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">subplots</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subplots</span><span class="p">,)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">title</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="MatPlot.clear"><a class="viewcode-back" href="../../../auto/qcodes.plots.html#qcodes.plots.qcmatplotlib.MatPlot.clear">[docs]</a>    <span class="k">def</span> <span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subplots</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Clears the plot window and removes all subplots and traces</span>
+<span class="sd">        so that the window can be reused.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">traces</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fig</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_init_plot</span><span class="p">(</span><span class="n">subplots</span><span class="p">,</span> <span class="n">figsize</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">fig</span><span class="o">.</span><span class="n">number</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MatPlot.add_to_plot"><a class="viewcode-back" href="../../../auto/qcodes.plots.html#qcodes.plots.qcmatplotlib.MatPlot.add_to_plot">[docs]</a>    <span class="k">def</span> <span class="nf">add_to_plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        adds one trace to this MatPlot.</span>
+
+<span class="sd">        kwargs: with the following exceptions (mostly the data!), these are</span>
+<span class="sd">            passed directly to the matplotlib plotting routine.</span>
+
+<span class="sd">            `subplot`: the 1-based axes number to append to (default 1)</span>
+
+<span class="sd">            if kwargs include `z`, we will draw a heatmap (ax.pcolormesh):</span>
+<span class="sd">                `x`, `y`, and `z` are passed as positional args to pcolormesh</span>
+
+<span class="sd">            without `z` we draw a scatter/lines plot (ax.plot):</span>
+<span class="sd">                `x`, `y`, and `fmt` (if present) are passed as positional args</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># TODO some way to specify overlaid axes?</span>
+        <span class="n">ax</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_axes</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;z&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="n">plot_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_draw_pcolormesh</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">plot_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_draw_plot</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_labels</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">prev_default_title</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_default_title</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">traces</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+            <span class="s1">&#39;config&#39;</span><span class="p">:</span> <span class="n">kwargs</span><span class="p">,</span>
+            <span class="s1">&#39;plot_object&#39;</span><span class="p">:</span> <span class="n">plot_object</span>
+        <span class="p">})</span>
+
+        <span class="k">if</span> <span class="n">prev_default_title</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">title</span><span class="o">.</span><span class="n">get_text</span><span class="p">():</span>
+            <span class="c1"># in case the user has updated title, don&#39;t change it anymore</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">title</span><span class="o">.</span><span class="n">set_text</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_default_title</span><span class="p">())</span></div>
+
+    <span class="k">def</span> <span class="nf">_get_axes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">subplots</span><span class="p">[</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;subplot&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">_update_labels</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s1">&#39;x&#39;</span> <span class="ow">in</span> <span class="n">config</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ax</span><span class="o">.</span><span class="n">get_xlabel</span><span class="p">():</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_label</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">]))</span>
+        <span class="k">if</span> <span class="s1">&#39;y&#39;</span> <span class="ow">in</span> <span class="n">config</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ax</span><span class="o">.</span><span class="n">get_ylabel</span><span class="p">():</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_label</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">]))</span>
+
+<div class="viewcode-block" id="MatPlot.update_plot"><a class="viewcode-back" href="../../../auto/qcodes.plots.html#qcodes.plots.qcmatplotlib.MatPlot.update_plot">[docs]</a>    <span class="k">def</span> <span class="nf">update_plot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        update the plot. The DataSets themselves have already been updated</span>
+<span class="sd">        in update, here we just push the changes to the plot.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># matplotlib doesn&#39;t know how to autoscale to a pcolormesh after the</span>
+        <span class="c1"># first draw (relim ignores it...) so we have to do this ourselves</span>
+        <span class="n">bboxes</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subplots</span><span class="p">,</span> <span class="p">[[]</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">subplots</span><span class="p">]))</span>
+
+        <span class="k">for</span> <span class="n">trace</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">traces</span><span class="p">:</span>
+            <span class="n">config</span> <span class="o">=</span> <span class="n">trace</span><span class="p">[</span><span class="s1">&#39;config&#39;</span><span class="p">]</span>
+            <span class="n">plot_object</span> <span class="o">=</span> <span class="n">trace</span><span class="p">[</span><span class="s1">&#39;plot_object&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="s1">&#39;z&#39;</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
+                <span class="c1"># pcolormesh doesn&#39;t seem to allow editing x and y data, only z</span>
+                <span class="c1"># so instead, we&#39;ll remove and re-add the data.</span>
+                <span class="k">if</span> <span class="n">plot_object</span><span class="p">:</span>
+                    <span class="n">plot_object</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+
+                <span class="n">ax</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_axes</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+                <span class="n">plot_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_draw_pcolormesh</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="o">**</span><span class="n">config</span><span class="p">)</span>
+                <span class="n">trace</span><span class="p">[</span><span class="s1">&#39;plot_object&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">plot_object</span>
+
+                <span class="k">if</span> <span class="n">plot_object</span><span class="p">:</span>
+                    <span class="n">bboxes</span><span class="p">[</span><span class="n">plot_object</span><span class="o">.</span><span class="n">axes</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="n">plot_object</span><span class="o">.</span><span class="n">get_datalim</span><span class="p">(</span><span class="n">plot_object</span><span class="o">.</span><span class="n">axes</span><span class="o">.</span><span class="n">transData</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">axletter</span> <span class="ow">in</span> <span class="s1">&#39;xy&#39;</span><span class="p">:</span>
+                    <span class="n">setter</span> <span class="o">=</span> <span class="s1">&#39;set_&#39;</span> <span class="o">+</span> <span class="n">axletter</span> <span class="o">+</span> <span class="s1">&#39;data&#39;</span>
+                    <span class="k">if</span> <span class="n">axletter</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
+                        <span class="nb">getattr</span><span class="p">(</span><span class="n">plot_object</span><span class="p">,</span> <span class="n">setter</span><span class="p">)(</span><span class="n">config</span><span class="p">[</span><span class="n">axletter</span><span class="p">])</span>
+
+        <span class="k">for</span> <span class="n">ax</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">subplots</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">ax</span><span class="o">.</span><span class="n">get_autoscale_on</span><span class="p">():</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">relim</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">bboxes</span><span class="p">[</span><span class="n">ax</span><span class="p">]:</span>
+                    <span class="n">bbox</span> <span class="o">=</span> <span class="n">Bbox</span><span class="o">.</span><span class="n">union</span><span class="p">(</span><span class="n">bboxes</span><span class="p">[</span><span class="n">ax</span><span class="p">])</span>
+                    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">ax</span><span class="o">.</span><span class="n">dataLim</span><span class="p">)):</span>
+                        <span class="c1"># should take care of the case of lines + heatmaps</span>
+                        <span class="c1"># where there&#39;s already a finite dataLim from relim</span>
+                        <span class="n">ax</span><span class="o">.</span><span class="n">dataLim</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">Bbox</span><span class="o">.</span><span class="n">union</span><span class="p">(</span><span class="n">ax</span><span class="o">.</span><span class="n">dataLim</span><span class="p">,</span> <span class="n">bbox</span><span class="p">))</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="c1"># when there&#39;s only a heatmap, relim gives inf bounds</span>
+                        <span class="c1"># so just completely overwrite it</span>
+                        <span class="n">ax</span><span class="o">.</span><span class="n">dataLim</span> <span class="o">=</span> <span class="n">bbox</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">autoscale</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">fig</span><span class="o">.</span><span class="n">canvas</span><span class="o">.</span><span class="n">draw</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">_draw_plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subplot</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="c1"># NOTE(alexj)stripping out subplot because which subplot we&#39;re in is already</span>
+        <span class="c1"># described by ax, and it&#39;s not a kwarg to matplotlib&#39;s ax.plot. But I</span>
+        <span class="c1"># didn&#39;t want to strip it out of kwargs earlier because it should stay</span>
+        <span class="c1"># part of trace[&#39;config&#39;].</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="p">[</span><span class="n">arg</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="p">[</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">fmt</span><span class="p">]</span> <span class="k">if</span> <span class="n">arg</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+        <span class="n">line</span><span class="p">,</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">line</span>
+
+    <span class="k">def</span> <span class="nf">_draw_pcolormesh</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subplot</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="c1"># NOTE(alexj)stripping out subplot because which subplot we&#39;re in is already</span>
+        <span class="c1"># described by ax, and it&#39;s not a kwarg to matplotlib&#39;s ax.plot. But I</span>
+        <span class="c1"># didn&#39;t want to strip it out of kwargs earlier because it should stay</span>
+        <span class="c1"># part of trace[&#39;config&#39;].</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="p">[</span><span class="n">masked_invalid</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="p">[</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">arg</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">getmask</span><span class="p">(</span><span class="n">arg</span><span class="p">)):</span>
+                <span class="c1"># if any entire array is masked, don&#39;t draw at all</span>
+                <span class="c1"># there&#39;s nothing to draw, and anyway it throws a warning</span>
+                <span class="k">return</span> <span class="kc">False</span>
+        <span class="n">pc</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">pcolormesh</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="s1">&#39;qcodes_colorbar&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span>
+            <span class="c1"># update_normal doesn&#39;t seem to work...</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">qcodes_colorbar</span><span class="o">.</span><span class="n">update_bruteforce</span><span class="p">(</span><span class="n">pc</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># TODO: what if there are several colormeshes on this subplot,</span>
+            <span class="c1"># do they get the same colorscale?</span>
+            <span class="c1"># We should make sure they do, and have it include</span>
+            <span class="c1"># the full range of both.</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">qcodes_colorbar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">pc</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
+
+            <span class="c1"># ideally this should have been in _update_labels, but</span>
+            <span class="c1"># the colorbar doesn&#39;t necessarily exist there.</span>
+            <span class="c1"># I guess we could create the colorbar no matter what,</span>
+            <span class="c1"># and just give it a dummy mappable to start, so we could</span>
+            <span class="c1"># put this where it belongs.</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">qcodes_colorbar</span><span class="o">.</span><span class="n">set_label</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_label</span><span class="p">(</span><span class="n">z</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">pc</span>
+
+<div class="viewcode-block" id="MatPlot.save"><a class="viewcode-back" href="../../../auto/qcodes.plots.html#qcodes.plots.qcmatplotlib.MatPlot.save">[docs]</a>    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Save current plot to filename, by default</span>
+<span class="sd">        to the location corresponding to the default </span>
+<span class="sd">        title.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            filename (Optional[str]): Location of the file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">default</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">.png&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_default_title</span><span class="p">())</span>
+        <span class="n">filename</span> <span class="o">=</span> <span class="n">filename</span> <span class="ow">or</span> <span class="n">default</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.1.2',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

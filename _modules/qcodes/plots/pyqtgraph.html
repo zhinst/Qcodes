@@ -1,0 +1,610 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>qcodes.plots.pyqtgraph &mdash; QCoDeS 0.1.2 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../search.html"/>
+    <link rel="top" title="QCoDeS 0.1.2 documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> QCoDeS
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1.2
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../start/index.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../help.html">Get Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../user/index.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../community/index.html">Community Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/index.html">Classes and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../auto/qcodes.instrument_drivers.html">qcodes.instrument_drivers package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../roadmap.html">Qcodes project plan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changes/index.html">Changelogs</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../../index.html">QCoDeS</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      
+    <li>qcodes.plots.pyqtgraph</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for qcodes.plots.pyqtgraph</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Live plotting using pyqtgraph</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pyqtgraph</span> <span class="k">as</span> <span class="nn">pg</span>
+<span class="kn">import</span> <span class="nn">pyqtgraph.multiprocess</span> <span class="k">as</span> <span class="nn">pgmp</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">namedtuple</span>
+
+<span class="kn">from</span> <span class="nn">.base</span> <span class="k">import</span> <span class="n">BasePlot</span>
+<span class="kn">from</span> <span class="nn">.colors</span> <span class="k">import</span> <span class="n">color_cycle</span><span class="p">,</span> <span class="n">colorscales</span>
+
+
+<span class="n">TransformState</span> <span class="o">=</span> <span class="n">namedtuple</span><span class="p">(</span><span class="s1">&#39;TransformState&#39;</span><span class="p">,</span> <span class="s1">&#39;translate scale revisit&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="QtPlot"><a class="viewcode-back" href="../../../auto/qcodes.plots.html#qcodes.plots.pyqtgraph.QtPlot">[docs]</a><span class="k">class</span> <span class="nc">QtPlot</span><span class="p">(</span><span class="n">BasePlot</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Plot x/y lines or x/y/z heatmap data. The first trace may be included</span>
+<span class="sd">    in the constructor, other traces can be added with QtPlot.add().</span>
+
+<span class="sd">    For information on how x/y/z *args are handled see add() in the base</span>
+<span class="sd">    plotting class.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        *args: shortcut to provide the x/y/z data. See BasePlot.add</span>
+
+<span class="sd">        figsize: (width, height) tuple in pixels to pass to GraphicsWindow</span>
+<span class="sd">            default (1000, 600)</span>
+<span class="sd">        interval: period in seconds between update checks</span>
+<span class="sd">            default 0.25</span>
+<span class="sd">        theme: tuple of (foreground_color, background_color), where each is</span>
+<span class="sd">            a valid Qt color. default (dark gray, white), opposite the pyqtgraph</span>
+<span class="sd">            default of (white, black)</span>
+
+<span class="sd">        **kwargs: passed along to QtPlot.add() to add the first data trace</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">proc</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">rpg</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="QtPlot.__init__"><a class="viewcode-back" href="../../../api/generated/qcodes.plots.pyqtgraph.QtPlot.html#qcodes.plots.pyqtgraph.QtPlot.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">600</span><span class="p">),</span> <span class="n">interval</span><span class="o">=</span><span class="mf">0.25</span><span class="p">,</span>
+                 <span class="n">windowTitle</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">theme</span><span class="o">=</span><span class="p">((</span><span class="mi">60</span><span class="p">,</span> <span class="mi">60</span><span class="p">,</span> <span class="mi">60</span><span class="p">),</span> <span class="s1">&#39;w&#39;</span><span class="p">),</span> <span class="n">show_window</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">remote</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">interval</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">theme</span> <span class="o">=</span> <span class="n">theme</span>
+
+        <span class="k">if</span> <span class="n">remote</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">proc</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_init_qt</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># overrule the remote pyqtgraph class</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rpg</span> <span class="o">=</span> <span class="n">pg</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">win</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rpg</span><span class="o">.</span><span class="n">GraphicsWindow</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="n">windowTitle</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">win</span><span class="o">.</span><span class="n">setBackground</span><span class="p">(</span><span class="n">theme</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">win</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="o">*</span><span class="n">figsize</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subplots</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">()]</span>
+
+        <span class="k">if</span> <span class="n">args</span> <span class="ow">or</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">show_window</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">win</span><span class="o">.</span><span class="n">hide</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">_init_qt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># starting the process for the pyqtgraph plotting</span>
+        <span class="c1"># You do not want a new process to be created every time you start a</span>
+        <span class="c1"># run, so this only starts once and stores the process in the class</span>
+        <span class="n">pg</span><span class="o">.</span><span class="n">mkQApp</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">proc</span> <span class="o">=</span> <span class="n">pgmp</span><span class="o">.</span><span class="n">QtProcess</span><span class="p">()</span>  <span class="c1"># pyqtgraph multiprocessing</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">rpg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">proc</span><span class="o">.</span><span class="n">_import</span><span class="p">(</span><span class="s1">&#39;pyqtgraph&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="QtPlot.clear"><a class="viewcode-back" href="../../../auto/qcodes.plots.html#qcodes.plots.pyqtgraph.QtPlot.clear">[docs]</a>    <span class="k">def</span> <span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Clears the plot window and removes all subplots and traces</span>
+<span class="sd">        so that the window can be reused.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">win</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">traces</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subplots</span> <span class="o">=</span> <span class="p">[]</span></div>
+
+<div class="viewcode-block" id="QtPlot.add_subplot"><a class="viewcode-back" href="../../../auto/qcodes.plots.html#qcodes.plots.pyqtgraph.QtPlot.add_subplot">[docs]</a>    <span class="k">def</span> <span class="nf">add_subplot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">subplot_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">win</span><span class="o">.</span><span class="n">addPlot</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">side</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="s1">&#39;bottom&#39;</span><span class="p">):</span>
+            <span class="n">ax</span> <span class="o">=</span> <span class="n">subplot_object</span><span class="o">.</span><span class="n">getAxis</span><span class="p">(</span><span class="n">side</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">setPen</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">theme</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">_qcodes_label</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+
+        <span class="k">return</span> <span class="n">subplot_object</span></div>
+
+<div class="viewcode-block" id="QtPlot.add_to_plot"><a class="viewcode-back" href="../../../auto/qcodes.plots.html#qcodes.plots.pyqtgraph.QtPlot.add_to_plot">[docs]</a>    <span class="k">def</span> <span class="nf">add_to_plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subplot</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">subplot</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subplots</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">subplot</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subplots</span><span class="p">)):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">subplots</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">())</span>
+        <span class="n">subplot_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subplots</span><span class="p">[</span><span class="n">subplot</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="s1">&#39;z&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="n">plot_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_draw_image</span><span class="p">(</span><span class="n">subplot_object</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">plot_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_draw_plot</span><span class="p">(</span><span class="n">subplot_object</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_labels</span><span class="p">(</span><span class="n">subplot_object</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">prev_default_title</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_default_title</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">traces</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+            <span class="s1">&#39;config&#39;</span><span class="p">:</span> <span class="n">kwargs</span><span class="p">,</span>
+            <span class="s1">&#39;plot_object&#39;</span><span class="p">:</span> <span class="n">plot_object</span>
+        <span class="p">})</span>
+
+        <span class="k">if</span> <span class="n">prev_default_title</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">win</span><span class="o">.</span><span class="n">windowTitle</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">win</span><span class="o">.</span><span class="n">setWindowTitle</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_default_title</span><span class="p">())</span></div>
+
+    <span class="k">def</span> <span class="nf">_draw_plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subplot_object</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                   <span class="n">antialias</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s1">&#39;pen&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">color</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">cycle</span> <span class="o">=</span> <span class="n">color_cycle</span>
+                <span class="n">color</span> <span class="o">=</span> <span class="n">cycle</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">traces</span><span class="p">)</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">cycle</span><span class="p">)]</span>
+            <span class="k">if</span> <span class="n">width</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">width</span> <span class="o">=</span> <span class="mi">2</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;pen&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rpg</span><span class="o">.</span><span class="n">mkPen</span><span class="p">(</span><span class="n">color</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">antialias</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># looks a lot better antialiased, but slows down with many points</span>
+            <span class="c1"># TODO: dynamically update this based on total # of points</span>
+            <span class="n">antialias</span> <span class="o">=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">1000</span><span class="p">)</span>
+
+        <span class="c1"># If a marker symbol is desired use the same color as the line</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">([(</span><span class="s1">&#39;symbol&#39;</span> <span class="ow">in</span> <span class="n">key</span><span class="p">)</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">]):</span>
+            <span class="k">if</span> <span class="s1">&#39;symbolPen&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+                <span class="n">symbol_pen_width</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="k">if</span> <span class="n">antialias</span> <span class="k">else</span> <span class="mf">1.0</span>
+                <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;symbolPen&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rpg</span><span class="o">.</span><span class="n">mkPen</span><span class="p">(</span><span class="s1">&#39;444&#39;</span><span class="p">,</span>
+                                                     <span class="n">width</span><span class="o">=</span><span class="n">symbol_pen_width</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s1">&#39;symbolBrush&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+                <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;symbolBrush&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">color</span>
+
+        <span class="c1"># suppress warnings when there are only NaN to plot</span>
+        <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s1">&#39;ignore&#39;</span><span class="p">,</span> <span class="s1">&#39;All-NaN axis encountered&#39;</span><span class="p">)</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s1">&#39;ignore&#39;</span><span class="p">,</span> <span class="s1">&#39;All-NaN slice encountered&#39;</span><span class="p">)</span>
+            <span class="n">pl</span> <span class="o">=</span> <span class="n">subplot_object</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">_line_data</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span>
+                                     <span class="n">antialias</span><span class="o">=</span><span class="n">antialias</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">pl</span>
+
+    <span class="k">def</span> <span class="nf">_line_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_clean_array</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="p">[</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">]</span> <span class="k">if</span> <span class="n">arg</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">_draw_image</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subplot_object</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;hot&#39;</span><span class="p">,</span>
+                    <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">img</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rpg</span><span class="o">.</span><span class="n">ImageItem</span><span class="p">()</span>
+        <span class="n">subplot_object</span><span class="o">.</span><span class="n">addItem</span><span class="p">(</span><span class="n">img</span><span class="p">)</span>
+
+        <span class="n">hist</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rpg</span><span class="o">.</span><span class="n">HistogramLUTItem</span><span class="p">()</span>
+        <span class="n">hist</span><span class="o">.</span><span class="n">setImageItem</span><span class="p">(</span><span class="n">img</span><span class="p">)</span>
+        <span class="n">hist</span><span class="o">.</span><span class="n">axis</span><span class="o">.</span><span class="n">setPen</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">theme</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">if</span> <span class="s1">&#39;zlabel&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>  <span class="c1"># used to specify a custom zlabel</span>
+            <span class="n">hist</span><span class="o">.</span><span class="n">axis</span><span class="o">.</span><span class="n">setLabel</span><span class="p">(</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;zlabel&#39;</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>  <span class="c1"># otherwise extracts the label from the dataarray</span>
+            <span class="n">hist</span><span class="o">.</span><span class="n">axis</span><span class="o">.</span><span class="n">setLabel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_label</span><span class="p">(</span><span class="n">z</span><span class="p">))</span>
+        <span class="c1"># TODO - ensure this goes next to the correct subplot?</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">win</span><span class="o">.</span><span class="n">addItem</span><span class="p">(</span><span class="n">hist</span><span class="p">)</span>
+
+        <span class="n">plot_object</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">img</span><span class="p">,</span>
+            <span class="s1">&#39;hist&#39;</span><span class="p">:</span> <span class="n">hist</span><span class="p">,</span>
+            <span class="s1">&#39;histlevels&#39;</span><span class="p">:</span> <span class="n">hist</span><span class="o">.</span><span class="n">getLevels</span><span class="p">(),</span>
+            <span class="s1">&#39;cmap&#39;</span><span class="p">:</span> <span class="n">cmap</span><span class="p">,</span>
+            <span class="s1">&#39;scales&#39;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="n">TransformState</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                <span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="n">TransformState</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_image</span><span class="p">(</span><span class="n">plot_object</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="n">x</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="n">y</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">:</span> <span class="n">z</span><span class="p">})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_cmap</span><span class="p">(</span><span class="n">plot_object</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">plot_object</span>
+
+    <span class="k">def</span> <span class="nf">_update_image</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">plot_object</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;z&#39;</span><span class="p">]</span>
+        <span class="n">img</span> <span class="o">=</span> <span class="n">plot_object</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span>
+        <span class="n">hist</span> <span class="o">=</span> <span class="n">plot_object</span><span class="p">[</span><span class="s1">&#39;hist&#39;</span><span class="p">]</span>
+        <span class="n">scales</span> <span class="o">=</span> <span class="n">plot_object</span><span class="p">[</span><span class="s1">&#39;scales&#39;</span><span class="p">]</span>
+
+        <span class="c1"># make sure z is a *new* numpy float array (pyqtgraph barfs on ints),</span>
+        <span class="c1"># and replace nan with minimum val bcs I can&#39;t figure out how to make</span>
+        <span class="c1"># pyqtgraph handle nans - though the source does hint at a way:</span>
+        <span class="c1"># http://www.pyqtgraph.org/documentation/_modules/pyqtgraph/widgets/ColorMapWidget.html</span>
+        <span class="c1"># see class RangeColorMapItem</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asfarray</span><span class="p">(</span><span class="n">z</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+        <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s1">&#39;error&#39;</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">z_range</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nanmin</span><span class="p">(</span><span class="n">z</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmax</span><span class="p">(</span><span class="n">z</span><span class="p">))</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="c1"># we get a warning here when z is entirely NaN</span>
+                <span class="c1"># nothing to plot, so give up.</span>
+                <span class="k">return</span>
+        <span class="n">z</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">z</span><span class="p">))]</span> <span class="o">=</span> <span class="n">z_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="n">hist_range</span> <span class="o">=</span> <span class="n">hist</span><span class="o">.</span><span class="n">getLevels</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">hist_range</span> <span class="o">==</span> <span class="n">plot_object</span><span class="p">[</span><span class="s1">&#39;histlevels&#39;</span><span class="p">]:</span>
+            <span class="n">plot_object</span><span class="p">[</span><span class="s1">&#39;histlevels&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">z_range</span>
+            <span class="n">hist</span><span class="o">.</span><span class="n">setLevels</span><span class="p">(</span><span class="o">*</span><span class="n">z_range</span><span class="p">)</span>
+            <span class="n">hist_range</span> <span class="o">=</span> <span class="n">z_range</span>
+
+        <span class="n">img</span><span class="o">.</span><span class="n">setImage</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_clean_array</span><span class="p">(</span><span class="n">z</span><span class="p">),</span> <span class="n">levels</span><span class="o">=</span><span class="n">hist_range</span><span class="p">)</span>
+
+        <span class="n">scales_changed</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">for</span> <span class="n">axletter</span><span class="p">,</span> <span class="n">axscale</span> <span class="ow">in</span> <span class="n">scales</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">axscale</span><span class="o">.</span><span class="n">revisit</span><span class="p">:</span>
+                <span class="n">axdata</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">axletter</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                <span class="n">newscale</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_transform</span><span class="p">(</span><span class="n">axdata</span><span class="p">)</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">newscale</span><span class="o">.</span><span class="n">translate</span> <span class="o">!=</span> <span class="n">axscale</span><span class="o">.</span><span class="n">translate</span> <span class="ow">or</span>
+                        <span class="n">newscale</span><span class="o">.</span><span class="n">scale</span> <span class="o">!=</span> <span class="n">axscale</span><span class="o">.</span><span class="n">scale</span><span class="p">):</span>
+                    <span class="n">scales_changed</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">scales</span><span class="p">[</span><span class="n">axletter</span><span class="p">]</span> <span class="o">=</span> <span class="n">newscale</span>
+
+        <span class="k">if</span> <span class="n">scales_changed</span><span class="p">:</span>
+            <span class="n">img</span><span class="o">.</span><span class="n">resetTransform</span><span class="p">()</span>
+            <span class="n">img</span><span class="o">.</span><span class="n">translate</span><span class="p">(</span><span class="n">scales</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">translate</span><span class="p">,</span> <span class="n">scales</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">translate</span><span class="p">)</span>
+            <span class="n">img</span><span class="o">.</span><span class="n">scale</span><span class="p">(</span><span class="n">scales</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">scale</span><span class="p">,</span> <span class="n">scales</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">scale</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_update_cmap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">plot_object</span><span class="p">):</span>
+        <span class="n">gradient</span> <span class="o">=</span> <span class="n">plot_object</span><span class="p">[</span><span class="s1">&#39;hist&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">gradient</span>
+        <span class="n">gradient</span><span class="o">.</span><span class="n">setColorMap</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cmap</span><span class="p">(</span><span class="n">plot_object</span><span class="p">[</span><span class="s1">&#39;cmap&#39;</span><span class="p">]))</span>
+
+<div class="viewcode-block" id="QtPlot.set_cmap"><a class="viewcode-back" href="../../../auto/qcodes.plots.html#qcodes.plots.pyqtgraph.QtPlot.set_cmap">[docs]</a>    <span class="k">def</span> <span class="nf">set_cmap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmap</span><span class="p">,</span> <span class="n">traces</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">traces</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="n">traces</span> <span class="o">=</span> <span class="p">(</span><span class="n">traces</span><span class="p">,)</span>
+        <span class="k">elif</span> <span class="n">traces</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">traces</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">traces</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">traces</span><span class="p">:</span>
+            <span class="n">plot_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">traces</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s1">&#39;plot_object&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">plot_object</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">or</span> <span class="s1">&#39;hist&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">plot_object</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">plot_object</span><span class="p">[</span><span class="s1">&#39;cmap&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cmap</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_update_cmap</span><span class="p">(</span><span class="n">plot_object</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_get_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">array</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        pyqtgraph seems to only support uniform pixels in image plots.</span>
+
+<span class="sd">        for a given setpoint array, extract the linear transform it implies</span>
+<span class="sd">        if the setpoint data is *not* linear (or close to it), or if it&#39;s not</span>
+<span class="sd">        uniform in any nested dimensions, issue a warning and return the</span>
+<span class="sd">        default transform of 0, 1</span>
+
+<span class="sd">        returns namedtuple TransformState(translate, scale, revisit)</span>
+
+<span class="sd">        in pyqtgraph:</span>
+<span class="sd">        translate means how many pixels to shift the image, away</span>
+<span class="sd">            from the bottom or left edge being at zero on the axis</span>
+<span class="sd">        scale means the data delta</span>
+
+<span class="sd">        revisit is True if we just don&#39;t have enough info to scale yet,</span>
+<span class="sd">        but we might later.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">array</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">TransformState</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># do we have enough confidence in the setpoint data we&#39;ve seen</span>
+        <span class="c1"># so far that we don&#39;t have to repeat this as more data comes in?</span>
+        <span class="n">revisit</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="c1"># somewhat arbitrary - if the first 20% of the data or at least</span>
+        <span class="c1"># 10 rows is uniform, assume it&#39;s uniform thereafter</span>
+        <span class="n">MINROWS</span> <span class="o">=</span> <span class="mi">10</span>
+        <span class="n">MINFRAC</span> <span class="o">=</span> <span class="mf">0.2</span>
+
+        <span class="c1"># maximum setpoint deviation from linear to accept is 10% of a pixel</span>
+        <span class="n">MAXPX</span> <span class="o">=</span> <span class="mf">0.1</span>
+
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">array</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s1">&#39;__len__&#39;</span><span class="p">):</span>
+            <span class="c1"># 2D array: check that all (non-empty) elements are congruent</span>
+            <span class="n">inner_len</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">row</span><span class="p">)</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">array</span><span class="p">)</span>
+            <span class="n">collapsed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">]</span> <span class="o">*</span> <span class="n">inner_len</span><span class="p">)</span>
+            <span class="n">rows_before_trusted</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">MINROWS</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">array</span><span class="p">)</span> <span class="o">*</span> <span class="n">MINFRAC</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">array</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">row</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">val</span><span class="p">):</span>
+                        <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">rows_before_trusted</span><span class="p">:</span>
+                            <span class="n">revisit</span> <span class="o">=</span> <span class="kc">True</span>
+                        <span class="k">continue</span>
+                    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">collapsed</span><span class="p">[</span><span class="n">j</span><span class="p">]):</span>
+                        <span class="n">collapsed</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
+                    <span class="k">elif</span> <span class="n">val</span> <span class="o">!=</span> <span class="n">collapsed</span><span class="p">[</span><span class="n">j</span><span class="p">]:</span>
+                        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                            <span class="s1">&#39;nonuniform nested setpoint array passed to &#39;</span>
+                            <span class="s1">&#39;pyqtgraph. ignoring, using default scaling.&#39;</span><span class="p">)</span>
+                        <span class="k">return</span> <span class="n">TransformState</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">collapsed</span> <span class="o">=</span> <span class="n">array</span>
+
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">collapsed</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+            <span class="n">revisit</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="n">indices_setpoints</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="p">((</span><span class="n">i</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">collapsed</span><span class="p">)</span>
+                                     <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">s</span><span class="p">))))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">indices_setpoints</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">TransformState</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">revisit</span><span class="p">)</span>
+
+        <span class="n">indices</span><span class="p">,</span> <span class="n">setpoints</span> <span class="o">=</span> <span class="n">indices_setpoints</span>
+        <span class="n">npts</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">npts</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">indices</span> <span class="o">=</span> <span class="n">indices</span> <span class="o">+</span> <span class="p">(</span><span class="n">indices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,)</span>
+            <span class="n">setpoints</span> <span class="o">=</span> <span class="n">setpoints</span> <span class="o">+</span> <span class="p">(</span><span class="n">setpoints</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,)</span>
+
+        <span class="n">i0</span> <span class="o">=</span> <span class="n">indices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">s0</span> <span class="o">=</span> <span class="n">setpoints</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">total_di</span> <span class="o">=</span> <span class="n">indices</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">i0</span>
+        <span class="n">total_ds</span> <span class="o">=</span> <span class="n">setpoints</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">s0</span>
+
+        <span class="k">if</span> <span class="n">total_ds</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;zero setpoint range passed to pyqtgraph. &#39;</span>
+                          <span class="s1">&#39;ignoring, using default scaling.&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">TransformState</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">indices</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">setpoints</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]):</span>
+            <span class="n">icalc</span> <span class="o">=</span> <span class="n">i0</span> <span class="o">+</span> <span class="p">(</span><span class="n">s</span> <span class="o">-</span> <span class="n">s0</span><span class="p">)</span> <span class="o">*</span> <span class="n">total_di</span> <span class="o">/</span> <span class="n">total_ds</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">i</span> <span class="o">-</span> <span class="n">icalc</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">MAXPX</span><span class="p">:</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;nonlinear setpoint array passed to pyqtgraph. &#39;</span>
+                              <span class="s1">&#39;ignoring, using default scaling.&#39;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">TransformState</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+        <span class="n">scale</span> <span class="o">=</span> <span class="n">total_ds</span> <span class="o">/</span> <span class="n">total_di</span>
+        <span class="c1"># extra 0.5 translation to get the first setpoint at the center of</span>
+        <span class="c1"># the first pixel</span>
+        <span class="n">translate</span> <span class="o">=</span> <span class="n">s0</span> <span class="o">-</span> <span class="p">(</span><span class="n">i0</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">*</span> <span class="n">scale</span>
+
+        <span class="k">return</span> <span class="n">TransformState</span><span class="p">(</span><span class="n">translate</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">revisit</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_update_labels</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subplot_object</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Updates x and y labels, by default tries to extract label from</span>
+<span class="sd">        the DataArray objects located in the trace config. Custom labels</span>
+<span class="sd">        can be specified the **kwargs &quot;xlabel&quot; and &quot;ylabel&quot;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">axletter</span><span class="p">,</span> <span class="n">side</span> <span class="ow">in</span> <span class="p">((</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;bottom&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;left&#39;</span><span class="p">)):</span>
+            <span class="n">ax</span> <span class="o">=</span> <span class="n">subplot_object</span><span class="o">.</span><span class="n">getAxis</span><span class="p">(</span><span class="n">side</span><span class="p">)</span>
+            <span class="c1"># pyqtgraph doesn&#39;t seem able to get labels, only set</span>
+            <span class="c1"># so we&#39;ll store it in the axis object and hope the user</span>
+            <span class="c1"># doesn&#39;t set it separately before adding all traces</span>
+            <span class="k">if</span> <span class="n">axletter</span><span class="o">+</span><span class="s1">&#39;label&#39;</span> <span class="ow">in</span> <span class="n">config</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ax</span><span class="o">.</span><span class="n">_qcodes_label</span><span class="p">:</span>
+                <span class="n">label</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="n">axletter</span><span class="o">+</span><span class="s1">&#39;label&#39;</span><span class="p">]</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">_qcodes_label</span> <span class="o">=</span> <span class="n">label</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">setLabel</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">axletter</span> <span class="ow">in</span> <span class="n">config</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ax</span><span class="o">.</span><span class="n">_qcodes_label</span><span class="p">:</span>
+                <span class="n">label</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_label</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="n">axletter</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">label</span><span class="p">:</span>
+                    <span class="n">ax</span><span class="o">.</span><span class="n">_qcodes_label</span> <span class="o">=</span> <span class="n">label</span>
+                    <span class="n">ax</span><span class="o">.</span><span class="n">setLabel</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
+
+<div class="viewcode-block" id="QtPlot.update_plot"><a class="viewcode-back" href="../../../auto/qcodes.plots.html#qcodes.plots.pyqtgraph.QtPlot.update_plot">[docs]</a>    <span class="k">def</span> <span class="nf">update_plot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">trace</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">traces</span><span class="p">:</span>
+            <span class="n">config</span> <span class="o">=</span> <span class="n">trace</span><span class="p">[</span><span class="s1">&#39;config&#39;</span><span class="p">]</span>
+            <span class="n">plot_object</span> <span class="o">=</span> <span class="n">trace</span><span class="p">[</span><span class="s1">&#39;plot_object&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="s1">&#39;z&#39;</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_update_image</span><span class="p">(</span><span class="n">plot_object</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">plot_object</span><span class="o">.</span><span class="n">setData</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">_line_data</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">],</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">]))</span></div>
+
+    <span class="k">def</span> <span class="nf">_clean_array</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">array</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        we can&#39;t send a DataArray to remote pyqtgraph for some reason,</span>
+<span class="sd">        so send the plain numpy array</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">array</span><span class="p">,</span> <span class="s1">&#39;ndarray&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">array</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">array</span><span class="o">.</span><span class="n">ndarray</span>
+        <span class="k">return</span> <span class="n">array</span>
+
+    <span class="k">def</span> <span class="nf">_cmap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scale</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">scale</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">scale</span> <span class="ow">in</span> <span class="n">colorscales</span><span class="p">:</span>
+                <span class="n">values</span><span class="p">,</span> <span class="n">colors</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">colorscales</span><span class="p">[</span><span class="n">scale</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">scale</span> <span class="o">+</span> <span class="s1">&#39; not found in colorscales&#39;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">scale</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">values</span><span class="p">,</span> <span class="n">colors</span> <span class="o">=</span> <span class="n">scale</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">rpg</span><span class="o">.</span><span class="n">ColorMap</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">colors</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_repr_png_</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a png representation of the current window.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">win</span><span class="o">.</span><span class="n">grab</span><span class="p">()</span>
+        <span class="n">byte_array</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rpg</span><span class="o">.</span><span class="n">QtCore</span><span class="o">.</span><span class="n">QByteArray</span><span class="p">()</span>
+        <span class="n">buffer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rpg</span><span class="o">.</span><span class="n">QtCore</span><span class="o">.</span><span class="n">QBuffer</span><span class="p">(</span><span class="n">byte_array</span><span class="p">)</span>
+        <span class="n">buffer</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rpg</span><span class="o">.</span><span class="n">QtCore</span><span class="o">.</span><span class="n">QIODevice</span><span class="o">.</span><span class="n">ReadWrite</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">buffer</span><span class="p">,</span> <span class="s1">&#39;PNG&#39;</span><span class="p">)</span>
+        <span class="n">buffer</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">return</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">byte_array</span><span class="o">.</span><span class="n">_getValue</span><span class="p">())</span>
+    
+<div class="viewcode-block" id="QtPlot.save"><a class="viewcode-back" href="../../../auto/qcodes.plots.html#qcodes.plots.pyqtgraph.QtPlot.save">[docs]</a>    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Save current plot to filename, by default</span>
+<span class="sd">        to the location corresponding to the default </span>
+<span class="sd">        title.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            filename (Optional[str]): Location of the file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">default</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">.png&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_default_title</span><span class="p">())</span>
+        <span class="n">filename</span> <span class="o">=</span> <span class="n">filename</span> <span class="ow">or</span> <span class="n">default</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">win</span><span class="o">.</span><span class="n">grab</span><span class="p">()</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;PNG&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.1.2',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

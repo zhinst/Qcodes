@@ -30,6 +30,9 @@
   
 
   
+        <link rel="index" title="Index"
+              href="../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../search.html"/>
     <link rel="top" title="QCoDeS 0.1.2 documentation" href="../../../index.html"/>
         <link rel="up" title="Module code" href="../../index.html"/> 
 
@@ -134,28 +137,28 @@
            <div itemprop="articleBody">
             
   <h1>Source code for qcodes.tests.test_multiprocessing</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span> <span class="nn">unittest</span> <span class="kn">import</span> <span class="n">TestCase</span><span class="p">,</span> <span class="n">skipIf</span>
+<span></span><span class="kn">from</span> <span class="nn">unittest</span> <span class="k">import</span> <span class="n">TestCase</span><span class="p">,</span> <span class="n">skipIf</span>
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">re</span>
 <span class="kn">import</span> <span class="nn">sys</span>
-<span class="kn">import</span> <span class="nn">multiprocessing</span> <span class="kn">as</span> <span class="nn">mp</span>
-<span class="kn">from</span> <span class="nn">queue</span> <span class="kn">import</span> <span class="n">Empty</span>
-<span class="kn">from</span> <span class="nn">unittest.mock</span> <span class="kn">import</span> <span class="n">patch</span>
+<span class="kn">import</span> <span class="nn">multiprocessing</span> <span class="k">as</span> <span class="nn">mp</span>
+<span class="kn">from</span> <span class="nn">queue</span> <span class="k">import</span> <span class="n">Empty</span>
+<span class="kn">from</span> <span class="nn">unittest.mock</span> <span class="k">import</span> <span class="n">patch</span>
 
 <span class="kn">import</span> <span class="nn">qcodes</span>
-<span class="kn">from</span> <span class="nn">qcodes.process.helpers</span> <span class="kn">import</span> <span class="n">set_mp_method</span><span class="p">,</span> <span class="n">kill_queue</span>
-<span class="kn">from</span> <span class="nn">qcodes.process.qcodes_process</span> <span class="kn">import</span> <span class="n">QcodesProcess</span>
-<span class="kn">from</span> <span class="nn">qcodes.process.stream_queue</span> <span class="kn">import</span> <span class="n">get_stream_queue</span><span class="p">,</span> <span class="n">_SQWriter</span>
-<span class="kn">from</span> <span class="nn">qcodes.process.server</span> <span class="kn">import</span> <span class="n">ServerManager</span><span class="p">,</span> <span class="n">RESPONSE_OK</span><span class="p">,</span> <span class="n">RESPONSE_ERROR</span>
-<span class="kn">import</span> <span class="nn">qcodes.process.helpers</span> <span class="kn">as</span> <span class="nn">qcmp</span>
-<span class="kn">from</span> <span class="nn">qcodes.utils.helpers</span> <span class="kn">import</span> <span class="n">in_notebook</span><span class="p">,</span> <span class="n">LogCapture</span>
-<span class="kn">from</span> <span class="nn">qcodes.utils.timing</span> <span class="kn">import</span> <span class="n">calibrate</span>
+<span class="kn">from</span> <span class="nn">qcodes.process.helpers</span> <span class="k">import</span> <span class="n">set_mp_method</span><span class="p">,</span> <span class="n">kill_queue</span>
+<span class="kn">from</span> <span class="nn">qcodes.process.qcodes_process</span> <span class="k">import</span> <span class="n">QcodesProcess</span>
+<span class="kn">from</span> <span class="nn">qcodes.process.stream_queue</span> <span class="k">import</span> <span class="n">get_stream_queue</span><span class="p">,</span> <span class="n">_SQWriter</span>
+<span class="kn">from</span> <span class="nn">qcodes.process.server</span> <span class="k">import</span> <span class="n">ServerManager</span><span class="p">,</span> <span class="n">RESPONSE_OK</span><span class="p">,</span> <span class="n">RESPONSE_ERROR</span>
+<span class="kn">import</span> <span class="nn">qcodes.process.helpers</span> <span class="k">as</span> <span class="nn">qcmp</span>
+<span class="kn">from</span> <span class="nn">qcodes.utils.helpers</span> <span class="k">import</span> <span class="n">in_notebook</span><span class="p">,</span> <span class="n">LogCapture</span>
+<span class="kn">from</span> <span class="nn">qcodes.utils.timing</span> <span class="k">import</span> <span class="n">calibrate</span>
 
 <span class="n">BREAK_SIGNAL</span> <span class="o">=</span> <span class="s1">&#39;~~BREAK~~&#39;</span>
 
 
 <div class="viewcode-block" id="sqtest_echo"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_multiprocessing.sqtest_echo">[docs]</a><span class="k">class</span> <span class="nc">sqtest_echo</span><span class="p">:</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">delay</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">has_q</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">delay</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">has_q</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">q_out</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">Queue</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">q_err</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">Queue</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="o">=</span> <span class="n">QcodesProcess</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">sqtest_echo_f</span><span class="p">,</span>
@@ -191,7 +194,7 @@
 
 
 <div class="viewcode-block" id="sqtest_echo_f"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_multiprocessing.sqtest_echo_f">[docs]</a><span class="k">def</span> <span class="nf">sqtest_echo_f</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">delay</span><span class="p">,</span> <span class="n">q_out</span><span class="p">,</span> <span class="n">q_err</span><span class="p">,</span> <span class="n">has_q</span><span class="p">):</span>
-    <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
         <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">delay</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">q_out</span><span class="o">.</span><span class="n">empty</span><span class="p">():</span>
@@ -205,14 +208,14 @@
                         <span class="n">get_stream_queue</span><span class="p">()</span><span class="o">.</span><span class="n">disconnect</span><span class="p">()</span>
                     <span class="k">except</span> <span class="ne">RuntimeError</span><span class="p">:</span>
                         <span class="k">pass</span>
-                    <span class="k">print</span><span class="p">(</span><span class="s1">&#39;stdout &#39;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
-                    <span class="k">print</span><span class="p">(</span><span class="s1">&#39;stderr &#39;</span><span class="p">,</span> <span class="nb">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;stdout &#39;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;stderr &#39;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
                 <span class="k">break</span>
 
-            <span class="k">print</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">q_err</span><span class="o">.</span><span class="n">empty</span><span class="p">():</span>
-            <span class="k">print</span><span class="p">(</span><span class="n">q_err</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span> <span class="nb">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span></div>
+            <span class="nb">print</span><span class="p">(</span><span class="n">q_err</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="sqtest_exception"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_multiprocessing.sqtest_exception">[docs]</a><span class="k">def</span> <span class="nf">sqtest_exception</span><span class="p">():</span>
@@ -236,7 +239,7 @@
         <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
             <span class="n">set_mp_method</span><span class="p">(</span><span class="s1">&#39;spoon&#39;</span><span class="p">)</span>
         <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
-            <span class="n">set_mp_method</span><span class="p">(</span><span class="s1">&#39;spoon&#39;</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+            <span class="n">set_mp_method</span><span class="p">(</span><span class="s1">&#39;spoon&#39;</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
         <span class="c1"># change the error we look for to test strange error handling</span>
         <span class="n">mp_err_normal</span> <span class="o">=</span> <span class="n">qcmp</span><span class="o">.</span><span class="n">MP_ERR</span>
@@ -248,23 +251,23 @@
 
 <div class="viewcode-block" id="TestQcodesProcess"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_multiprocessing.TestQcodesProcess">[docs]</a><span class="k">class</span> <span class="nc">TestQcodesProcess</span><span class="p">(</span><span class="n">TestCase</span><span class="p">):</span>
 <div class="viewcode-block" id="TestQcodesProcess.setUp"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_multiprocessing.TestQcodesProcess.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">mp_stats</span> <span class="o">=</span> <span class="n">calibrate</span><span class="p">(</span><span class="n">quiet</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="n">mp_stats</span> <span class="o">=</span> <span class="n">calibrate</span><span class="p">(</span><span class="n">quiet</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">MP_START_DELAY</span> <span class="o">=</span> <span class="n">mp_stats</span><span class="p">[</span><span class="s1">&#39;mp_start_delay&#39;</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">MP_FINISH_DELAY</span> <span class="o">=</span> <span class="n">mp_stats</span><span class="p">[</span><span class="s1">&#39;mp_finish_delay&#39;</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">SLEEP_DELAY</span> <span class="o">=</span> <span class="n">mp_stats</span><span class="p">[</span><span class="s1">&#39;sleep_delay&#39;</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">BLOCKING_TIME</span> <span class="o">=</span> <span class="n">mp_stats</span><span class="p">[</span><span class="s1">&#39;blocking_time&#39;</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sq</span> <span class="o">=</span> <span class="n">get_stream_queue</span><span class="p">()</span></div>
 
-    <span class="nd">@skipIf</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">qcodes</span><span class="p">,</span> <span class="s1">&#39;_IN_NOTEBOOK&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">),</span>
+    <span class="nd">@skipIf</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">qcodes</span><span class="p">,</span> <span class="s1">&#39;_IN_NOTEBOOK&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
             <span class="s1">&#39;called from notebook&#39;</span><span class="p">)</span>
 <div class="viewcode-block" id="TestQcodesProcess.test_not_in_notebook"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_multiprocessing.TestQcodesProcess.test_not_in_notebook">[docs]</a>    <span class="k">def</span> <span class="nf">test_not_in_notebook</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="c1"># below we&#39;ll patch this to True, but make sure that it&#39;s False</span>
         <span class="c1"># in the normal test runner.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">in_notebook</span><span class="p">(),</span> <span class="bp">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">in_notebook</span><span class="p">(),</span> <span class="kc">False</span><span class="p">)</span>
 
         <span class="c1"># and make sure that processes run this way do not use the queue</span>
         <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">sq</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
-            <span class="n">p</span> <span class="o">=</span> <span class="n">sqtest_echo</span><span class="p">(</span><span class="s1">&#39;hidden&#39;</span><span class="p">,</span> <span class="n">has_q</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+            <span class="n">p</span> <span class="o">=</span> <span class="n">sqtest_echo</span><span class="p">(</span><span class="s1">&#39;hidden&#39;</span><span class="p">,</span> <span class="n">has_q</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
             <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">MP_START_DELAY</span><span class="p">)</span>
             <span class="n">p</span><span class="o">.</span><span class="n">send_out</span><span class="p">(</span><span class="s1">&#39;should go to stdout;&#39;</span><span class="p">)</span>
             <span class="n">p</span><span class="o">.</span><span class="n">send_err</span><span class="p">(</span><span class="s1">&#39;should go to stderr;&#39;</span><span class="p">)</span>
@@ -274,7 +277,7 @@
 
     <span class="nd">@patch</span><span class="p">(</span><span class="s1">&#39;qcodes.process.qcodes_process.in_notebook&#39;</span><span class="p">)</span>
 <div class="viewcode-block" id="TestQcodesProcess.test_qcodes_process_exception"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_multiprocessing.TestQcodesProcess.test_qcodes_process_exception">[docs]</a>    <span class="k">def</span> <span class="nf">test_qcodes_process_exception</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_nb_patch</span><span class="p">):</span>
-        <span class="n">in_nb_patch</span><span class="o">.</span><span class="n">return_value</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="n">in_nb_patch</span><span class="o">.</span><span class="n">return_value</span> <span class="o">=</span> <span class="kc">True</span>
 
         <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">sq</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
             <span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;Hamlet&#39;</span>
@@ -293,7 +296,7 @@
             <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.01</span><span class="p">)</span>
             <span class="n">exc_text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sq</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
             <span class="c1"># but we have the exception in the queue</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">maxDiff</span> <span class="o">=</span> <span class="bp">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">maxDiff</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">assertGreaterEqual</span><span class="p">(</span><span class="n">exc_text</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39; ERR&#39;</span><span class="p">),</span> <span class="mi">5</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">exc_text</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s1">&#39;Traceback&#39;</span><span class="p">),</span> <span class="mi">1</span><span class="p">,</span> <span class="n">exc_text</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">exc_text</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s1">&#39;RuntimeError&#39;</span><span class="p">),</span> <span class="mi">2</span><span class="p">)</span>
@@ -301,7 +304,7 @@
 
     <span class="nd">@patch</span><span class="p">(</span><span class="s1">&#39;qcodes.process.qcodes_process.in_notebook&#39;</span><span class="p">)</span>
 <div class="viewcode-block" id="TestQcodesProcess.test_qcodes_process"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_multiprocessing.TestQcodesProcess.test_qcodes_process">[docs]</a>    <span class="k">def</span> <span class="nf">test_qcodes_process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_nb_patch</span><span class="p">):</span>
-        <span class="n">in_nb_patch</span><span class="o">.</span><span class="n">return_value</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="n">in_nb_patch</span><span class="o">.</span><span class="n">return_value</span> <span class="o">=</span> <span class="kc">True</span>
 
         <span class="n">queue_format</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
             <span class="s1">&#39;^\[\d\d:\d\d:\d\d\.\d\d\d p\d( ERR)?\] [^\[\]]*$&#39;</span><span class="p">)</span>
@@ -313,7 +316,7 @@
 
             <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sq</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
 
-            <span class="n">procNames</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;&lt;{}&gt;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+            <span class="n">procNames</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;&lt;</span><span class="si">{}</span><span class="s1">&gt;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
                          <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;p1&#39;</span><span class="p">,</span> <span class="s1">&#39;p2&#39;</span><span class="p">)]</span>
 
             <span class="n">reprs</span> <span class="o">=</span> <span class="p">[</span><span class="nb">repr</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">mp</span><span class="o">.</span><span class="n">active_children</span><span class="p">()]</span>
@@ -442,10 +445,10 @@
             <span class="c1"># adding a time string and the stream name</span>
             <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">lines</span><span class="p">:</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">line</span><span class="p">:</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">sq</span><span class="o">.</span><span class="n">queue</span><span class="o">.</span><span class="n">empty</span><span class="p">(),</span> <span class="bp">True</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">sq</span><span class="o">.</span><span class="n">queue</span><span class="o">.</span><span class="n">empty</span><span class="p">(),</span> <span class="kc">True</span><span class="p">)</span>
                     <span class="k">continue</span>
 
-                <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">sq</span><span class="o">.</span><span class="n">queue</span><span class="o">.</span><span class="n">empty</span><span class="p">(),</span> <span class="bp">False</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">sq</span><span class="o">.</span><span class="n">queue</span><span class="o">.</span><span class="n">empty</span><span class="p">(),</span> <span class="kc">False</span><span class="p">)</span>
                 <span class="n">timestr</span><span class="p">,</span> <span class="n">stream_name</span><span class="p">,</span> <span class="n">msg</span> <span class="o">=</span> <span class="n">sq</span><span class="o">.</span><span class="n">queue</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">line</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">stream_name</span><span class="p">,</span> <span class="n">sq_name</span><span class="p">)</span>
@@ -459,7 +462,7 @@
 
             <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.01</span><span class="p">)</span>
 
-            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">sq</span><span class="o">.</span><span class="n">queue</span><span class="o">.</span><span class="n">empty</span><span class="p">(),</span> <span class="bp">False</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">sq</span><span class="o">.</span><span class="n">queue</span><span class="o">.</span><span class="n">empty</span><span class="p">(),</span> <span class="kc">False</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">sq</span><span class="o">.</span><span class="n">queue</span><span class="o">.</span><span class="n">get</span><span class="p">()[</span><span class="mi">2</span><span class="p">],</span> <span class="n">new_message</span><span class="p">)</span>
 
             <span class="c1"># test that an error in writing resets stdout and stderr</span>
@@ -586,11 +589,11 @@
 
 <div class="viewcode-block" id="TestServerManager.test_pathological_edge_cases"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_multiprocessing.TestServerManager.test_pathological_edge_cases">[docs]</a>    <span class="k">def</span> <span class="nf">test_pathological_edge_cases</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="c1"># kill_queue should never fail</span>
-        <span class="n">kill_queue</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
+        <span class="n">kill_queue</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
 
         <span class="c1"># and halt should ignore AssertionErrors, which arise in</span>
         <span class="c1"># subprocesses when trying to kill a different subprocess</span>
-        <span class="n">sm</span> <span class="o">=</span> <span class="n">ServerManagerTest</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;test&#39;</span><span class="p">,</span> <span class="n">server_class</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+        <span class="n">sm</span> <span class="o">=</span> <span class="n">ServerManagerTest</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;test&#39;</span><span class="p">,</span> <span class="n">server_class</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 
         <span class="k">class</span> <span class="nc">HorribleProcess</span><span class="p">:</span>
             <span class="k">def</span> <span class="nf">is_alive</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
