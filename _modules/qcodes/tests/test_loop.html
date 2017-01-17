@@ -152,6 +152,7 @@
 <span class="kn">from</span> <span class="nn">qcodes.data.io</span> <span class="k">import</span> <span class="n">DiskIO</span>
 <span class="kn">from</span> <span class="nn">qcodes.data.data_array</span> <span class="k">import</span> <span class="n">DataArray</span>
 <span class="kn">from</span> <span class="nn">qcodes.data.manager</span> <span class="k">import</span> <span class="n">get_data_manager</span>
+<span class="kn">from</span> <span class="nn">qcodes.instrument.mock</span> <span class="k">import</span> <span class="n">ArrayGetter</span>
 <span class="kn">from</span> <span class="nn">qcodes.instrument.parameter</span> <span class="k">import</span> <span class="n">Parameter</span><span class="p">,</span> <span class="n">ManualParameter</span>
 <span class="kn">from</span> <span class="nn">qcodes.process.helpers</span> <span class="k">import</span> <span class="n">kill_processes</span>
 <span class="kn">from</span> <span class="nn">qcodes.process.qcodes_process</span> <span class="k">import</span> <span class="n">QcodesProcess</span>
@@ -218,7 +219,7 @@
         <span class="c1"># you can only do in-memory loops if you set data_manager=False</span>
         <span class="c1"># TODO: this is the one place we don&#39;t do quiet=True - test that we</span>
         <span class="c1"># really print stuff?</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loop</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loop</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">data_manager</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">check_empty_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
 
         <span class="c1"># wait for process to finish (ensures that this was run in the bg,</span>
@@ -257,6 +258,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">check_loop_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="TestMockInstLoop.test_background_no_datamanager"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestMockInstLoop.test_background_no_datamanager">[docs]</a>    <span class="k">def</span> <span class="nf">test_background_no_datamanager</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># We don&#39;t support syncing data from a background process</span>
+        <span class="c1"># if not using a datamanager. See warning in ActiveLoop.run()</span>
+        <span class="c1"># So we expect the data to be empty even after running.</span>
         <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loop</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">location</span><span class="p">,</span>
                              <span class="n">background</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                              <span class="n">data_manager</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -266,7 +270,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">loop</span><span class="o">.</span><span class="n">process</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
 
         <span class="n">data</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">check_loop_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_empty_data</span><span class="p">(</span><span class="n">data</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="TestMockInstLoop.test_foreground_and_datamanager"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestMockInstLoop.test_foreground_and_datamanager">[docs]</a>    <span class="k">def</span> <span class="nf">test_foreground_and_datamanager</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loop</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -339,8 +343,18 @@
         <span class="c1"># foreground *after* the background clears its .process</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="n">loop</span><span class="p">,</span> <span class="s1">&#39;process&#39;</span><span class="p">))</span>
         <span class="n">loop</span><span class="o">.</span><span class="n">run_temp</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="n">loop</span><span class="p">,</span> <span class="s1">&#39;process&#39;</span><span class="p">))</span></div></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="n">loop</span><span class="p">,</span> <span class="s1">&#39;process&#39;</span><span class="p">))</span></div>
 
+<div class="viewcode-block" id="TestMockInstLoop.test_sync_no_overwrite"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.TestMockInstLoop.test_sync_no_overwrite">[docs]</a>    <span class="k">def</span> <span class="nf">test_sync_no_overwrite</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Test fix for 380, this tests that the setpoints are not incorrectly</span>
+        <span class="c1"># overwritten by data_set.sync() for this to happen with the original code</span>
+        <span class="c1"># the delay must be larger than the write period otherwise sync is a no opt.</span>
+
+        <span class="n">loop</span> <span class="o">=</span> <span class="n">Loop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gates</span><span class="o">.</span><span class="n">chan1</span><span class="o">.</span><span class="n">sweep</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">delay</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">each</span><span class="p">(</span><span class="n">ArrayGetter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">meter</span><span class="o">.</span><span class="n">amplitude</span><span class="p">,</span>
+                                                                                 <span class="bp">self</span><span class="o">.</span><span class="n">gates</span><span class="o">.</span><span class="n">chan2</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">1</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="mf">0.000001</span><span class="p">))</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">get_data_set</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;testsweep&#39;</span><span class="p">,</span> <span class="n">write_period</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)</span>
+        <span class="n">_</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">with_bg_task</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">sync</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+        <span class="k">assert</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">chan2</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">()</span></div></div>
 
 <div class="viewcode-block" id="sleeper"><a class="viewcode-back" href="../../../auto/qcodes.tests.html#qcodes.tests.test_loop.sleeper">[docs]</a><span class="k">def</span> <span class="nf">sleeper</span><span class="p">(</span><span class="n">t</span><span class="p">):</span>
     <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">t</span><span class="p">)</span></div>
