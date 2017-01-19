@@ -140,7 +140,7 @@
 <span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">collections</span>
 
-<span class="kn">from</span> <span class="nn">qcodes.utils.helpers</span> <span class="k">import</span> <span class="n">DelegateAttributes</span><span class="p">,</span> <span class="n">full_class</span>
+<span class="kn">from</span> <span class="nn">qcodes.utils.helpers</span> <span class="k">import</span> <span class="n">DelegateAttributes</span><span class="p">,</span> <span class="n">full_class</span><span class="p">,</span> <span class="n">warn_units</span>
 
 
 <div class="viewcode-block" id="DataArray"><a class="viewcode-back" href="../../../auto/qcodes.data.html#qcodes.DataArray">[docs]</a><span class="k">class</span> <span class="nc">DataArray</span><span class="p">(</span><span class="n">DelegateAttributes</span><span class="p">):</span>
@@ -168,7 +168,7 @@
 <span class="sd">    Args:</span>
 <span class="sd">        parameter (Optional[Parameter]): The parameter whose values will</span>
 <span class="sd">            populate this array, if any. Will copy ``name``, ``full_name``,</span>
-<span class="sd">            ``label``, ``units``, and ``snapshot`` from here unless you</span>
+<span class="sd">            ``label``, ``unit``, and ``snapshot`` from here unless you</span>
 <span class="sd">            provide them explicitly.</span>
 
 <span class="sd">        name (Optional[str]): The short name of this array.</span>
@@ -207,7 +207,9 @@
 <span class="sd">            handle converting this to array_id internally (maybe it</span>
 <span class="sd">            already does?)</span>
 
-<span class="sd">        units (Optional[str]): The units of the values stored in this array.</span>
+<span class="sd">        unit (Optional[str]): The unit of the values stored in this array.</span>
+
+<span class="sd">        units (Optional[str]): DEPRECATED, redirects to ``unit``.</span>
 
 <span class="sd">        is_setpoint (bool): True if this is a setpoint array, False if it</span>
 <span class="sd">            is measured. Default False.</span>
@@ -223,7 +225,7 @@
         <span class="s1">&#39;array_id&#39;</span><span class="p">,</span>
         <span class="s1">&#39;name&#39;</span><span class="p">,</span>
         <span class="s1">&#39;shape&#39;</span><span class="p">,</span>
-        <span class="s1">&#39;units&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;unit&#39;</span><span class="p">,</span>
         <span class="s1">&#39;label&#39;</span><span class="p">,</span>
         <span class="s1">&#39;action_indices&#39;</span><span class="p">,</span>
         <span class="s1">&#39;is_setpoint&#39;</span><span class="p">)</span>
@@ -233,7 +235,7 @@
     <span class="n">COPY_ATTRS_FROM_INPUT</span> <span class="o">=</span> <span class="p">(</span>
         <span class="s1">&#39;name&#39;</span><span class="p">,</span>
         <span class="s1">&#39;label&#39;</span><span class="p">,</span>
-        <span class="s1">&#39;units&#39;</span><span class="p">)</span>
+        <span class="s1">&#39;unit&#39;</span><span class="p">)</span>
 
     <span class="c1"># keys in the parameter snapshot to omit from our snapshot</span>
     <span class="n">SNAP_OMIT_KEYS</span> <span class="o">=</span> <span class="p">(</span>
@@ -247,13 +249,17 @@
 
 <div class="viewcode-block" id="DataArray.__init__"><a class="viewcode-back" href="../../../api/generated/qcodes.DataArray.html#qcodes.DataArray.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameter</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">full_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">snapshot</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">array_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">set_arrays</span><span class="o">=</span><span class="p">(),</span> <span class="n">shape</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">action_indices</span><span class="o">=</span><span class="p">(),</span> <span class="n">units</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">is_setpoint</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                 <span class="n">action_indices</span><span class="o">=</span><span class="p">(),</span> <span class="n">unit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">is_setpoint</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                  <span class="n">preset_data</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">full_name</span> <span class="o">=</span> <span class="n">full_name</span> <span class="ow">or</span> <span class="n">name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">label</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">shape</span> <span class="o">=</span> <span class="n">shape</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">units</span> <span class="o">=</span> <span class="n">units</span>
+        <span class="k">if</span> <span class="n">units</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">warn_units</span><span class="p">(</span><span class="s1">&#39;DataArray&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">unit</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">unit</span> <span class="o">=</span> <span class="n">units</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unit</span> <span class="o">=</span> <span class="n">unit</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">array_id</span> <span class="o">=</span> <span class="n">array_id</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">is_setpoint</span> <span class="o">=</span> <span class="n">is_setpoint</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">action_indices</span> <span class="o">=</span> <span class="n">action_indices</span>
@@ -656,7 +662,12 @@
         <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;synced_index&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">last_index</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">last_index</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">synced_index</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="p">(</span><span class="n">last_index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">ndarray</span><span class="o">.</span><span class="n">size</span></div></div>
+        <span class="k">return</span> <span class="p">(</span><span class="n">last_index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">ndarray</span><span class="o">.</span><span class="n">size</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">units</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">warn_units</span><span class="p">(</span><span class="s1">&#39;DataArray&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">unit</span></div>
 </pre></div>
 
            </div>

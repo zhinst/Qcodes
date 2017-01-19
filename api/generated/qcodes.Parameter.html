@@ -164,73 +164,46 @@
 <h1>qcodes.Parameter<a class="headerlink" href="#qcodes-parameter" title="Permalink to this headline">¶</a></h1>
 <dl class="class">
 <dt id="qcodes.Parameter">
-<em class="property">class </em><code class="descclassname">qcodes.</code><code class="descname">Parameter</code><span class="sig-paren">(</span><em>name=None</em>, <em>names=None</em>, <em>label=None</em>, <em>labels=None</em>, <em>units=None</em>, <em>shape=None</em>, <em>shapes=None</em>, <em>setpoints=None</em>, <em>setpoint_names=None</em>, <em>setpoint_labels=None</em>, <em>vals=None</em>, <em>docstring=None</em>, <em>snapshot_get=True</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qcodes/instrument/parameter.html#Parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#qcodes.Parameter" title="Permalink to this definition">¶</a></dt>
-<dd><p>Define one generic parameter, not necessarily part of
-an instrument. can be settable and/or gettable.</p>
-<p>A settable Parameter has a .set method, and supports only a single value
-at a time (see below)</p>
-<p>A gettable Parameter has a .get method, which may return:</p>
-<ol class="arabic simple">
-<li>a single value</li>
-<li>a sequence of values with different names (for example,
-raw and interpreted, I and Q, several fit parameters...)</li>
-<li>an array of values all with the same name, but at different
-setpoints (for example, a time trace or fourier transform that
-was acquired in the hardware and all sent to the computer at once)</li>
-<li>2 &amp; 3 together: a sequence of arrays. All arrays should be the same
-shape.</li>
-<li>a sequence of differently shaped items</li>
-</ol>
-<p>Because .set only supports a single value, if a Parameter is both
-gettable AND settable, .get should return a single value too (case 1)</p>
-<p>Parameters have a .get_latest method that simply returns the most recent
-set or measured value. This can either be called ( param.get_latest() )
-or used in a Loop as if it were a (gettable-only) parameter itself:</p>
+<em class="property">class </em><code class="descclassname">qcodes.</code><code class="descname">Parameter</code><span class="sig-paren">(</span><em>name</em>, <em>instrument=None</em>, <em>label=None</em>, <em>unit=None</em>, <em>units=None</em>, <em>vals=None</em>, <em>docstring=None</em>, <em>snapshot_get=True</em>, <em>metadata=None</em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qcodes/instrument/parameter.html#Parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#qcodes.Parameter" title="Permalink to this definition">¶</a></dt>
+<dd><p>A parameter that represents a single degree of freedom.
+Not necessarily part of an instrument.</p>
+<p>Subclasses should define either a <code class="docutils literal"><span class="pre">set</span></code> method, a <code class="docutils literal"><span class="pre">get</span></code> method, or
+both.</p>
+<p>Parameters have a <code class="docutils literal"><span class="pre">.get_latest</span></code> method that simply returns the most
+recent set or measured value. This can be called ( <code class="docutils literal"><span class="pre">param.get_latest()</span></code> )
+or used in a <code class="docutils literal"><span class="pre">Loop</span></code> as if it were a (gettable-only) parameter itself:</p>
 <blockquote>
-<div>Loop(...).each(param.get_latest)</div></blockquote>
-<p>The constructor arguments change somewhat between these cases:</p>
-<div class="admonition-todo admonition" id="index-0">
-<p class="first admonition-title">Todo</p>
-<p class="last">no idea how to document such a constructor</p>
-</div>
+<div><code class="docutils literal"><span class="pre">Loop(...).each(param.get_latest)</span></code></div></blockquote>
+<p>Note: If you want <code class="docutils literal"><span class="pre">.get</span></code> or <code class="docutils literal"><span class="pre">.set</span></code> to save the measurement for
+<code class="docutils literal"><span class="pre">.get_latest</span></code>, you must explicitly call <code class="docutils literal"><span class="pre">self._save_val(value)</span></code>
+inside <code class="docutils literal"><span class="pre">.get</span></code> and <code class="docutils literal"><span class="pre">.set</span></code>.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>name</strong> &#8211; (1&amp;3) the local name of this parameter, should be a valid
-identifier, ie no spaces or special characters</li>
-<li><strong>names</strong> &#8211; (2,4,5) a tuple of names</li>
-<li><strong>label</strong> &#8211; (1&amp;3) string to use as an axis label for this parameter
-defaults to name</li>
-<li><strong>labels</strong> &#8211; (2,4,5) a tuple of labels</li>
-<li><strong>units</strong> &#8211; (1&amp;3) string that indicates units of parameter for use in axis
-label and snapshot</li>
-<li><strong>shape</strong> &#8211; (3&amp;4) a tuple of integers for the shape of array returned by
-.get().</li>
-<li><strong>shapes</strong> &#8211; (5) a tuple of tuples, each one as in <cite>shape</cite>.
-Single values should be denoted by None or ()</li>
-<li><strong>setpoints</strong> &#8211; (3,4,5) the setpoints for the returned array of values.
-3&amp;4 - a tuple of arrays. The first array is be 1D, the second 2D,
-etc.
-5 - a tuple of tuples of arrays
-Defaults to integers from zero in each respective direction
-Each may be either a DataArray, a numpy array, or a sequence
-(sequences will be converted to numpy arrays)
-NOTE: if the setpoints will be different each measurement, leave
-this out and return the setpoints (with extra names) in the get.</li>
-<li><strong>setpoint_names</strong> &#8211; (3,4,5) one identifier (like <cite>name</cite>) per setpoint
-array. Ignored if <cite>setpoints</cite> are DataArrays, which already have
-names.</li>
-<li><strong>setpoint_labels</strong> &#8211; (3&amp;4) one label (like <cite>label</cite>) per setpoint array.
-Overridden if <cite>setpoints</cite> are DataArrays and already have labels.</li>
-<li><strong>vals</strong> &#8211; allowed values for setting this parameter (only relevant
-if it has a setter),  defaults to Numbers()</li>
-<li><strong>docstring</strong> (<em>Optional</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/string.html#module-string" title="(in Python v3.6)"><em>string</em></a><em>]</em><em></em>) &#8211; documentation string for the __doc__
+<li><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.6)"><em>str</em></a>) &#8211; the local name of the parameter. Should be a valid
+identifier, ie no spaces or special characters. If this parameter
+is part of an Instrument or Station, this is how it will be
+referenced from that parent, ie <code class="docutils literal"><span class="pre">instrument.name</span></code> or
+<code class="docutils literal"><span class="pre">instrument.parameters[name]</span></code></li>
+<li><strong>instrument</strong> (<em>Optional</em><em>[</em><a class="reference internal" href="qcodes.Instrument.html#qcodes.Instrument" title="qcodes.Instrument"><em>Instrument</em></a><em>]</em><em></em>) &#8211; the instrument this parameter
+belongs to, if any</li>
+<li><strong>label</strong> (<em>Optional</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.6)"><em>str</em></a><em>]</em><em></em>) &#8211; Normally used as the axis label when this
+parameter is graphed, along with <code class="docutils literal"><span class="pre">unit</span></code>.</li>
+<li><strong>unit</strong> (<em>Optional</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.6)"><em>str</em></a><em>]</em><em></em>) &#8211; The unit of measure. Use <code class="docutils literal"><span class="pre">''</span></code> for unitless.</li>
+<li><strong>units</strong> (<em>Optional</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.6)"><em>str</em></a><em>]</em><em></em>) &#8211; DEPRECATED, redirects to <code class="docutils literal"><span class="pre">unit</span></code>.</li>
+<li><strong>vals</strong> (<em>Optional</em><em>[</em><a class="reference internal" href="../../auto/qcodes.utils.html#qcodes.utils.validators.Validator" title="qcodes.utils.validators.Validator"><em>Validator</em></a><em>]</em><em></em>) &#8211; Allowed values for setting this parameter.
+Only relevant if settable. Defaults to <code class="docutils literal"><span class="pre">Numbers()</span></code></li>
+<li><strong>docstring</strong> (<em>Optional</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.6)"><em>str</em></a><em>]</em><em></em>) &#8211; documentation string for the __doc__
 field of the object. The __doc__ field of the instance is used by
 some help systems, but not all</li>
-<li><strong>snapshot_get</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.6)"><em>bool</em></a>) &#8211; Prevent any update to the parameter
-for example if it takes too long to update</li>
+<li><strong>snapshot_get</strong> (<em>Optional</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.6)"><em>bool</em></a><em>]</em><em></em>) &#8211; False prevents any update to the
+parameter during a snapshot, even if the snapshot was called with
+<code class="docutils literal"><span class="pre">update=True</span></code>, for example if it takes too long to update.
+Default True.</li>
+<li><strong>metadata</strong> (<em>Optional</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.6)"><em>dict</em></a><em>]</em><em></em>) &#8211; extra information to include with the
+JSON snapshot of the parameter</li>
 </ul>
 </td>
 </tr>
@@ -238,7 +211,7 @@ for example if it takes too long to update</li>
 </table>
 <dl class="method">
 <dt id="qcodes.Parameter.__init__">
-<code class="descname">__init__</code><span class="sig-paren">(</span><em>name=None</em>, <em>names=None</em>, <em>label=None</em>, <em>labels=None</em>, <em>units=None</em>, <em>shape=None</em>, <em>shapes=None</em>, <em>setpoints=None</em>, <em>setpoint_names=None</em>, <em>setpoint_labels=None</em>, <em>vals=None</em>, <em>docstring=None</em>, <em>snapshot_get=True</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qcodes/instrument/parameter.html#Parameter.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#qcodes.Parameter.__init__" title="Permalink to this definition">¶</a></dt>
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>name</em>, <em>instrument=None</em>, <em>label=None</em>, <em>unit=None</em>, <em>units=None</em>, <em>vals=None</em>, <em>docstring=None</em>, <em>snapshot_get=True</em>, <em>metadata=None</em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qcodes/instrument/parameter.html#Parameter.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#qcodes.Parameter.__init__" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <p class="rubric">Methods</p>
@@ -248,31 +221,28 @@ for example if it takes too long to update</li>
 <col width="90%" />
 </colgroup>
 <tbody valign="top">
-<tr class="row-odd"><td><a class="reference internal" href="#qcodes.Parameter.__init__" title="qcodes.Parameter.__init__"><code class="xref py py-obj docutils literal"><span class="pre">__init__</span></code></a>([name,&nbsp;names,&nbsp;label,&nbsp;labels,&nbsp;...])</td>
+<tr class="row-odd"><td><a class="reference internal" href="#qcodes.Parameter.__init__" title="qcodes.Parameter.__init__"><code class="xref py py-obj docutils literal"><span class="pre">__init__</span></code></a>(name[,&nbsp;instrument,&nbsp;label,&nbsp;unit,&nbsp;...])</td>
 <td></td>
 </tr>
-<tr class="row-even"><td><code class="xref py py-obj docutils literal"><span class="pre">get</span></code>()</td>
-<td></td>
-</tr>
-<tr class="row-odd"><td><code class="xref py py-obj docutils literal"><span class="pre">get_attrs</span></code>()</td>
+<tr class="row-even"><td><code class="xref py py-obj docutils literal"><span class="pre">get_attrs</span></code>()</td>
 <td>Attributes recreated as properties in the RemoteParameter proxy.</td>
 </tr>
-<tr class="row-even"><td><code class="xref py py-obj docutils literal"><span class="pre">load_metadata</span></code>(metadata)</td>
+<tr class="row-odd"><td><code class="xref py py-obj docutils literal"><span class="pre">load_metadata</span></code>(metadata)</td>
 <td>Load metadata</td>
 </tr>
-<tr class="row-odd"><td><code class="xref py py-obj docutils literal"><span class="pre">set_validator</span></code>(vals)</td>
+<tr class="row-even"><td><code class="xref py py-obj docutils literal"><span class="pre">set_validator</span></code>(vals)</td>
 <td>Set a validator <cite>vals</cite> for this parameter.</td>
 </tr>
-<tr class="row-even"><td><code class="xref py py-obj docutils literal"><span class="pre">snapshot</span></code>([update])</td>
+<tr class="row-odd"><td><code class="xref py py-obj docutils literal"><span class="pre">snapshot</span></code>([update])</td>
 <td>Decorate a snapshot dictionary with metadata.</td>
 </tr>
-<tr class="row-odd"><td><code class="xref py py-obj docutils literal"><span class="pre">snapshot_base</span></code>([update])</td>
+<tr class="row-even"><td><code class="xref py py-obj docutils literal"><span class="pre">snapshot_base</span></code>([update])</td>
 <td>State of the parameter as a JSON-compatible dict.</td>
 </tr>
-<tr class="row-even"><td><code class="xref py py-obj docutils literal"><span class="pre">sweep</span></code>(start,&nbsp;stop[,&nbsp;step,&nbsp;num])</td>
+<tr class="row-odd"><td><code class="xref py py-obj docutils literal"><span class="pre">sweep</span></code>(start,&nbsp;stop[,&nbsp;step,&nbsp;num])</td>
 <td>Create a collection of parameter values to be iterated over.</td>
 </tr>
-<tr class="row-odd"><td><code class="xref py py-obj docutils literal"><span class="pre">validate</span></code>(value)</td>
+<tr class="row-even"><td><code class="xref py py-obj docutils literal"><span class="pre">validate</span></code>(value)</td>
 <td>Validate value</td>
 </tr>
 </tbody>
@@ -287,8 +257,8 @@ for example if it takes too long to update</li>
 <tr class="row-odd"><td><code class="xref py py-obj docutils literal"><span class="pre">full_name</span></code></td>
 <td>Include the instrument name with the Parameter name if possible.</td>
 </tr>
-<tr class="row-even"><td><code class="xref py py-obj docutils literal"><span class="pre">full_names</span></code></td>
-<td>Include the instrument name with the Parameter names if possible.</td>
+<tr class="row-even"><td><code class="xref py py-obj docutils literal"><span class="pre">units</span></code></td>
+<td></td>
 </tr>
 </tbody>
 </table>

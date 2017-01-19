@@ -140,45 +140,54 @@
 <span></span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">Measured and/or controlled parameters</span>
 
-<span class="sd">The Parameter class is meant for direct parameters of instruments (ie</span>
-<span class="sd">subclasses of Instrument) but elsewhere in Qcodes we can use anything</span>
-<span class="sd">as a parameter if it has the right attributes:</span>
+<span class="sd">Anything that you want to either measure or control within QCoDeS should</span>
+<span class="sd">satisfy the Parameter interface. Most of the time that is easiest to do</span>
+<span class="sd">by either using or subclassing one of the classes defined here, but you can</span>
+<span class="sd">also use any class with the right attributes.</span>
 
-<span class="sd">To use Parameters in data acquisition loops, they should have:</span>
+<span class="sd">TODO (alexcjohnson) update this with the real duck-typing requirements or</span>
+<span class="sd">create an ABC for Parameter and MultiParameter - or just remove this statement</span>
+<span class="sd">if everyone is happy to use these classes.</span>
 
-<span class="sd">    - .name - like a variable name, ie no spaces or weird characters</span>
-<span class="sd">    - .label - string to use as an axis label (optional, defaults to .name)</span>
-<span class="sd">      (except for composite measurements, see below)</span>
+<span class="sd">This file defines four classes of parameters:</span>
 
-<span class="sd">Controlled parameters should have a .set(value) method, which takes a single</span>
-<span class="sd">value to apply to this parameter. To use this parameter for sweeping, also</span>
-<span class="sd">connect its __getitem__ to SweepFixedValues as below.</span>
+<span class="sd">``Parameter``, ``ArrayParameter``, and ``MultiParameter`` must be subclassed:</span>
 
-<span class="sd">Measured parameters should have .get() which can return:</span>
+<span class="sd">- ``Parameter`` is the base class for scalar-valued parameters, if you have</span>
+<span class="sd">    custom code to read or write a single value. Provides ``sweep`` and</span>
+<span class="sd">    ``__getitem__`` (slice notation) methods to use a settable parameter as</span>
+<span class="sd">    the swept variable in a ``Loop``. To use, fill in ``super().__init__``,</span>
+<span class="sd">    and provide a ``get`` method, a ``set`` method, or both.</span>
 
-<span class="sd">- a single value:</span>
+<span class="sd">- ``ArrayParameter`` is a base class for array-valued parameters, ie anything</span>
+<span class="sd">    for which each ``get`` call returns an array of values that all have the</span>
+<span class="sd">    same type and meaning. Currently not settable, only gettable. Can be used</span>
+<span class="sd">    in ``Measure``, or in ``Loop`` - in which case these arrays are nested</span>
+<span class="sd">    inside the loop&#39;s setpoint array. To use, provide a ``get`` method that</span>
+<span class="sd">    returns an array or regularly-shaped sequence, and describe that array in</span>
+<span class="sd">    ``super().__init__``.</span>
 
-<span class="sd">    - parameter should have .name and optional .label as above</span>
+<span class="sd">- ``MultiParameter`` is the base class for multi-valued parameters. Currently</span>
+<span class="sd">    not settable, only gettable, but can return an arbitrary collection of</span>
+<span class="sd">    scalar and array values and can be used in ``Measure`` or ``Loop`` to</span>
+<span class="sd">    feed data to a ``DataSet``. To use, provide a ``get`` method</span>
+<span class="sd">    that returns a sequence of values, and describe those values in</span>
+<span class="sd">    ``super().__init__``.</span>
 
-<span class="sd">- several values of different meaning (raw and measured, I and Q,</span>
-<span class="sd">  a set of fit parameters, that sort of thing, that all get measured/calculated</span>
-<span class="sd">  at once):</span>
+<span class="sd">``StandardParameter`` and ``ManualParameter`` can be instantiated directly:</span>
 
-<span class="sd">    - parameter should have .names and optional .labels, each a sequence with</span>
-<span class="sd">      the same length as returned by .get()</span>
+<span class="sd">- ``StandardParameter`` is the default class for instrument parameters</span>
+<span class="sd">    (see ``Instrument.add_parameter``). Can be gettable, settable, or both.</span>
+<span class="sd">    Provides a standardized interface to construct strings to pass to the</span>
+<span class="sd">    instrument&#39;s ``write`` and ``ask`` methods (but can also be given other</span>
+<span class="sd">    functions to execute on ``get`` or ``set``), to convert the string</span>
+<span class="sd">    responses to meaningful output, and optionally to ramp a setpoint with</span>
+<span class="sd">    stepped ``write`` calls from a single ``set``. Does not need to be</span>
+<span class="sd">    subclassed, just instantiated.</span>
 
-<span class="sd">- an array of values of one type:</span>
-
-<span class="sd">    - parameter should have .name and optional .label as above, but also</span>
-<span class="sd">      .shape attribute, which is an integer (or tuple of integers) describing</span>
-<span class="sd">      the shape of the returned array (which must be fixed)</span>
-<span class="sd">      optionally also .setpoints, array(s) of setpoint values for this data</span>
-<span class="sd">      otherwise we will use integers from 0 in each direction as the setpoints</span>
-
-<span class="sd">- several arrays of values (all the same shape):</span>
-
-<span class="sd">    -  define .names (and .labels) AND .shape (and .setpoints)</span>
-
+<span class="sd">- ``ManualParameter`` is for values you want to keep track of but cannot</span>
+<span class="sd">    set or get electronically. Holds the last value it was ``set`` to, and</span>
+<span class="sd">    returns it on ``get``.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span>
@@ -191,210 +200,64 @@
 <span class="kn">import</span> <span class="nn">numpy</span>
 
 <span class="kn">from</span> <span class="nn">qcodes.utils.deferred_operations</span> <span class="k">import</span> <span class="n">DeferredOperations</span>
-<span class="kn">from</span> <span class="nn">qcodes.utils.helpers</span> <span class="k">import</span> <span class="p">(</span><span class="n">permissive_range</span><span class="p">,</span> <span class="n">wait_secs</span><span class="p">,</span> <span class="n">is_sequence_of</span><span class="p">,</span>
-                                  <span class="n">DelegateAttributes</span><span class="p">,</span> <span class="n">full_class</span><span class="p">,</span> <span class="n">named_repr</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">qcodes.utils.helpers</span> <span class="k">import</span> <span class="p">(</span><span class="n">permissive_range</span><span class="p">,</span> <span class="n">wait_secs</span><span class="p">,</span> <span class="n">is_sequence</span><span class="p">,</span>
+                                  <span class="n">is_sequence_of</span><span class="p">,</span> <span class="n">DelegateAttributes</span><span class="p">,</span>
+                                  <span class="n">full_class</span><span class="p">,</span> <span class="n">named_repr</span><span class="p">,</span> <span class="n">warn_units</span><span class="p">)</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.metadata</span> <span class="k">import</span> <span class="n">Metadatable</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.command</span> <span class="k">import</span> <span class="n">Command</span><span class="p">,</span> <span class="n">NoCommandError</span>
-<span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="k">import</span> <span class="n">Validator</span><span class="p">,</span> <span class="n">Numbers</span><span class="p">,</span> <span class="n">Ints</span><span class="p">,</span> <span class="n">Enum</span><span class="p">,</span> <span class="n">Anything</span>
+<span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="k">import</span> <span class="n">Validator</span><span class="p">,</span> <span class="n">Numbers</span><span class="p">,</span> <span class="n">Ints</span><span class="p">,</span> <span class="n">Enum</span>
 <span class="kn">from</span> <span class="nn">qcodes.instrument.sweep_values</span> <span class="k">import</span> <span class="n">SweepFixedValues</span>
 <span class="kn">from</span> <span class="nn">qcodes.data.data_array</span> <span class="k">import</span> <span class="n">DataArray</span>
 
 
-<div class="viewcode-block" id="no_setter"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.no_setter">[docs]</a><span class="k">def</span> <span class="nf">no_setter</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;This Parameter has no setter defined.&#39;</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="no_getter"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.no_getter">[docs]</a><span class="k">def</span> <span class="nf">no_getter</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
-        <span class="s1">&#39;This Parameter has no getter, use .get_latest to get the most recent &#39;</span>
-        <span class="s1">&#39;set value.&#39;</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="Parameter"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.Parameter">[docs]</a><span class="k">class</span> <span class="nc">Parameter</span><span class="p">(</span><span class="n">Metadatable</span><span class="p">,</span> <span class="n">DeferredOperations</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">_BaseParameter</span><span class="p">(</span><span class="n">Metadatable</span><span class="p">,</span> <span class="n">DeferredOperations</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Define one generic parameter, not necessarily part of</span>
-<span class="sd">    an instrument. can be settable and/or gettable.</span>
-
-<span class="sd">    A settable Parameter has a .set method, and supports only a single value</span>
-<span class="sd">    at a time (see below)</span>
-
-<span class="sd">    A gettable Parameter has a .get method, which may return:</span>
-
-<span class="sd">    1.  a single value</span>
-<span class="sd">    2.  a sequence of values with different names (for example,</span>
-<span class="sd">        raw and interpreted, I and Q, several fit parameters...)</span>
-<span class="sd">    3.  an array of values all with the same name, but at different</span>
-<span class="sd">        setpoints (for example, a time trace or fourier transform that</span>
-<span class="sd">        was acquired in the hardware and all sent to the computer at once)</span>
-<span class="sd">    4.  2 &amp; 3 together: a sequence of arrays. All arrays should be the same</span>
-<span class="sd">        shape.</span>
-<span class="sd">    5.  a sequence of differently shaped items</span>
-
-<span class="sd">    Because .set only supports a single value, if a Parameter is both</span>
-<span class="sd">    gettable AND settable, .get should return a single value too (case 1)</span>
-
-<span class="sd">    Parameters have a .get_latest method that simply returns the most recent</span>
-<span class="sd">    set or measured value. This can either be called ( param.get_latest() )</span>
-<span class="sd">    or used in a Loop as if it were a (gettable-only) parameter itself:</span>
-
-<span class="sd">        Loop(...).each(param.get_latest)</span>
-
-
-<span class="sd">    The constructor arguments change somewhat between these cases:</span>
-
-<span class="sd">    Todo:</span>
-<span class="sd">        no idea how to document such a constructor</span>
+<span class="sd">    Shared behavior for simple and multi parameters. Not intended to be used</span>
+<span class="sd">    directly, normally you should use ``StandardParameter`` or</span>
+<span class="sd">    ``ManualParameter``, or create your own subclass of ``Parameter`` or</span>
+<span class="sd">    ``MultiParameter``.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        name: (1&amp;3) the local name of this parameter, should be a valid</span>
-<span class="sd">            identifier, ie no spaces or special characters</span>
+<span class="sd">        name (str): the local name of the parameter. Should be a valid</span>
+<span class="sd">            identifier, ie no spaces or special characters. If this parameter</span>
+<span class="sd">            is part of an Instrument or Station, this should match how it will</span>
+<span class="sd">            be referenced from that parent, ie ``instrument.name`` or</span>
+<span class="sd">            ``instrument.parameters[name]``</span>
 
-<span class="sd">        names: (2,4,5) a tuple of names</span>
+<span class="sd">        instrument (Optional[Instrument]): the instrument this parameter</span>
+<span class="sd">            belongs to, if any</span>
 
-<span class="sd">        label: (1&amp;3) string to use as an axis label for this parameter</span>
-<span class="sd">            defaults to name</span>
+<span class="sd">        snapshot_get (Optional[bool]): False prevents any update to the</span>
+<span class="sd">            parameter during a snapshot, even if the snapshot was called with</span>
+<span class="sd">            ``update=True``, for example if it takes too long to update.</span>
+<span class="sd">            Default True.</span>
 
-<span class="sd">        labels: (2,4,5) a tuple of labels</span>
-
-<span class="sd">        units: (1&amp;3) string that indicates units of parameter for use in axis</span>
-<span class="sd">            label and snapshot</span>
-
-<span class="sd">        shape: (3&amp;4) a tuple of integers for the shape of array returned by</span>
-<span class="sd">            .get().</span>
-
-<span class="sd">        shapes: (5) a tuple of tuples, each one as in `shape`.</span>
-<span class="sd">            Single values should be denoted by None or ()</span>
-
-<span class="sd">        setpoints: (3,4,5) the setpoints for the returned array of values.</span>
-<span class="sd">            3&amp;4 - a tuple of arrays. The first array is be 1D, the second 2D,</span>
-<span class="sd">            etc.</span>
-<span class="sd">            5 - a tuple of tuples of arrays</span>
-<span class="sd">            Defaults to integers from zero in each respective direction</span>
-<span class="sd">            Each may be either a DataArray, a numpy array, or a sequence</span>
-<span class="sd">            (sequences will be converted to numpy arrays)</span>
-<span class="sd">            NOTE: if the setpoints will be different each measurement, leave</span>
-<span class="sd">            this out and return the setpoints (with extra names) in the get.</span>
-
-<span class="sd">        setpoint_names: (3,4,5) one identifier (like `name`) per setpoint</span>
-<span class="sd">            array. Ignored if `setpoints` are DataArrays, which already have</span>
-<span class="sd">            names.</span>
-
-<span class="sd">        setpoint_labels: (3&amp;4) one label (like `label`) per setpoint array.</span>
-<span class="sd">            Overridden if `setpoints` are DataArrays and already have labels.</span>
-
-<span class="sd">        vals: allowed values for setting this parameter (only relevant</span>
-<span class="sd">            if it has a setter),  defaults to Numbers()</span>
-
-<span class="sd">        docstring (Optional[string]): documentation string for the __doc__</span>
-<span class="sd">            field of the object. The __doc__ field of the instance is used by</span>
-<span class="sd">            some help systems, but not all</span>
-
-<span class="sd">        snapshot_get (bool): Prevent any update to the parameter</span>
-<span class="sd">          for example if it takes too long to update</span>
-
+<span class="sd">        metadata (Optional[dict]): extra information to include with the</span>
+<span class="sd">            JSON snapshot of the parameter</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-<div class="viewcode-block" id="Parameter.__init__"><a class="viewcode-back" href="../../../api/generated/qcodes.Parameter.html#qcodes.Parameter.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-                 <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">names</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">label</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">units</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">shape</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">shapes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">setpoints</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">setpoint_names</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">setpoint_labels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">vals</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">docstring</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">snapshot_get</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">instrument</span><span class="p">,</span> <span class="n">snapshot_get</span><span class="p">,</span> <span class="n">metadata</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">metadata</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_snapshot_get</span> <span class="o">=</span> <span class="n">snapshot_get</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span> <span class="o">=</span> <span class="n">instrument</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">has_get</span> <span class="o">=</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;get&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">has_set</span> <span class="o">=</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;set&#39;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_meta_attrs</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;setpoint_names&#39;</span><span class="p">,</span> <span class="s1">&#39;setpoint_labels&#39;</span><span class="p">]</span>
 
-        <span class="c1"># always let the parameter have a single name (in fact, require this!)</span>
-        <span class="c1"># even if it has names too</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="n">names</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="c1"># check for names first - that way you can provide both name</span>
-            <span class="c1"># AND names for instrument parameters - name is how you get the</span>
-            <span class="c1"># object (from the parameters dict or the delegated attributes),</span>
-            <span class="c1"># and names are the items it returns</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">names</span> <span class="o">=</span> <span class="n">names</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">labels</span> <span class="o">=</span> <span class="n">names</span> <span class="k">if</span> <span class="n">labels</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">names</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">units</span> <span class="o">=</span> <span class="n">units</span> <span class="k">if</span> <span class="n">units</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">[</span><span class="s1">&#39;&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">names</span><span class="p">)</span>
-
-            <span class="bp">self</span><span class="o">.</span><span class="n">set_validator</span><span class="p">(</span><span class="n">vals</span> <span class="ow">or</span> <span class="n">Anything</span><span class="p">())</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">__doc__</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">linesep</span><span class="o">.</span><span class="n">join</span><span class="p">((</span>
-                <span class="s1">&#39;Parameter class:&#39;</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">linesep</span><span class="p">,</span>
-                <span class="s1">&#39;* `names` </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="p">),</span>
-                <span class="s1">&#39;* `labels` </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">),</span>
-                <span class="s1">&#39;* `units` </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">units</span><span class="p">)))</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_meta_attrs</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s1">&#39;names&#39;</span><span class="p">,</span> <span class="s1">&#39;labels&#39;</span><span class="p">,</span> <span class="s1">&#39;units&#39;</span><span class="p">])</span>
-
-        <span class="k">elif</span> <span class="n">name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">name</span> <span class="k">if</span> <span class="n">label</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">label</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">units</span> <span class="o">=</span> <span class="n">units</span> <span class="k">if</span> <span class="n">units</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span>
-
-            <span class="c1"># vals / validate only applies to simple single-value parameters</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">set_validator</span><span class="p">(</span><span class="n">vals</span><span class="p">)</span>
-
-            <span class="c1"># generate default docstring</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">__doc__</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">linesep</span><span class="o">.</span><span class="n">join</span><span class="p">((</span>
-                <span class="s1">&#39;Parameter class:&#39;</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">linesep</span><span class="p">,</span>
-                <span class="s1">&#39;* `name` </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
-                <span class="s1">&#39;* `label` </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">,</span>
-                <span class="c1"># TODO is this unit s a typo? shouldnt that be unit?</span>
-                <span class="s1">&#39;* `units` </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">units</span><span class="p">,</span>
-                <span class="s1">&#39;* `vals` </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_vals</span><span class="p">)))</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_meta_attrs</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">,</span> <span class="s1">&#39;units&#39;</span><span class="p">,</span> <span class="s1">&#39;vals&#39;</span><span class="p">])</span>
-
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;either name or names is required&#39;</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="n">shape</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">shapes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">nt</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
-
-            <span class="k">if</span> <span class="n">shape</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="n">is_sequence_of</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
-                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;shape must be a tuple of ints, not &#39;</span> <span class="o">+</span>
-                                     <span class="nb">repr</span><span class="p">(</span><span class="n">shape</span><span class="p">))</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">shape</span> <span class="o">=</span> <span class="n">shape</span>
-                <span class="n">depth</span> <span class="o">=</span> <span class="mi">1</span>
-                <span class="n">container_str</span> <span class="o">=</span> <span class="s1">&#39;tuple&#39;</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="n">is_sequence_of</span><span class="p">(</span><span class="n">shapes</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">depth</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
-                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;shapes must be a tuple of tuples &#39;</span>
-                                     <span class="s1">&#39;of ints, not &#39;</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="n">shape</span><span class="p">))</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">shapes</span> <span class="o">=</span> <span class="n">shapes</span>
-                <span class="n">depth</span> <span class="o">=</span> <span class="mi">2</span>
-                <span class="n">container_str</span> <span class="o">=</span> <span class="s1">&#39;tuple of tuples&#39;</span>
-
-            <span class="n">sp_types</span> <span class="o">=</span> <span class="p">(</span><span class="n">nt</span><span class="p">,</span> <span class="n">DataArray</span><span class="p">,</span> <span class="n">collections</span><span class="o">.</span><span class="n">Sequence</span><span class="p">,</span>
-                        <span class="n">collections</span><span class="o">.</span><span class="n">Iterator</span><span class="p">)</span>
-            <span class="k">if</span> <span class="p">(</span><span class="n">setpoints</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span>
-                    <span class="ow">not</span> <span class="n">is_sequence_of</span><span class="p">(</span><span class="n">setpoints</span><span class="p">,</span> <span class="n">sp_types</span><span class="p">,</span> <span class="n">depth</span><span class="p">)):</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                    <span class="s1">&#39;setpoints must be a </span><span class="si">{}</span><span class="s1"> of arrays&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">container_str</span><span class="p">))</span>
-            <span class="k">if</span> <span class="p">(</span><span class="n">setpoint_names</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span>
-                    <span class="ow">not</span> <span class="n">is_sequence_of</span><span class="p">(</span><span class="n">setpoint_names</span><span class="p">,</span> <span class="p">(</span><span class="n">nt</span><span class="p">,</span> <span class="nb">str</span><span class="p">),</span> <span class="n">depth</span><span class="p">)):</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;setpoint_names must be a </span><span class="si">{}</span><span class="s1"> &#39;</span>
-                                 <span class="s1">&#39;of strings&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">container_str</span><span class="p">))</span>
-            <span class="k">if</span> <span class="p">(</span><span class="n">setpoint_labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span>
-                    <span class="ow">not</span> <span class="n">is_sequence_of</span><span class="p">(</span><span class="n">setpoint_labels</span><span class="p">,</span> <span class="p">(</span><span class="n">nt</span><span class="p">,</span> <span class="nb">str</span><span class="p">),</span> <span class="n">depth</span><span class="p">)):</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;setpoint_labels must be a </span><span class="si">{}</span><span class="s1"> &#39;</span>
-                                 <span class="s1">&#39;of strings&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">container_str</span><span class="p">))</span>
-
-            <span class="bp">self</span><span class="o">.</span><span class="n">setpoints</span> <span class="o">=</span> <span class="n">setpoints</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">setpoint_names</span> <span class="o">=</span> <span class="n">setpoint_names</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">setpoint_labels</span> <span class="o">=</span> <span class="n">setpoint_labels</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">has_get</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_set</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s1">&#39;A parameter must have either a get or a &#39;</span>
+                                 <span class="s1">&#39;set method, or both.&#39;</span><span class="p">)</span>
 
         <span class="c1"># record of latest value and when it was set or measured</span>
         <span class="c1"># what exactly this means is different for different subclasses</span>
         <span class="c1"># but they all use the same attributes so snapshot is consistent.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_latest_value</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_latest_ts</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_latest</span> <span class="o">=</span> <span class="n">GetLatest</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">docstring</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">__doc__</span> <span class="o">=</span> <span class="n">docstring</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">linesep</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">linesep</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">__doc__</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">get_latest</span> <span class="o">=</span> <span class="n">GetLatest</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
+        <span class="c1"># subclasses should extend this list with extra attributes they</span>
+        <span class="c1"># want automatically included in the snapshot</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_meta_attrs</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="s1">&#39;instrument&#39;</span><span class="p">]</span>
 
     <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">named_repr</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
@@ -404,14 +267,14 @@
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_get</span><span class="p">:</span>
                 <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">NoCommandError</span><span class="p">(</span><span class="s1">&#39;no get cmd found in&#39;</span> <span class="o">+</span>
-                                     <span class="s1">&#39; Parameter </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+                <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;no get cmd found in&#39;</span> <span class="o">+</span>
+                                          <span class="s1">&#39; Parameter </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_set</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">NoCommandError</span><span class="p">(</span><span class="s1">&#39;no set cmd found in&#39;</span> <span class="o">+</span>
-                                     <span class="s1">&#39; Parameter </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+                <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;no set cmd found in&#39;</span> <span class="o">+</span>
+                                          <span class="s1">&#39; Parameter </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">_latest</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="p">{</span>
@@ -422,7 +285,7 @@
     <span class="c1"># get_attrs ignores leading underscores, unless they&#39;re in this list</span>
     <span class="n">_keep_attrs</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;__doc__&#39;</span><span class="p">,</span> <span class="s1">&#39;_vals&#39;</span><span class="p">]</span>
 
-<div class="viewcode-block" id="Parameter.get_attrs"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.Parameter.get_attrs">[docs]</a>    <span class="k">def</span> <span class="nf">get_attrs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">get_attrs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Attributes recreated as properties in the RemoteParameter proxy.</span>
 
@@ -435,21 +298,23 @@
         <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
 
         <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="nb">dir</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="c1"># while we&#39;re keeping units as a deprecated attribute in some</span>
+            <span class="c1"># classes, avoid calling it here so we don&#39;t get spurious errors</span>
             <span class="k">if</span> <span class="p">((</span><span class="n">attr</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;_&#39;</span> <span class="ow">and</span> <span class="n">attr</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_keep_attrs</span><span class="p">)</span> <span class="ow">or</span>
-                    <span class="n">callable</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">))):</span>
+                    <span class="p">(</span><span class="n">attr</span> <span class="o">!=</span> <span class="s1">&#39;units&#39;</span> <span class="ow">and</span> <span class="n">callable</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">)))):</span>
                 <span class="k">continue</span>
             <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">attr</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">out</span></div>
+        <span class="k">return</span> <span class="n">out</span>
 
-<div class="viewcode-block" id="Parameter.snapshot_base"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.Parameter.snapshot_base">[docs]</a>    <span class="k">def</span> <span class="nf">snapshot_base</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">snapshot_base</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        State of the parameter as a JSON-compatible dict.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            update (bool): If True, update the state by calling</span>
-<span class="sd">                    parameter.get().</span>
-<span class="sd">                    If False, just use the latest values in memory.</span>
+<span class="sd">                parameter.get().</span>
+<span class="sd">                If False, just use the latest values in memory.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            dict: base snapshot</span>
@@ -465,20 +330,120 @@
             <span class="n">state</span><span class="p">[</span><span class="s1">&#39;ts&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="s1">&#39;ts&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1"> %H:%M:%S&#39;</span><span class="p">)</span>
 
         <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_meta_attrs</span><span class="p">):</span>
-            <span class="k">if</span> <span class="n">attr</span> <span class="o">==</span> <span class="s1">&#39;instrument&#39;</span> <span class="ow">and</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_instrument&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">attr</span> <span class="o">==</span> <span class="s1">&#39;instrument&#39;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="p">:</span>
                 <span class="n">state</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
                     <span class="s1">&#39;instrument&#39;</span><span class="p">:</span> <span class="n">full_class</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="p">),</span>
                     <span class="s1">&#39;instrument_name&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">name</span>
                 <span class="p">})</span>
 
             <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">):</span>
-                <span class="n">state</span><span class="p">[</span><span class="n">attr</span><span class="p">]</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
+                <span class="n">val</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
+                <span class="n">attr_strip</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)</span>  <span class="c1"># eg _vals - do not include _</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">Validator</span><span class="p">):</span>
+                    <span class="n">state</span><span class="p">[</span><span class="n">attr_strip</span><span class="p">]</span> <span class="o">=</span> <span class="nb">repr</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">state</span><span class="p">[</span><span class="n">attr_strip</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
 
-        <span class="k">return</span> <span class="n">state</span></div>
+        <span class="k">return</span> <span class="n">state</span>
 
     <span class="k">def</span> <span class="nf">_save_val</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_latest_value</span> <span class="o">=</span> <span class="n">value</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_latest_ts</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">full_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Include the instrument name with the Parameter name if possible.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">inst_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">name</span>
+            <span class="k">if</span> <span class="n">inst_name</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">inst_name</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+
+
+<div class="viewcode-block" id="Parameter"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.Parameter">[docs]</a><span class="k">class</span> <span class="nc">Parameter</span><span class="p">(</span><span class="n">_BaseParameter</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A parameter that represents a single degree of freedom.</span>
+<span class="sd">    Not necessarily part of an instrument.</span>
+
+<span class="sd">    Subclasses should define either a ``set`` method, a ``get`` method, or</span>
+<span class="sd">    both.</span>
+
+<span class="sd">    Parameters have a ``.get_latest`` method that simply returns the most</span>
+<span class="sd">    recent set or measured value. This can be called ( ``param.get_latest()`` )</span>
+<span class="sd">    or used in a ``Loop`` as if it were a (gettable-only) parameter itself:</span>
+
+<span class="sd">        ``Loop(...).each(param.get_latest)``</span>
+
+<span class="sd">    Note: If you want ``.get`` or ``.set`` to save the measurement for</span>
+<span class="sd">    ``.get_latest``, you must explicitly call ``self._save_val(value)``</span>
+<span class="sd">    inside ``.get`` and ``.set``.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name (str): the local name of the parameter. Should be a valid</span>
+<span class="sd">            identifier, ie no spaces or special characters. If this parameter</span>
+<span class="sd">            is part of an Instrument or Station, this is how it will be</span>
+<span class="sd">            referenced from that parent, ie ``instrument.name`` or</span>
+<span class="sd">            ``instrument.parameters[name]``</span>
+
+<span class="sd">        instrument (Optional[Instrument]): the instrument this parameter</span>
+<span class="sd">            belongs to, if any</span>
+
+<span class="sd">        label (Optional[str]): Normally used as the axis label when this</span>
+<span class="sd">            parameter is graphed, along with ``unit``.</span>
+
+<span class="sd">        unit (Optional[str]): The unit of measure. Use ``&#39;&#39;`` for unitless.</span>
+
+<span class="sd">        units (Optional[str]): DEPRECATED, redirects to ``unit``.</span>
+
+<span class="sd">        vals (Optional[Validator]): Allowed values for setting this parameter.</span>
+<span class="sd">            Only relevant if settable. Defaults to ``Numbers()``</span>
+
+<span class="sd">        docstring (Optional[str]): documentation string for the __doc__</span>
+<span class="sd">            field of the object. The __doc__ field of the instance is used by</span>
+<span class="sd">            some help systems, but not all</span>
+
+<span class="sd">        snapshot_get (Optional[bool]): False prevents any update to the</span>
+<span class="sd">            parameter during a snapshot, even if the snapshot was called with</span>
+<span class="sd">            ``update=True``, for example if it takes too long to update.</span>
+<span class="sd">            Default True.</span>
+
+<span class="sd">        metadata (Optional[dict]): extra information to include with the</span>
+<span class="sd">            JSON snapshot of the parameter</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+<div class="viewcode-block" id="Parameter.__init__"><a class="viewcode-back" href="../../../api/generated/qcodes.Parameter.html#qcodes.Parameter.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">instrument</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">unit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">docstring</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">snapshot_get</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">metadata</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">instrument</span><span class="p">,</span> <span class="n">snapshot_get</span><span class="p">,</span> <span class="n">metadata</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_meta_attrs</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s1">&#39;label&#39;</span><span class="p">,</span> <span class="s1">&#39;unit&#39;</span><span class="p">,</span> <span class="s1">&#39;_vals&#39;</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">name</span> <span class="k">if</span> <span class="n">label</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">label</span>
+
+        <span class="k">if</span> <span class="n">units</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">warn_units</span><span class="p">(</span><span class="s1">&#39;Parameter&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">unit</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">unit</span> <span class="o">=</span> <span class="n">units</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unit</span> <span class="o">=</span> <span class="n">unit</span> <span class="k">if</span> <span class="n">unit</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_validator</span><span class="p">(</span><span class="n">vals</span><span class="p">)</span>
+
+        <span class="c1"># generate default docstring</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__doc__</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">linesep</span><span class="o">.</span><span class="n">join</span><span class="p">((</span>
+            <span class="s1">&#39;Parameter class:&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;* `name` </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="s1">&#39;* `label` </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">,</span>
+            <span class="s1">&#39;* `unit` </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">unit</span><span class="p">,</span>
+            <span class="s1">&#39;* `vals` </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_vals</span><span class="p">)))</span>
+
+        <span class="k">if</span> <span class="n">docstring</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__doc__</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">linesep</span><span class="o">.</span><span class="n">join</span><span class="p">((</span>
+                <span class="n">docstring</span><span class="p">,</span>
+                <span class="s1">&#39;&#39;</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__doc__</span><span class="p">))</span></div>
 
 <div class="viewcode-block" id="Parameter.set_validator"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.Parameter.set_validator">[docs]</a>    <span class="k">def</span> <span class="nf">set_validator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vals</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -502,7 +467,7 @@
 <span class="sd">            value (any): value to validate</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_instrument&#39;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="p">:</span>
             <span class="n">context</span> <span class="o">=</span> <span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="ow">or</span>
                        <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">__class__</span><span class="p">))</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
         <span class="k">else</span><span class="p">:</span>
@@ -545,26 +510,299 @@
         <span class="k">return</span> <span class="n">SweepFixedValues</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">keys</span><span class="p">)</span></div>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">full_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Include the instrument name with the Parameter name if possible.&quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">def</span> <span class="nf">units</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">warn_units</span><span class="p">(</span><span class="s1">&#39;Parameter&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">unit</span></div>
 
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">inst_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">name</span>
-            <span class="k">if</span> <span class="n">inst_name</span><span class="p">:</span>
-                <span class="k">return</span> <span class="n">inst_name</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
-        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
-            <span class="k">pass</span>
 
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+<div class="viewcode-block" id="ArrayParameter"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.ArrayParameter">[docs]</a><span class="k">class</span> <span class="nc">ArrayParameter</span><span class="p">(</span><span class="n">_BaseParameter</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A gettable parameter that returns an array of values.</span>
+<span class="sd">    Not necessarily part of an instrument.</span>
+
+<span class="sd">    Subclasses should define a ``.get`` method, which returns an array.</span>
+<span class="sd">    When used in a ``Loop`` or ``Measure`` operation, this will be entered</span>
+<span class="sd">    into a single ``DataArray``, with extra dimensions added by the ``Loop``.</span>
+<span class="sd">    The constructor args describe the array we expect from each ``.get`` call</span>
+<span class="sd">    and how it should be handled.</span>
+
+<span class="sd">    For now you must specify upfront the array shape, and this cannot change</span>
+<span class="sd">    from one call to the next. Later we intend to require only that you specify</span>
+<span class="sd">    the dimension, and the size of each dimension can vary from call to call.</span>
+
+<span class="sd">    Note: If you want ``.get`` to save the measurement for ``.get_latest``,</span>
+<span class="sd">    you must explicitly call ``self._save_val(items)`` inside ``.get``.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name (str): the local name of the parameter. Should be a valid</span>
+<span class="sd">            identifier, ie no spaces or special characters. If this parameter</span>
+<span class="sd">            is part of an Instrument or Station, this is how it will be</span>
+<span class="sd">            referenced from that parent, ie ``instrument.name`` or</span>
+<span class="sd">            ``instrument.parameters[name]``</span>
+
+<span class="sd">        shape (Tuple[int]): The shape (as used in numpy arrays) of the array</span>
+<span class="sd">            to expect. Scalars should be denoted by (), 1D arrays as (n,),</span>
+<span class="sd">            2D arrays as (n, m), etc.</span>
+
+<span class="sd">        instrument (Optional[Instrument]): the instrument this parameter</span>
+<span class="sd">            belongs to, if any</span>
+
+<span class="sd">        label (Optional[str]): Normally used as the axis label when this</span>
+<span class="sd">            parameter is graphed, along with ``unit``.</span>
+
+<span class="sd">        unit (Optional[str]): The unit of measure. Use ``&#39;&#39;`` for unitless.</span>
+
+<span class="sd">        units (Optional[str]): DEPRECATED, redirects to ``unit``.</span>
+
+<span class="sd">        setpoints (Optional[Tuple[setpoint_array]]):</span>
+<span class="sd">            ``setpoint_array`` can be a DataArray, numpy.ndarray, or sequence.</span>
+<span class="sd">            The setpoints for each dimension of the returned array. An</span>
+<span class="sd">            N-dimension item should have N setpoint arrays, where the first is</span>
+<span class="sd">            1D, the second 2D, etc.</span>
+<span class="sd">            If omitted for any or all items, defaults to integers from zero in</span>
+<span class="sd">            each respective direction.</span>
+<span class="sd">            Note: if the setpoints will be different each measurement, leave</span>
+<span class="sd">            this out and return the setpoints (with extra names) in ``.get``.</span>
+
+<span class="sd">        setpoint_names (Optional[Tuple[str]]): one identifier (like</span>
+<span class="sd">            ``name``) per setpoint array. Ignored if a setpoint is a</span>
+<span class="sd">            DataArray, which already has a name.</span>
+
+<span class="sd">        setpoint_labels (Optional[Tuple[str]]): one label (like ``labels``)</span>
+<span class="sd">            per setpoint array. Ignored if a setpoint is a DataArray, which</span>
+<span class="sd">            already has a label.</span>
+
+<span class="sd">            TODO (alexcjohnson) we need setpoint_units (and in MultiParameter)</span>
+
+<span class="sd">        docstring (Optional[str]): documentation string for the __doc__</span>
+<span class="sd">            field of the object. The __doc__ field of the instance is used by</span>
+<span class="sd">            some help systems, but not all</span>
+
+<span class="sd">        snapshot_get (bool): Prevent any update to the parameter, for example</span>
+<span class="sd">            if it takes too long to update. Default True.</span>
+
+<span class="sd">        metadata (Optional[dict]): extra information to include with the</span>
+<span class="sd">            JSON snapshot of the parameter</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">instrument</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">label</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">setpoints</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">setpoint_names</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">setpoint_labels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">docstring</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">snapshot_get</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">metadata</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">instrument</span><span class="p">,</span> <span class="n">snapshot_get</span><span class="p">,</span> <span class="n">metadata</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_set</span><span class="p">:</span>  <span class="c1"># TODO (alexcjohnson): can we support, ala Combine?</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s1">&#39;ArrayParameters do not support set &#39;</span>
+                                 <span class="s1">&#39;at this time.&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_meta_attrs</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s1">&#39;setpoint_names&#39;</span><span class="p">,</span> <span class="s1">&#39;setpoint_labels&#39;</span><span class="p">,</span>
+                                 <span class="s1">&#39;label&#39;</span><span class="p">,</span> <span class="s1">&#39;unit&#39;</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">name</span> <span class="k">if</span> <span class="n">label</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">label</span>
+
+        <span class="k">if</span> <span class="n">units</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">warn_units</span><span class="p">(</span><span class="s1">&#39;ArrayParameter&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">unit</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">unit</span> <span class="o">=</span> <span class="n">units</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unit</span> <span class="o">=</span> <span class="n">unit</span> <span class="k">if</span> <span class="n">unit</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span>
+
+        <span class="n">nt</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_sequence_of</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;shapes must be a tuple of ints, not &#39;</span> <span class="o">+</span>
+                             <span class="nb">repr</span><span class="p">(</span><span class="n">shape</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">shape</span> <span class="o">=</span> <span class="n">shape</span>
+
+        <span class="c1"># require one setpoint per dimension of shape</span>
+        <span class="n">sp_shape</span> <span class="o">=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">),)</span>
+
+        <span class="n">sp_types</span> <span class="o">=</span> <span class="p">(</span><span class="n">nt</span><span class="p">,</span> <span class="n">DataArray</span><span class="p">,</span> <span class="n">collections</span><span class="o">.</span><span class="n">Sequence</span><span class="p">,</span>
+                    <span class="n">collections</span><span class="o">.</span><span class="n">Iterator</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">setpoints</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span>
+                <span class="ow">not</span> <span class="n">is_sequence_of</span><span class="p">(</span><span class="n">setpoints</span><span class="p">,</span> <span class="n">sp_types</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="n">sp_shape</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;setpoints must be a tuple of arrays&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">setpoint_names</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span>
+                <span class="ow">not</span> <span class="n">is_sequence_of</span><span class="p">(</span><span class="n">setpoint_names</span><span class="p">,</span> <span class="p">(</span><span class="n">nt</span><span class="p">,</span> <span class="nb">str</span><span class="p">),</span> <span class="n">shape</span><span class="o">=</span><span class="n">sp_shape</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;setpoint_names must be a tuple of strings&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">setpoint_labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span>
+                <span class="ow">not</span> <span class="n">is_sequence_of</span><span class="p">(</span><span class="n">setpoint_labels</span><span class="p">,</span> <span class="p">(</span><span class="n">nt</span><span class="p">,</span> <span class="nb">str</span><span class="p">),</span>
+                                   <span class="n">shape</span><span class="o">=</span><span class="n">sp_shape</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;setpoint_labels must be a tuple of strings&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">setpoints</span> <span class="o">=</span> <span class="n">setpoints</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setpoint_names</span> <span class="o">=</span> <span class="n">setpoint_names</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setpoint_labels</span> <span class="o">=</span> <span class="n">setpoint_labels</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">__doc__</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">linesep</span><span class="o">.</span><span class="n">join</span><span class="p">((</span>
+            <span class="s1">&#39;Parameter class:&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;* `name` </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="s1">&#39;* `label` </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">,</span>
+            <span class="s1">&#39;* `unit` </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">unit</span><span class="p">,</span>
+            <span class="s1">&#39;* `shape` </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">)))</span>
+
+        <span class="k">if</span> <span class="n">docstring</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__doc__</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">linesep</span><span class="o">.</span><span class="n">join</span><span class="p">((</span>
+                <span class="n">docstring</span><span class="p">,</span>
+                <span class="s1">&#39;&#39;</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__doc__</span><span class="p">))</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">units</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">warn_units</span><span class="p">(</span><span class="s1">&#39;ArrayParameter&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">unit</span></div>
+
+
+<span class="k">def</span> <span class="nf">_is_nested_sequence_or_none</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">types</span><span class="p">,</span> <span class="n">shapes</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Validator for MultiParameter setpoints/names/labels&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">obj</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">is_sequence_of</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shapes</span><span class="p">),)):</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">for</span> <span class="n">obji</span><span class="p">,</span> <span class="n">shapei</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">shapes</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_sequence_of</span><span class="p">(</span><span class="n">obji</span><span class="p">,</span> <span class="n">types</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shapei</span><span class="p">),)):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">return</span> <span class="kc">True</span>
+
+
+<div class="viewcode-block" id="MultiParameter"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.MultiParameter">[docs]</a><span class="k">class</span> <span class="nc">MultiParameter</span><span class="p">(</span><span class="n">_BaseParameter</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A gettable parameter that returns multiple values with separate names,</span>
+<span class="sd">    each of arbitrary shape.</span>
+<span class="sd">    Not necessarily part of an instrument.</span>
+
+<span class="sd">    Subclasses should define a ``.get`` method, which returns a sequence of</span>
+<span class="sd">    values. When used in a ``Loop`` or ``Measure`` operation, each of these</span>
+<span class="sd">    values will be entered into a different ``DataArray``. The constructor</span>
+<span class="sd">    args describe what data we expect from each ``.get`` call and how it</span>
+<span class="sd">    should be handled. ``.get`` should always return the same number of items,</span>
+<span class="sd">    and most of the constructor arguments should be tuples of that same length.</span>
+
+<span class="sd">    For now you must specify upfront the array shape of each item returned by</span>
+<span class="sd">    ``.get``, and this cannot change from one call to the next. Later we intend</span>
+<span class="sd">    to require only that you specify the dimension of each item returned, and</span>
+<span class="sd">    the size of each dimension can vary from call to call.</span>
+
+<span class="sd">    Note: If you want ``.get`` to save the measurement for ``.get_latest``,</span>
+<span class="sd">    you must explicitly call ``self._save_val(items)`` inside ``.get``.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name (str): the local name of the whole parameter. Should be a valid</span>
+<span class="sd">            identifier, ie no spaces or special characters. If this parameter</span>
+<span class="sd">            is part of an Instrument or Station, this is how it will be</span>
+<span class="sd">            referenced from that parent, ie ``instrument.name`` or</span>
+<span class="sd">            ``instrument.parameters[name]``</span>
+
+<span class="sd">        names (Tuple[str]): A name for each item returned by a ``.get``</span>
+<span class="sd">            call. Will be used as the basis of the ``DataArray`` names</span>
+<span class="sd">            when this parameter is used to create a ``DataSet``.</span>
+
+<span class="sd">        shapes (Tuple[Tuple[int]]): The shape (as used in numpy arrays) of</span>
+<span class="sd">            each item. Scalars should be denoted by (), 1D arrays as (n,),</span>
+<span class="sd">            2D arrays as (n, m), etc.</span>
+
+<span class="sd">        instrument (Optional[Instrument]): the instrument this parameter</span>
+<span class="sd">            belongs to, if any</span>
+
+<span class="sd">        labels (Optional[Tuple[str]]): A label for each item. Normally used</span>
+<span class="sd">            as the axis label when a component is graphed, along with the</span>
+<span class="sd">            matching entry from ``units``.</span>
+
+<span class="sd">        units (Optional[Tuple[str]]): The unit of measure for each item.</span>
+<span class="sd">            Use ``&#39;&#39;`` or ``None`` for unitless values.</span>
+
+<span class="sd">        setpoints (Optional[Tuple[Tuple[setpoint_array]]]):</span>
+<span class="sd">            ``setpoint_array`` can be a DataArray, numpy.ndarray, or sequence.</span>
+<span class="sd">            The setpoints for each returned array. An N-dimension item should</span>
+<span class="sd">            have N setpoint arrays, where the first is 1D, the second 2D, etc.</span>
+<span class="sd">            If omitted for any or all items, defaults to integers from zero in</span>
+<span class="sd">            each respective direction.</span>
+<span class="sd">            Note: if the setpoints will be different each measurement, leave</span>
+<span class="sd">            this out and return the setpoints (with extra names) in ``.get``.</span>
+
+<span class="sd">        setpoint_names (Optional[Tuple[Tuple[str]]]): one identifier (like</span>
+<span class="sd">            ``name``) per setpoint array. Ignored if a setpoint is a</span>
+<span class="sd">            DataArray, which already has a name.</span>
+
+<span class="sd">        setpoint_labels (Optional[Tuple[Tuple[str]]]): one label (like</span>
+<span class="sd">            ``labels``) per setpoint array. Ignored if a setpoint is a</span>
+<span class="sd">            DataArray, which already has a label.</span>
+
+<span class="sd">        docstring (Optional[str]): documentation string for the __doc__</span>
+<span class="sd">            field of the object. The __doc__ field of the instance is used by</span>
+<span class="sd">            some help systems, but not all</span>
+
+<span class="sd">        snapshot_get (bool): Prevent any update to the parameter, for example</span>
+<span class="sd">            if it takes too long to update. Default True.</span>
+
+<span class="sd">        metadata (Optional[dict]): extra information to include with the</span>
+<span class="sd">            JSON snapshot of the parameter</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span> <span class="n">shapes</span><span class="p">,</span> <span class="n">instrument</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">labels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">setpoints</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">setpoint_names</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">setpoint_labels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">docstring</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">snapshot_get</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">metadata</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">instrument</span><span class="p">,</span> <span class="n">snapshot_get</span><span class="p">,</span> <span class="n">metadata</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_set</span><span class="p">:</span>  <span class="c1"># TODO (alexcjohnson): can we support, ala Combine?</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s1">&#39;MultiParameters do not support set &#39;</span>
+                                 <span class="s1">&#39;at this time.&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_meta_attrs</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s1">&#39;setpoint_names&#39;</span><span class="p">,</span> <span class="s1">&#39;setpoint_labels&#39;</span><span class="p">,</span>
+                                 <span class="s1">&#39;names&#39;</span><span class="p">,</span> <span class="s1">&#39;labels&#39;</span><span class="p">,</span> <span class="s1">&#39;units&#39;</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_sequence_of</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;names must be a tuple of strings, not&#39;</span> <span class="o">+</span>
+                             <span class="nb">repr</span><span class="p">(</span><span class="n">names</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">names</span> <span class="o">=</span> <span class="n">names</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">labels</span> <span class="o">=</span> <span class="n">labels</span> <span class="k">if</span> <span class="n">labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">names</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">units</span> <span class="o">=</span> <span class="n">units</span> <span class="k">if</span> <span class="n">units</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">[</span><span class="s1">&#39;&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">names</span><span class="p">)</span>
+
+        <span class="n">nt</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">is_sequence_of</span><span class="p">(</span><span class="n">shapes</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">depth</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span> <span class="ow">or</span>
+                <span class="nb">len</span><span class="p">(</span><span class="n">shapes</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">names</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;shapes must be a tuple of tuples &#39;</span>
+                             <span class="s1">&#39;of ints, not &#39;</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="n">shapes</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">shapes</span> <span class="o">=</span> <span class="n">shapes</span>
+
+        <span class="n">sp_types</span> <span class="o">=</span> <span class="p">(</span><span class="n">nt</span><span class="p">,</span> <span class="n">DataArray</span><span class="p">,</span> <span class="n">collections</span><span class="o">.</span><span class="n">Sequence</span><span class="p">,</span>
+                    <span class="n">collections</span><span class="o">.</span><span class="n">Iterator</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">_is_nested_sequence_or_none</span><span class="p">(</span><span class="n">setpoints</span><span class="p">,</span> <span class="n">sp_types</span><span class="p">,</span> <span class="n">shapes</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;setpoints must be a tuple of tuples of arrays&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">_is_nested_sequence_or_none</span><span class="p">(</span><span class="n">setpoint_names</span><span class="p">,</span> <span class="p">(</span><span class="n">nt</span><span class="p">,</span> <span class="nb">str</span><span class="p">),</span> <span class="n">shapes</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s1">&#39;setpoint_names must be a tuple of tuples of strings&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">_is_nested_sequence_or_none</span><span class="p">(</span><span class="n">setpoint_labels</span><span class="p">,</span> <span class="p">(</span><span class="n">nt</span><span class="p">,</span> <span class="nb">str</span><span class="p">),</span> <span class="n">shapes</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s1">&#39;setpoint_labels must be a tuple of tuples of strings&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">setpoints</span> <span class="o">=</span> <span class="n">setpoints</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setpoint_names</span> <span class="o">=</span> <span class="n">setpoint_names</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setpoint_labels</span> <span class="o">=</span> <span class="n">setpoint_labels</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">__doc__</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">linesep</span><span class="o">.</span><span class="n">join</span><span class="p">((</span>
+            <span class="s1">&#39;MultiParameter class:&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;* `name` </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="s1">&#39;* `names` </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="p">),</span>
+            <span class="s1">&#39;* `labels` </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">),</span>
+            <span class="s1">&#39;* `units` </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">units</span><span class="p">)))</span>
+
+        <span class="k">if</span> <span class="n">docstring</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__doc__</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">linesep</span><span class="o">.</span><span class="n">join</span><span class="p">((</span>
+                <span class="n">docstring</span><span class="p">,</span>
+                <span class="s1">&#39;&#39;</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__doc__</span><span class="p">))</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">full_names</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Include the instrument name with the Parameter names if possible.&quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;names&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">None</span>
-
         <span class="k">try</span><span class="p">:</span>
             <span class="n">inst_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">name</span>
             <span class="k">if</span> <span class="n">inst_name</span><span class="p">:</span>
@@ -575,16 +813,27 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">names</span></div>
 
 
+<div class="viewcode-block" id="no_setter"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.no_setter">[docs]</a><span class="k">def</span> <span class="nf">no_setter</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;This Parameter has no setter defined.&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="no_getter"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.no_getter">[docs]</a><span class="k">def</span> <span class="nf">no_getter</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+        <span class="s1">&#39;This Parameter has no getter, use .get_latest to get the most recent &#39;</span>
+        <span class="s1">&#39;set value.&#39;</span><span class="p">)</span></div>
+
+
 <div class="viewcode-block" id="StandardParameter"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.StandardParameter">[docs]</a><span class="k">class</span> <span class="nc">StandardParameter</span><span class="p">(</span><span class="n">Parameter</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Define one measurement parameter.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        name (string): the local name of this parameter</span>
-<span class="sd">        instrument (Optional[Instrument]): an instrument that handles this</span>
-<span class="sd">            function. Default None.</span>
+<span class="sd">        name (str): the local name of this parameter</span>
 
-<span class="sd">        get_cmd (Optional[Union[string, function]]): a string or function to</span>
+<span class="sd">        instrument (Optional[Instrument]): the instrument this parameter</span>
+<span class="sd">            belongs to, if any</span>
+
+<span class="sd">        get_cmd (Optional[Union[str, function]]): a string or function to</span>
 <span class="sd">            get this parameter. You can only use a string if an instrument is</span>
 <span class="sd">            provided, then this string will be passed to instrument.ask</span>
 
@@ -592,7 +841,7 @@
 <span class="sd">            from get to the final output value.</span>
 <span class="sd">            See also val_mapping</span>
 
-<span class="sd">        set_cmd (Optional[Union[string, function]]): command to set this</span>
+<span class="sd">        set_cmd (Optional[Union[str, function]]): command to set this</span>
 <span class="sd">            parameter, either:</span>
 
 <span class="sd">            - a string (containing one field to .format, like &quot;{}&quot; etc)</span>
@@ -675,12 +924,10 @@
         <span class="k">if</span> <span class="n">get_parser</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">get_cmd</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
             <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;get_parser is set, but will not be used &#39;</span> <span class="o">+</span>
                             <span class="s1">&#39;(name </span><span class="si">%s</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="n">name</span><span class="p">)</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">instrument</span><span class="o">=</span><span class="n">instrument</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span> <span class="o">=</span> <span class="n">instrument</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">_meta_attrs</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s1">&#39;instrument&#39;</span><span class="p">,</span> <span class="s1">&#39;sweep_step&#39;</span><span class="p">,</span> <span class="s1">&#39;sweep_delay&#39;</span><span class="p">,</span>
-                                <span class="s1">&#39;max_sweep_delay&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_meta_attrs</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s1">&#39;sweep_step&#39;</span><span class="p">,</span> <span class="s1">&#39;sweep_delay&#39;</span><span class="p">,</span>
+                                 <span class="s1">&#39;max_sweep_delay&#39;</span><span class="p">])</span>
 
         <span class="c1"># stored value from last .set() or .get()</span>
         <span class="c1"># normally only used by set with a sweep, to avoid</span>
@@ -702,8 +949,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_save_val</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">value</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-            <span class="n">e</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">args</span> <span class="o">+</span> <span class="p">(</span>
-                <span class="s1">&#39;getting </span><span class="si">{}</span><span class="s1">:</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">),)</span>
+            <span class="n">e</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">args</span> <span class="o">+</span> <span class="p">(</span><span class="s1">&#39;getting </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">full_name</span><span class="p">),)</span>
             <span class="k">raise</span> <span class="n">e</span></div>
 
     <span class="k">def</span> <span class="nf">_valmapping_get_parser</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
@@ -727,7 +973,7 @@
             <span class="n">val</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_mapping</span><span class="p">[</span><span class="n">val</span><span class="p">]</span>
         <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s2">&quot;Unmapped value from instrument: </span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">val</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s1">&#39;Unmapped value from instrument: </span><span class="si">{!r}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">val</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">_valmapping_with_preparser</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_valmapping_get_parser</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_preparser</span><span class="p">(</span><span class="n">val</span><span class="p">))</span>
@@ -760,8 +1006,7 @@
                 <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">remainder</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="n">e</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">args</span> <span class="o">+</span> <span class="p">(</span>
-                <span class="s1">&#39;setting </span><span class="si">{}</span><span class="s1">:</span><span class="si">{}</span><span class="s1"> to </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
-                                             <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="nb">repr</span><span class="p">(</span><span class="n">value</span><span class="p">)),)</span>
+                <span class="s1">&#39;setting </span><span class="si">{}</span><span class="s1"> to </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">full_name</span><span class="p">,</span> <span class="nb">repr</span><span class="p">(</span><span class="n">value</span><span class="p">)),)</span>
             <span class="k">raise</span> <span class="n">e</span>
 
     <span class="k">def</span> <span class="nf">_sweep_steps</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
@@ -821,8 +1066,7 @@
                 <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">remainder</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="n">e</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">args</span> <span class="o">+</span> <span class="p">(</span>
-                <span class="s1">&#39;setting </span><span class="si">{}</span><span class="s1">:</span><span class="si">{}</span><span class="s1"> to </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
-                                             <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="nb">repr</span><span class="p">(</span><span class="n">value</span><span class="p">)),)</span>
+                <span class="s1">&#39;setting </span><span class="si">{}</span><span class="s1"> to </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">full_name</span><span class="p">,</span> <span class="nb">repr</span><span class="p">(</span><span class="n">value</span><span class="p">)),)</span>
             <span class="k">raise</span> <span class="n">e</span>
 
 <div class="viewcode-block" id="StandardParameter.set_step"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.StandardParameter.set_step">[docs]</a>    <span class="k">def</span> <span class="nf">set_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step</span><span class="p">,</span> <span class="n">max_val_age</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
@@ -936,21 +1180,20 @@
 <span class="sd">    Define one parameter that reflects a manual setting / configuration.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        name (string): the local name of this parameter</span>
+<span class="sd">        name (str): the local name of this parameter</span>
 
 <span class="sd">        instrument (Optional[Instrument]): the instrument this applies to,</span>
 <span class="sd">            if any.</span>
 
-<span class="sd">        initial_value (Optional[string]): starting value, the</span>
+<span class="sd">        initial_value (Optional[str]): starting value, the</span>
 <span class="sd">            only invalid value allowed, and None is only allowed as an initial</span>
 <span class="sd">            value, it cannot be set later</span>
 
 <span class="sd">        **kwargs: Passed to Parameter parent class</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">instrument</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">initial_value</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span> <span class="o">=</span> <span class="n">instrument</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_meta_attrs</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s1">&#39;instrument&#39;</span><span class="p">,</span> <span class="s1">&#39;initial_value&#39;</span><span class="p">])</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">instrument</span><span class="o">=</span><span class="n">instrument</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_meta_attrs</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s1">&#39;initial_value&#39;</span><span class="p">])</span>
 
         <span class="k">if</span> <span class="n">initial_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">initial_value</span><span class="p">)</span>
@@ -959,6 +1202,7 @@
 <div class="viewcode-block" id="ManualParameter.set"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.ManualParameter.set">[docs]</a>    <span class="k">def</span> <span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Validate and saves value</span>
+
 <span class="sd">        Args:</span>
 <span class="sd">            value (any): value to validate and save</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -998,8 +1242,10 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">()</span></div>
 
 
-<div class="viewcode-block" id="combine"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.combine">[docs]</a><span class="k">def</span> <span class="nf">combine</span><span class="p">(</span><span class="o">*</span><span class="n">parameters</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aggregator</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Combine parameters into one swepable parameter</span>
+<div class="viewcode-block" id="combine"><a class="viewcode-back" href="../../../auto/qcodes.instrument.html#qcodes.combine">[docs]</a><span class="k">def</span> <span class="nf">combine</span><span class="p">(</span><span class="o">*</span><span class="n">parameters</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">aggregator</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Combine parameters into one sweepable parameter</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        *paramters (qcodes.Parameter): the parameters to combine</span>
@@ -1015,7 +1261,8 @@
 <span class="sd">    sequantially.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">parameters</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
-    <span class="n">multi_par</span> <span class="o">=</span> <span class="n">CombinedParameter</span><span class="p">(</span><span class="n">parameters</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">units</span><span class="p">,</span> <span class="n">aggregator</span><span class="p">)</span>
+    <span class="n">multi_par</span> <span class="o">=</span> <span class="n">CombinedParameter</span><span class="p">(</span><span class="n">parameters</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">unit</span><span class="p">,</span> <span class="n">units</span><span class="p">,</span>
+                                  <span class="n">aggregator</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">multi_par</span></div>
 
 
@@ -1023,8 +1270,8 @@
     <span class="sd">&quot;&quot;&quot; A combined parameter</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        *paramters (qcodes.Parameter): the parameters to combine</span>
-<span class="sd">        name (str): the name of the paramter</span>
+<span class="sd">        *parameters (qcodes.Parameter): the parameters to combine</span>
+<span class="sd">        name (str): the name of the parameter</span>
 <span class="sd">        label (Optional[str]): the label of the combined parameter</span>
 <span class="sd">        unit (Optional[str]): the unit of the combined parameter</span>
 <span class="sd">        aggregator (Optional[Callable[list[any]]]): a function to aggregate</span>
@@ -1033,11 +1280,11 @@
 <span class="sd">    A combined parameter sets all the combined parameters at every point of the</span>
 <span class="sd">    sweep.</span>
 <span class="sd">    The sets are called in the same order the parameters are, and</span>
-<span class="sd">    sequantially.</span>
+<span class="sd">    sequentially.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
 <div class="viewcode-block" id="CombinedParameter.__init__"><a class="viewcode-back" href="../../../api/generated/qcodes.CombinedParameter.html#qcodes.CombinedParameter.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">units</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aggregator</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+                 <span class="n">unit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aggregator</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
         <span class="c1"># TODO(giulioungaretti)temporary hack</span>
         <span class="c1"># starthack</span>
@@ -1047,7 +1294,12 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span><span class="o">.</span><span class="n">full_name</span> <span class="o">=</span> <span class="n">name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">label</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span><span class="o">.</span><span class="n">units</span> <span class="o">=</span> <span class="n">units</span>
+
+        <span class="k">if</span> <span class="n">units</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">warn_units</span><span class="p">(</span><span class="s1">&#39;CombinedParameter&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">unit</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">unit</span> <span class="o">=</span> <span class="n">units</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span><span class="o">.</span><span class="n">unit</span> <span class="o">=</span> <span class="n">unit</span>
         <span class="c1"># endhack</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span> <span class="o">=</span> <span class="n">parameters</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sets</span> <span class="o">=</span> <span class="p">[</span><span class="n">parameter</span><span class="o">.</span><span class="n">set</span> <span class="k">for</span> <span class="n">parameter</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">]</span>
@@ -1063,6 +1315,7 @@
 
 <span class="sd">        Args:</span>
 <span class="sd">            index (int): the index of the setpoints one wants to set</span>
+
 <span class="sd">        Returns:</span>
 <span class="sd">            list: values that where actually set</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -1092,7 +1345,7 @@
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">array</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="n">dim</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">array</span><span class="p">])</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Arrays have different number of setpoints&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Arrays have different number of setpoints&#39;</span><span class="p">)</span>
             <span class="n">array</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">array</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="c1"># cast to array in case users</span>
@@ -1139,10 +1392,10 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">meta_data</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">()</span>
         <span class="n">meta_data</span><span class="p">[</span><span class="s1">&#39;__class__&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">full_class</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
-        <span class="n">meta_data</span><span class="p">[</span><span class="s2">&quot;units&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span><span class="o">.</span><span class="n">units</span>
-        <span class="n">meta_data</span><span class="p">[</span><span class="s2">&quot;label&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span><span class="o">.</span><span class="n">label</span>
-        <span class="n">meta_data</span><span class="p">[</span><span class="s2">&quot;full_name&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span><span class="o">.</span><span class="n">full_name</span>
-        <span class="n">meta_data</span><span class="p">[</span><span class="s2">&quot;aggreagator&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">repr</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;f&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+        <span class="n">meta_data</span><span class="p">[</span><span class="s1">&#39;unit&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span><span class="o">.</span><span class="n">unit</span>
+        <span class="n">meta_data</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span><span class="o">.</span><span class="n">label</span>
+        <span class="n">meta_data</span><span class="p">[</span><span class="s1">&#39;full_name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span><span class="o">.</span><span class="n">full_name</span>
+        <span class="n">meta_data</span><span class="p">[</span><span class="s1">&#39;aggreagator&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">repr</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;f&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
         <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">:</span>
             <span class="n">meta_data</span><span class="p">[</span><span class="n">param</span><span class="o">.</span><span class="n">full_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">snapshot</span><span class="p">()</span>
 
