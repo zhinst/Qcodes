@@ -206,6 +206,7 @@
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span>
+<span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">multiprocessing</span> <span class="k">as</span> <span class="nn">mp</span>
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
@@ -223,6 +224,8 @@
 <span class="kn">from</span> <span class="nn">.actions</span> <span class="k">import</span> <span class="p">(</span><span class="n">_actions_snapshot</span><span class="p">,</span> <span class="n">Task</span><span class="p">,</span> <span class="n">Wait</span><span class="p">,</span> <span class="n">_Measure</span><span class="p">,</span> <span class="n">_Nest</span><span class="p">,</span>
                       <span class="n">BreakIf</span><span class="p">,</span> <span class="n">_QcodesBreak</span><span class="p">)</span>
 
+
+<span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 <span class="c1"># Switches off multiprocessing by default, cant&#39; be altered after module</span>
 <span class="n">USE_MP</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">legacy_mp</span>
 <span class="n">MP_NAME</span> <span class="o">=</span> <span class="s1">&#39;Measurement&#39;</span>
@@ -1029,7 +1032,6 @@
             <span class="c1"># this one later.</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span> <span class="o">=</span> <span class="kc">None</span>
 
-
         <span class="k">return</span> <span class="n">ds</span>
 
     <span class="k">def</span> <span class="nf">_compile_actions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">actions</span><span class="p">,</span> <span class="n">action_indices</span><span class="o">=</span><span class="p">()):</span>
@@ -1098,8 +1100,10 @@
 
         <span class="n">t0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
         <span class="n">last_task</span> <span class="o">=</span> <span class="n">t0</span>
-        <span class="n">last_task_failed</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="n">imax</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sweep_values</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_task_failed</span> <span class="o">=</span> <span class="kc">False</span>
+
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sweep_values</span><span class="p">):</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress_interval</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">tprint</span><span class="p">(</span><span class="s1">&#39;loop </span><span class="si">%s</span><span class="s1">: </span><span class="si">%d</span><span class="s1">/</span><span class="si">%d</span><span class="s1"> (</span><span class="si">%.1f</span><span class="s1"> [s])&#39;</span> <span class="o">%</span> <span class="p">(</span>
@@ -1156,16 +1160,18 @@
                 <span class="k">if</span> <span class="n">t</span> <span class="o">-</span> <span class="n">last_task</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bg_min_delay</span><span class="p">:</span>
                     <span class="k">try</span><span class="p">:</span>
                         <span class="bp">self</span><span class="o">.</span><span class="n">bg_task</span><span class="p">()</span>
-                        <span class="n">last_task_failed</span> <span class="o">=</span> <span class="kc">False</span>
                     <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-                        <span class="k">if</span> <span class="n">last_task_failed</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_task_failed</span><span class="p">:</span>
                             <span class="bp">self</span><span class="o">.</span><span class="n">bg_task</span> <span class="o">=</span> <span class="kc">None</span>
-                        <span class="n">last_task_failed</span> <span class="o">=</span> <span class="kc">True</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">last_task_failed</span> <span class="o">=</span> <span class="kc">True</span>
+                        <span class="n">log</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Failed to execute bg task&quot;</span><span class="p">)</span>
+
                     <span class="n">last_task</span> <span class="o">=</span> <span class="n">t</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress_interval</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="c1"># final progress note: set dt=-1 so it *always* prints</span>
             <span class="n">tprint</span><span class="p">(</span><span class="s1">&#39;loop </span><span class="si">%s</span><span class="s1"> DONE: </span><span class="si">%d</span><span class="s1">/</span><span class="si">%d</span><span class="s1"> (</span><span class="si">%.1f</span><span class="s1"> [s])&#39;</span> <span class="o">%</span> <span class="p">(</span>
+
                    <span class="bp">self</span><span class="o">.</span><span class="n">sweep_values</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">imax</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">t0</span><span class="p">),</span>
                    <span class="n">dt</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="s1">&#39;outerloop&#39;</span><span class="p">)</span>
 
@@ -1180,8 +1186,6 @@
         <span class="c1"># run the bg_final_task from the bg_task:</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bg_final_task</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">bg_final_task</span><span class="p">()</span>
-
-
 
     <span class="k">def</span> <span class="nf">_wait</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delay</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">delay</span><span class="p">:</span>
