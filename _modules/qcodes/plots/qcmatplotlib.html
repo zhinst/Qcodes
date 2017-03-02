@@ -268,10 +268,32 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">subplots</span><span class="p">[</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;subplot&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
 
     <span class="k">def</span> <span class="nf">_update_labels</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
-        <span class="k">if</span> <span class="s1">&#39;x&#39;</span> <span class="ow">in</span> <span class="n">config</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ax</span><span class="o">.</span><span class="n">get_xlabel</span><span class="p">():</span>
-            <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_label</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">]))</span>
-        <span class="k">if</span> <span class="s1">&#39;y&#39;</span> <span class="ow">in</span> <span class="n">config</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ax</span><span class="o">.</span><span class="n">get_ylabel</span><span class="p">():</span>
-            <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_label</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">]))</span>
+        <span class="k">for</span> <span class="n">axletter</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">axletter</span><span class="o">+</span><span class="s1">&#39;label&#39;</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
+                <span class="n">label</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="n">axletter</span><span class="o">+</span><span class="s1">&#39;label&#39;</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">label</span> <span class="o">=</span> <span class="kc">None</span>
+
+            <span class="c1"># find if any kwarg from plot.add in the base class</span>
+            <span class="c1"># matches xunit or yunit, signaling a custom unit</span>
+            <span class="k">if</span> <span class="n">axletter</span><span class="o">+</span><span class="s1">&#39;unit&#39;</span> <span class="ow">in</span> <span class="n">config</span><span class="p">:</span>
+                <span class="n">unit</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="n">axletter</span><span class="o">+</span><span class="s1">&#39;unit&#39;</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">unit</span> <span class="o">=</span> <span class="kc">None</span>
+
+            <span class="c1">#  find ( more hope to) unit and label from</span>
+            <span class="c1"># the data array inside the config</span>
+            <span class="n">getter</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="s2">&quot;get_</span><span class="si">{}</span><span class="s2">label&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">axletter</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">axletter</span> <span class="ow">in</span> <span class="n">config</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">getter</span><span class="p">():</span>
+                <span class="c1"># now if we did not have any kwark gor label or unit</span>
+                <span class="c1"># fallback to the data_array</span>
+                <span class="k">if</span> <span class="n">unit</span> <span class="ow">is</span>  <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">_</span><span class="p">,</span> <span class="n">unit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_label</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="n">axletter</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">label</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">label</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_label</span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="n">axletter</span><span class="p">])</span>
+
+            <span class="n">axsetter</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="s2">&quot;set_</span><span class="si">{}</span><span class="s2">label&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">axletter</span><span class="p">))</span>
+            <span class="n">axsetter</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> (</span><span class="si">{}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">unit</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">update_plot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -321,7 +343,14 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">fig</span><span class="o">.</span><span class="n">canvas</span><span class="o">.</span><span class="n">draw</span><span class="p">()</span>
 
-    <span class="k">def</span> <span class="nf">_draw_plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subplot</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_draw_plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subplot</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                   <span class="n">xlabel</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                   <span class="n">ylabel</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                   <span class="n">zlabel</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                   <span class="n">xunit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                   <span class="n">yunit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                    <span class="n">zunit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                   <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="c1"># NOTE(alexj)stripping out subplot because which subplot we&#39;re in is already</span>
         <span class="c1"># described by ax, and it&#39;s not a kwarg to matplotlib&#39;s ax.plot. But I</span>
         <span class="c1"># didn&#39;t want to strip it out of kwargs earlier because it should stay</span>
@@ -330,7 +359,14 @@
         <span class="n">line</span><span class="p">,</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">line</span>
 
-    <span class="k">def</span> <span class="nf">_draw_pcolormesh</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subplot</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_draw_pcolormesh</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subplot</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                         <span class="n">xlabel</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                         <span class="n">ylabel</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                         <span class="n">zlabel</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                         <span class="n">xunit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                         <span class="n">yunit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                         <span class="n">zunit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                         <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="c1"># NOTE(alexj)stripping out subplot because which subplot we&#39;re in is already</span>
         <span class="c1"># described by ax, and it&#39;s not a kwarg to matplotlib&#39;s ax.plot. But I</span>
         <span class="c1"># didn&#39;t want to strip it out of kwargs earlier because it should stay</span>
@@ -360,7 +396,13 @@
             <span class="c1"># I guess we could create the colorbar no matter what,</span>
             <span class="c1"># and just give it a dummy mappable to start, so we could</span>
             <span class="c1"># put this where it belongs.</span>
-            <span class="n">ax</span><span class="o">.</span><span class="n">qcodes_colorbar</span><span class="o">.</span><span class="n">set_label</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_label</span><span class="p">(</span><span class="n">z</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">zunit</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">_</span><span class="p">,</span> <span class="n">zunit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_label</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">zlabel</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">zlabel</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_label</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+
+            <span class="n">label</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> (</span><span class="si">{}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">zlabel</span><span class="p">,</span> <span class="n">zunit</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">qcodes_colorbar</span><span class="o">.</span><span class="n">set_label</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">pc</span>
 
