@@ -597,7 +597,9 @@
 <span class="sd">            per setpoint array. Ignored if a setpoint is a DataArray, which</span>
 <span class="sd">            already has a label.</span>
 
-<span class="sd">            TODO (alexcjohnson) we need setpoint_units (and in MultiParameter)</span>
+<span class="sd">        setpoint_units (Optional[Tuple[str]]): one label (like ``v``)</span>
+<span class="sd">            per setpoint array. Ignored if a setpoint is a DataArray, which</span>
+<span class="sd">            already has a unit.</span>
 
 <span class="sd">        docstring (Optional[str]): documentation string for the __doc__</span>
 <span class="sd">            field of the object. The __doc__ field of the instance is used by</span>
@@ -612,14 +614,14 @@
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">instrument</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">label</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">setpoints</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">setpoint_names</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">setpoint_labels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">docstring</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">snapshot_get</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">metadata</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+                 <span class="n">setpoint_units</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">docstring</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">snapshot_get</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">metadata</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">instrument</span><span class="p">,</span> <span class="n">snapshot_get</span><span class="p">,</span> <span class="n">metadata</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_set</span><span class="p">:</span>  <span class="c1"># TODO (alexcjohnson): can we support, ala Combine?</span>
             <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s1">&#39;ArrayParameters do not support set &#39;</span>
                                  <span class="s1">&#39;at this time.&#39;</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_meta_attrs</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s1">&#39;setpoint_names&#39;</span><span class="p">,</span> <span class="s1">&#39;setpoint_labels&#39;</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_meta_attrs</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s1">&#39;setpoint_names&#39;</span><span class="p">,</span> <span class="s1">&#39;setpoint_labels&#39;</span><span class="p">,</span> <span class="s1">&#39;setpoint_units&#39;</span><span class="p">,</span>
                                  <span class="s1">&#39;label&#39;</span><span class="p">,</span> <span class="s1">&#39;unit&#39;</span><span class="p">])</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">name</span> <span class="k">if</span> <span class="n">label</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">label</span>
@@ -652,10 +654,15 @@
                 <span class="ow">not</span> <span class="n">is_sequence_of</span><span class="p">(</span><span class="n">setpoint_labels</span><span class="p">,</span> <span class="p">(</span><span class="n">nt</span><span class="p">,</span> <span class="nb">str</span><span class="p">),</span>
                                    <span class="n">shape</span><span class="o">=</span><span class="n">sp_shape</span><span class="p">)):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;setpoint_labels must be a tuple of strings&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">setpoint_units</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span>
+                <span class="ow">not</span> <span class="n">is_sequence_of</span><span class="p">(</span><span class="n">setpoint_units</span><span class="p">,</span> <span class="p">(</span><span class="n">nt</span><span class="p">,</span> <span class="nb">str</span><span class="p">),</span>
+                                   <span class="n">shape</span><span class="o">=</span><span class="n">sp_shape</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;setpoint_units must be a tuple of strings&#39;</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">setpoints</span> <span class="o">=</span> <span class="n">setpoints</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">setpoint_names</span> <span class="o">=</span> <span class="n">setpoint_names</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">setpoint_labels</span> <span class="o">=</span> <span class="n">setpoint_labels</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setpoint_units</span> <span class="o">=</span> <span class="n">setpoint_units</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="vm">__doc__</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">linesep</span><span class="o">.</span><span class="n">join</span><span class="p">((</span>
             <span class="s1">&#39;Parameter class:&#39;</span><span class="p">,</span>
@@ -755,6 +762,10 @@
 <span class="sd">            ``labels``) per setpoint array. Ignored if a setpoint is a</span>
 <span class="sd">            DataArray, which already has a label.</span>
 
+<span class="sd">        setpoint_units (Optional[Tuple[Tuple[str]]]): one unit (like</span>
+<span class="sd">            ``V``) per setpoint array. Ignored if a setpoint is a</span>
+<span class="sd">            DataArray, which already has a unit.</span>
+
 <span class="sd">        docstring (Optional[str]): documentation string for the __doc__</span>
 <span class="sd">            field of the object. The __doc__ field of the instance is used by</span>
 <span class="sd">            some help systems, but not all</span>
@@ -768,6 +779,7 @@
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span> <span class="n">shapes</span><span class="p">,</span> <span class="n">instrument</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">labels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">setpoints</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">setpoint_names</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">setpoint_labels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">setpoint_units</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">docstring</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">snapshot_get</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">metadata</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">instrument</span><span class="p">,</span> <span class="n">snapshot_get</span><span class="p">,</span> <span class="n">metadata</span><span class="p">)</span>
 
@@ -775,7 +787,7 @@
             <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s1">&#39;MultiParameters do not support set &#39;</span>
                                  <span class="s1">&#39;at this time.&#39;</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_meta_attrs</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s1">&#39;setpoint_names&#39;</span><span class="p">,</span> <span class="s1">&#39;setpoint_labels&#39;</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_meta_attrs</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s1">&#39;setpoint_names&#39;</span><span class="p">,</span> <span class="s1">&#39;setpoint_labels&#39;</span><span class="p">,</span> <span class="s1">&#39;setpoint_units&#39;</span><span class="p">,</span>
                                  <span class="s1">&#39;names&#39;</span><span class="p">,</span> <span class="s1">&#39;labels&#39;</span><span class="p">,</span> <span class="s1">&#39;units&#39;</span><span class="p">])</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">is_sequence_of</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
@@ -807,9 +819,14 @@
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
                 <span class="s1">&#39;setpoint_labels must be a tuple of tuples of strings&#39;</span><span class="p">)</span>
 
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">_is_nested_sequence_or_none</span><span class="p">(</span><span class="n">setpoint_units</span><span class="p">,</span> <span class="p">(</span><span class="n">nt</span><span class="p">,</span> <span class="nb">str</span><span class="p">),</span> <span class="n">shapes</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s1">&#39;setpoint_units must be a tuple of tuples of strings&#39;</span><span class="p">)</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">setpoints</span> <span class="o">=</span> <span class="n">setpoints</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">setpoint_names</span> <span class="o">=</span> <span class="n">setpoint_names</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">setpoint_labels</span> <span class="o">=</span> <span class="n">setpoint_labels</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setpoint_units</span> <span class="o">=</span> <span class="n">setpoint_units</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="vm">__doc__</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">linesep</span><span class="o">.</span><span class="n">join</span><span class="p">((</span>
             <span class="s1">&#39;MultiParameter class:&#39;</span><span class="p">,</span>
