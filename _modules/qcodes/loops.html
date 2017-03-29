@@ -212,18 +212,13 @@
 
 <span class="kn">from</span> <span class="nn">datetime</span> <span class="k">import</span> <span class="n">datetime</span>
 <span class="kn">import</span> <span class="nn">logging</span>
-<span class="kn">import</span> <span class="nn">multiprocessing</span> <span class="k">as</span> <span class="nn">mp</span>
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">import</span> <span class="nn">warnings</span>
 
-<span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="n">config</span>
 <span class="kn">from</span> <span class="nn">qcodes.station</span> <span class="k">import</span> <span class="n">Station</span>
-<span class="kn">from</span> <span class="nn">qcodes.data.data_set</span> <span class="k">import</span> <span class="n">new_data</span><span class="p">,</span> <span class="n">DataMode</span>
+<span class="kn">from</span> <span class="nn">qcodes.data.data_set</span> <span class="k">import</span> <span class="n">new_data</span>
 <span class="kn">from</span> <span class="nn">qcodes.data.data_array</span> <span class="k">import</span> <span class="n">DataArray</span>
-<span class="kn">from</span> <span class="nn">qcodes.data.manager</span> <span class="k">import</span> <span class="n">get_data_manager</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.helpers</span> <span class="k">import</span> <span class="n">wait_secs</span><span class="p">,</span> <span class="n">full_class</span><span class="p">,</span> <span class="n">tprint</span>
-<span class="kn">from</span> <span class="nn">qcodes.process.qcodes_process</span> <span class="k">import</span> <span class="n">QcodesProcess</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.metadata</span> <span class="k">import</span> <span class="n">Metadatable</span>
 
 <span class="kn">from</span> <span class="nn">.actions</span> <span class="k">import</span> <span class="p">(</span><span class="n">_actions_snapshot</span><span class="p">,</span> <span class="n">Task</span><span class="p">,</span> <span class="n">Wait</span><span class="p">,</span> <span class="n">_Measure</span><span class="p">,</span> <span class="n">_Nest</span><span class="p">,</span>
@@ -231,84 +226,6 @@
 
 
 <span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
-<span class="c1"># Switches off multiprocessing by default, cant&#39; be altered after module</span>
-<span class="n">USE_MP</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">legacy_mp</span>
-<span class="n">MP_NAME</span> <span class="o">=</span> <span class="s1">&#39;Measurement&#39;</span>
-
-
-<div class="viewcode-block" id="get_bg"><a class="viewcode-back" href="../../api/generated/qcodes.get_bg.html#qcodes.get_bg">[docs]</a><span class="k">def</span> <span class="nf">get_bg</span><span class="p">(</span><span class="n">return_first</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Find the active background measurement process, if any</span>
-<span class="sd">    returns None otherwise.</span>
-
-<span class="sd">    Todo:</span>
-<span class="sd">        RuntimeError message is really hard to understand.</span>
-<span class="sd">    Args:</span>
-<span class="sd">        return_first(bool): if there are multiple loops running return the</span>
-<span class="sd">                            first anyway.</span>
-<span class="sd">    Raises:</span>
-<span class="sd">        RuntimeError: if multiple loops are active and return_first is False.</span>
-<span class="sd">    Returns:</span>
-<span class="sd">        Union[loop, None]: active loop or none if no loops are active</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">processes</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">active_children</span><span class="p">()</span>
-    <span class="n">loops</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">processes</span> <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="n">MP_NAME</span><span class="p">]</span>
-
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">loops</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">return_first</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Oops, multiple loops are running???&#39;</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">loops</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">loops</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-
-    <span class="c1"># if we got here, there shouldn&#39;t be a loop running. Make sure the</span>
-    <span class="c1"># data manager, if there is one, agrees!</span>
-    <span class="n">_clear_data_manager</span><span class="p">()</span>
-    <span class="k">return</span> <span class="kc">None</span></div>
-
-
-<div class="viewcode-block" id="halt_bg"><a class="viewcode-back" href="../../api/generated/qcodes.halt_bg.html#qcodes.halt_bg">[docs]</a><span class="k">def</span> <span class="nf">halt_bg</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">traceback</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Stop the active background measurement process, if any.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        timeout (int): seconds to wait for a clean exit before forcibly</span>
-<span class="sd">         terminating.</span>
-
-<span class="sd">        traceback (bool):  whether to print a traceback at the point of</span>
-<span class="sd">         interrupt, for debugging purposes.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">loop</span> <span class="o">=</span> <span class="n">get_bg</span><span class="p">(</span><span class="n">return_first</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">loop</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;No loop running&#39;</span><span class="p">)</span>
-        <span class="k">return</span>
-
-    <span class="k">if</span> <span class="n">traceback</span><span class="p">:</span>
-        <span class="n">signal_</span> <span class="o">=</span> <span class="n">ActiveLoop</span><span class="o">.</span><span class="n">HALT_DEBUG</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">signal_</span> <span class="o">=</span> <span class="n">ActiveLoop</span><span class="o">.</span><span class="n">HALT</span>
-
-    <span class="n">loop</span><span class="o">.</span><span class="n">signal_queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">signal_</span><span class="p">)</span>
-    <span class="n">loop</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">timeout</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">loop</span><span class="o">.</span><span class="n">is_alive</span><span class="p">():</span>
-        <span class="n">loop</span><span class="o">.</span><span class="n">terminate</span><span class="p">()</span>
-        <span class="n">loop</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">timeout</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Background loop did not respond to halt signal, terminated&#39;</span><span class="p">)</span>
-
-    <span class="n">_clear_data_manager</span><span class="p">()</span></div>
-
-
-<span class="k">def</span> <span class="nf">_clear_data_manager</span><span class="p">():</span>
-    <span class="n">dm</span> <span class="o">=</span> <span class="n">get_data_manager</span><span class="p">(</span><span class="n">only_existing</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">dm</span> <span class="ow">and</span> <span class="n">dm</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;get_measuring&#39;</span><span class="p">):</span>
-        <span class="n">dm</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;finalize_data&#39;</span><span class="p">)</span>
-
-<span class="c1"># TODO(giulioungaretti) remove dead code</span>
-<span class="c1"># def measure(*actions):</span>
-<span class="c1">#     # measure has been moved into Station</span>
-<span class="c1">#     # TODO - for all-at-once parameters we want to be able to</span>
-<span class="c1">#     # store the output into a DataSet without making a Loop.</span>
-<span class="c1">#     pass</span>
 
 
 <div class="viewcode-block" id="Loop"><a class="viewcode-back" href="../../api/generated/qcodes.Loop.html#qcodes.Loop">[docs]</a><span class="k">class</span> <span class="nc">Loop</span><span class="p">(</span><span class="n">Metadatable</span><span class="p">):</span>
@@ -478,8 +395,7 @@
 <span class="sd">        shortcut to run a loop in the foreground as a temporary dataset</span>
 <span class="sd">        using the default measurement set</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">quiet</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                        <span class="n">data_manager</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">quiet</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">then</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">actions</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -568,12 +484,6 @@
 <span class="sd">    The *ActiveLoop* determines what *DataArray*\s it will need to hold the data</span>
 <span class="sd">    it collects, and it creates a *DataSet* holding these *DataArray*\s</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="c1"># constants for signal_queue</span>
-    <span class="n">HALT</span> <span class="o">=</span> <span class="s1">&#39;HALT LOOP&#39;</span>
-    <span class="n">HALT_DEBUG</span> <span class="o">=</span> <span class="s1">&#39;HALT AND DEBUG&#39;</span>
-
-    <span class="c1"># maximum sleep time (secs) between checking the signal_queue for a HALT</span>
-    <span class="n">signal_period</span> <span class="o">=</span> <span class="mi">1</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sweep_values</span><span class="p">,</span> <span class="n">delay</span><span class="p">,</span> <span class="o">*</span><span class="n">actions</span><span class="p">,</span> <span class="n">then_actions</span><span class="o">=</span><span class="p">(),</span>
                  <span class="n">station</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">progress_interval</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">bg_task</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -590,25 +500,10 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">bg_min_delay</span> <span class="o">=</span> <span class="n">bg_min_delay</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span> <span class="o">=</span> <span class="kc">None</span>
 
-        <span class="c1"># compile now, but don&#39;t save the results</span>
-        <span class="c1"># just used for preemptive error checking</span>
-        <span class="c1"># if we saved the results, we wouldn&#39;t capture nesting</span>
-        <span class="c1"># nor would we be able to reuse an ActiveLoop multiple times</span>
-        <span class="c1"># within one outer Loop.</span>
-        <span class="c1"># TODO: this doesn&#39;t work, because _Measure needs the data_set,</span>
-        <span class="c1"># which doesn&#39;t exist yet - do we want to make a special &quot;dry run&quot;</span>
-        <span class="c1"># mode, or is it sufficient to let errors wait until .run()?</span>
-        <span class="c1"># self._compile_actions(actions)</span>
-
         <span class="c1"># if the first action is another loop, it changes how delays</span>
         <span class="c1"># happen - the outer delay happens *after* the inner var gets</span>
         <span class="c1"># set to its initial value</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_nest_first</span> <span class="o">=</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">actions</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s1">&#39;containers&#39;</span><span class="p">)</span>
-
-        <span class="c1"># for sending halt signals to the loop</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">signal_queue</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">Queue</span><span class="p">()</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">_monitor</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># TODO: how to specify this?</span>
 
     <span class="k">def</span> <span class="nf">then</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">actions</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -831,7 +726,7 @@
 
         <span class="k">return</span> <span class="n">sp</span>
 
-    <span class="k">def</span> <span class="nf">set_common_attrs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_set</span><span class="p">,</span> <span class="n">use_threads</span><span class="p">,</span> <span class="n">signal_queue</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">set_common_attrs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_set</span><span class="p">,</span> <span class="n">use_threads</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        set a couple of common attributes that the main and nested loops</span>
 <span class="sd">        all need to have:</span>
@@ -839,23 +734,12 @@
 <span class="sd">        - a queue for communicating with the main process</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span> <span class="o">=</span> <span class="n">data_set</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">signal_queue</span> <span class="o">=</span> <span class="n">signal_queue</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">use_threads</span> <span class="o">=</span> <span class="n">use_threads</span>
         <span class="k">for</span> <span class="n">action</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">actions</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">action</span><span class="p">,</span> <span class="s1">&#39;set_common_attrs&#39;</span><span class="p">):</span>
-                <span class="n">action</span><span class="o">.</span><span class="n">set_common_attrs</span><span class="p">(</span><span class="n">data_set</span><span class="p">,</span> <span class="n">use_threads</span><span class="p">,</span> <span class="n">signal_queue</span><span class="p">)</span>
+                <span class="n">action</span><span class="o">.</span><span class="n">set_common_attrs</span><span class="p">(</span><span class="n">data_set</span><span class="p">,</span> <span class="n">use_threads</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_check_signal</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">while</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">signal_queue</span><span class="o">.</span><span class="n">empty</span><span class="p">():</span>
-            <span class="n">signal_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">signal_queue</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
-            <span class="k">if</span> <span class="n">signal_</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">HALT</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">_QuietInterrupt</span><span class="p">(</span><span class="s1">&#39;sweep was halted&#39;</span><span class="p">)</span>
-            <span class="k">elif</span> <span class="n">signal_</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">HALT_DEBUG</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">_DebugInterrupt</span><span class="p">(</span><span class="s1">&#39;sweep was halted&#39;</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;unknown signal&#39;</span><span class="p">,</span> <span class="n">signal_</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">get_data_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_manager</span><span class="o">=</span><span class="n">USE_MP</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">get_data_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Return the data set for this loop.</span>
 
@@ -888,22 +772,12 @@
 <span class="sd">            a DataSet object that we can use to plot</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">data_manager</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
-                <span class="n">data_mode</span> <span class="o">=</span> <span class="n">DataMode</span><span class="o">.</span><span class="n">LOCAL</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Multiprocessing is in beta, use at own risk&quot;</span><span class="p">,</span>
-                              <span class="ne">UserWarning</span><span class="p">)</span>
-                <span class="n">data_mode</span> <span class="o">=</span> <span class="n">DataMode</span><span class="o">.</span><span class="n">PUSH_TO_SERVER</span>
-
-            <span class="n">data_set</span> <span class="o">=</span> <span class="n">new_data</span><span class="p">(</span><span class="n">arrays</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">containers</span><span class="p">(),</span> <span class="n">mode</span><span class="o">=</span><span class="n">data_mode</span><span class="p">,</span>
-                                <span class="n">data_manager</span><span class="o">=</span><span class="n">data_manager</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-
+            <span class="n">data_set</span> <span class="o">=</span> <span class="n">new_data</span><span class="p">(</span><span class="n">arrays</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">containers</span><span class="p">(),</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span> <span class="o">=</span> <span class="n">data_set</span>
 
         <span class="k">else</span><span class="p">:</span>
             <span class="n">has_args</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
-            <span class="n">uses_data_manager</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_set</span><span class="o">.</span><span class="n">mode</span> <span class="o">!=</span> <span class="n">DataMode</span><span class="o">.</span><span class="n">LOCAL</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">has_args</span> <span class="ow">or</span> <span class="p">(</span><span class="n">uses_data_manager</span> <span class="o">!=</span> <span class="n">data_manager</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">has_args</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
                     <span class="s1">&#39;The DataSet for this loop already exists. &#39;</span>
                     <span class="s1">&#39;You can only provide DataSet attributes, such as &#39;</span>
@@ -918,23 +792,18 @@
 <span class="sd">        especially for use in composite parameters that need to run a Loop</span>
 <span class="sd">        as part of their get method</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">background</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">quiet</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                        <span class="n">data_manager</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">quiet</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="n">USE_MP</span><span class="p">,</span> <span class="n">use_threads</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">quiet</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-            <span class="n">data_manager</span><span class="o">=</span><span class="n">USE_MP</span><span class="p">,</span> <span class="n">station</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">progress_interval</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-            <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">use_threads</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">quiet</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">station</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">progress_interval</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Execute this loop.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            background: (default False) run this sweep in a separate process</span>
-<span class="sd">                so we can have live plotting and other analysis in the main process</span>
 <span class="sd">            use_threads: (default False): whenever there are multiple `get` calls</span>
 <span class="sd">                back-to-back, execute them in separate threads so they run in</span>
 <span class="sd">                parallel (as long as they don&#39;t block each other)</span>
 <span class="sd">            quiet: (default False): set True to not print anything except errors</span>
-<span class="sd">            data_manager: set to True to use a DataManager. Default to False.</span>
 <span class="sd">            station: a Station instance for snapshots (omit to use a previously</span>
 <span class="sd">                provided Station, or the default Station)</span>
 <span class="sd">            progress_interval (default None): show progress of the loop every x</span>
@@ -967,23 +836,9 @@
         <span class="k">if</span> <span class="n">progress_interval</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">False</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">progress_interval</span> <span class="o">=</span> <span class="n">progress_interval</span>
 
-        <span class="n">prev_loop</span> <span class="o">=</span> <span class="n">get_bg</span><span class="p">()</span>
-        <span class="k">if</span> <span class="n">prev_loop</span><span class="p">:</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">quiet</span><span class="p">:</span>
-                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Waiting for the previous background Loop to finish...&#39;</span><span class="p">,</span>
-                      <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-            <span class="n">prev_loop</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+        <span class="n">data_set</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_data_set</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
-        <span class="n">data_set</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_data_set</span><span class="p">(</span><span class="n">data_manager</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="n">background</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">data_set</span><span class="p">,</span> <span class="s1">&#39;data_manager&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span>
-            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-                <span class="s1">&#39;With background=True you must also set data_manager=True &#39;</span>
-                <span class="s1">&#39;or you will not be able to sync your DataSet.&#39;</span><span class="p">,</span>
-                <span class="ne">UserWarning</span><span class="p">)</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">set_common_attrs</span><span class="p">(</span><span class="n">data_set</span><span class="o">=</span><span class="n">data_set</span><span class="p">,</span> <span class="n">use_threads</span><span class="o">=</span><span class="n">use_threads</span><span class="p">,</span>
-                              <span class="n">signal_queue</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">signal_queue</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_common_attrs</span><span class="p">(</span><span class="n">data_set</span><span class="o">=</span><span class="n">data_set</span><span class="p">,</span> <span class="n">use_threads</span><span class="o">=</span><span class="n">use_threads</span><span class="p">)</span>
 
         <span class="n">station</span> <span class="o">=</span> <span class="n">station</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">station</span> <span class="ow">or</span> <span class="n">Station</span><span class="o">.</span><span class="n">default</span>
         <span class="k">if</span> <span class="n">station</span><span class="p">:</span>
@@ -995,47 +850,16 @@
         <span class="n">ts</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1"> %H:%M:%S&#39;</span><span class="p">)</span>
         <span class="n">data_set</span><span class="o">.</span><span class="n">add_metadata</span><span class="p">({</span><span class="s1">&#39;loop&#39;</span><span class="p">:</span> <span class="p">{</span>
             <span class="s1">&#39;ts_start&#39;</span><span class="p">:</span> <span class="n">ts</span><span class="p">,</span>
-            <span class="s1">&#39;background&#39;</span><span class="p">:</span> <span class="n">background</span><span class="p">,</span>
             <span class="s1">&#39;use_threads&#39;</span><span class="p">:</span> <span class="n">use_threads</span><span class="p">,</span>
-            <span class="s1">&#39;use_data_manager&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">data_manager</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">False</span><span class="p">)</span>
         <span class="p">}})</span>
 
         <span class="n">data_set</span><span class="o">.</span><span class="n">save_metadata</span><span class="p">()</span>
 
-        <span class="k">if</span> <span class="n">prev_loop</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">quiet</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;...done. Starting &#39;</span> <span class="o">+</span> <span class="p">(</span><span class="n">data_set</span><span class="o">.</span><span class="n">location</span> <span class="ow">or</span> <span class="s1">&#39;new loop&#39;</span><span class="p">),</span>
-                  <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
         <span class="k">try</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">background</span><span class="p">:</span>
-                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Multiprocessing is in beta, use at own risk&quot;</span><span class="p">,</span>
-                              <span class="ne">UserWarning</span><span class="p">)</span>
-                <span class="n">p</span> <span class="o">=</span> <span class="n">QcodesProcess</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_run_wrapper</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">MP_NAME</span><span class="p">)</span>
-                <span class="n">p</span><span class="o">.</span><span class="n">is_sweep</span> <span class="o">=</span> <span class="kc">True</span>
-                <span class="n">p</span><span class="o">.</span><span class="n">signal_queue</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">signal_queue</span>
-                <span class="n">p</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">process</span> <span class="o">=</span> <span class="n">p</span>
-
-                <span class="c1"># now that the data_set we created has been put in the loop</span>
-                <span class="c1"># process, this copy turns into a reader</span>
-                <span class="c1"># if you&#39;re not using a DataManager, it just stays local</span>
-                <span class="c1"># and sync() reads from disk</span>
-                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="n">DataMode</span><span class="o">.</span><span class="n">PUSH_TO_SERVER</span><span class="p">:</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">DataMode</span><span class="o">.</span><span class="n">PULL_FROM_SERVER</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;process&#39;</span><span class="p">):</span>
-                    <span class="c1"># in case this ActiveLoop was run before in the background</span>
-                    <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">process</span>
-
-                <span class="bp">self</span><span class="o">.</span><span class="n">_run_wrapper</span><span class="p">()</span>
-
-                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span><span class="o">.</span><span class="n">mode</span> <span class="o">!=</span> <span class="n">DataMode</span><span class="o">.</span><span class="n">LOCAL</span><span class="p">:</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
-
+            <span class="bp">self</span><span class="o">.</span><span class="n">_run_wrapper</span><span class="p">()</span>
             <span class="n">ds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span>
-
         <span class="k">finally</span><span class="p">:</span>
+
             <span class="k">if</span> <span class="ow">not</span> <span class="n">quiet</span><span class="p">:</span>
                 <span class="nb">print</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_set</span><span class="p">))</span>
                 <span class="nb">print</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;started at %Y-%m-</span><span class="si">%d</span><span class="s1"> %H:%M:%S&#39;</span><span class="p">))</span>
@@ -1079,17 +903,16 @@
             <span class="k">return</span> <span class="n">action</span>
 
     <span class="k">def</span> <span class="nf">_run_wrapper</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_run_loop</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="k">except</span> <span class="n">_QuietInterrupt</span><span class="p">:</span>
-            <span class="k">pass</span>
-        <span class="k">finally</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;data_set&#39;</span><span class="p">):</span>
-                <span class="c1"># somehow this does not show up in the data_set returned by</span>
-                <span class="c1"># run(), but it is saved to the metadata</span>
-                <span class="n">ts</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1"> %H:%M:%S&#39;</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span><span class="o">.</span><span class="n">add_metadata</span><span class="p">({</span><span class="s1">&#39;loop&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts_end&#39;</span><span class="p">:</span> <span class="n">ts</span><span class="p">}})</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span><span class="o">.</span><span class="n">finalize</span><span class="p">()</span>
+        <span class="c1"># try:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_run_loop</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="c1"># finally:</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;data_set&#39;</span><span class="p">):</span>
+            <span class="c1"># TODO (giulioungaretti) WTF?</span>
+            <span class="c1"># somehow this does not show up in the data_set returned by</span>
+            <span class="c1"># run(), but it is saved to the metadata</span>
+            <span class="n">ts</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1"> %H:%M:%S&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span><span class="o">.</span><span class="n">add_metadata</span><span class="p">({</span><span class="s1">&#39;loop&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts_end&#39;</span><span class="p">:</span> <span class="n">ts</span><span class="p">}})</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span><span class="o">.</span><span class="n">finalize</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">_run_loop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">first_delay</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">action_indices</span><span class="o">=</span><span class="p">(),</span>
                   <span class="n">loop_indices</span><span class="o">=</span><span class="p">(),</span> <span class="n">current_values</span><span class="o">=</span><span class="p">(),</span>
@@ -1182,13 +1005,6 @@
 
                     <span class="n">last_task</span> <span class="o">=</span> <span class="n">t</span>
 
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress_interval</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="c1"># final progress note: set dt=-1 so it *always* prints</span>
-            <span class="n">tprint</span><span class="p">(</span><span class="s1">&#39;loop </span><span class="si">%s</span><span class="s1"> DONE: </span><span class="si">%d</span><span class="s1">/</span><span class="si">%d</span><span class="s1"> (</span><span class="si">%.1f</span><span class="s1"> [s])&#39;</span> <span class="o">%</span> <span class="p">(</span>
-
-                   <span class="bp">self</span><span class="o">.</span><span class="n">sweep_values</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">imax</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">t0</span><span class="p">),</span>
-                   <span class="n">dt</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="s1">&#39;outerloop&#39;</span><span class="p">)</span>
-
         <span class="c1"># run the background task one last time to catch the last setpoint(s)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bg_task</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">bg_task</span><span class="p">()</span>
@@ -1204,29 +1020,8 @@
     <span class="k">def</span> <span class="nf">_wait</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delay</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">delay</span><span class="p">:</span>
             <span class="n">finish_clock</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">+</span> <span class="n">delay</span>
-
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_monitor</span><span class="p">:</span>
-                <span class="c1"># TODO - perhpas pass self._check_signal in here</span>
-                <span class="c1"># so that we can halt within monitor.call if it</span>
-                <span class="c1"># lasts a very long time?</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_monitor</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="n">finish_by</span><span class="o">=</span><span class="n">finish_clock</span><span class="p">)</span>
-
-            <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_check_signal</span><span class="p">()</span>
-                <span class="n">t</span> <span class="o">=</span> <span class="n">wait_secs</span><span class="p">(</span><span class="n">finish_clock</span><span class="p">)</span>
-                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">signal_period</span><span class="p">))</span>
-                <span class="k">if</span> <span class="n">t</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">signal_period</span><span class="p">:</span>
-                    <span class="k">break</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_check_signal</span><span class="p">()</span>
-
-
-<span class="k">class</span> <span class="nc">_QuietInterrupt</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
-    <span class="k">pass</span>
-
-
-<span class="k">class</span> <span class="nc">_DebugInterrupt</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
-    <span class="k">pass</span>
+            <span class="n">t</span> <span class="o">=</span> <span class="n">wait_secs</span><span class="p">(</span><span class="n">finish_clock</span><span class="p">)</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
 </pre></div>
 
            </div>
