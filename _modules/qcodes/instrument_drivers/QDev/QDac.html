@@ -232,6 +232,9 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">num_chans</span> <span class="o">=</span> <span class="n">num_chans</span>
 
+        <span class="c1"># The following bool is used in self.write</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debugmode</span> <span class="o">=</span> <span class="kc">False</span>
+        
         <span class="c1"># Assigned slopes. Entries will eventually be [chan, slope] (V/s)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_slopes</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="c1"># Function generators (used in _set_voltage)</span>
@@ -564,7 +567,9 @@
 <span class="sd">            ramptime (float): The ramp time in seconds.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="n">v_start</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;ch</span><span class="si">{:02}</span><span class="s1">_v&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chan</span><span class="p">)]</span><span class="o">.</span><span class="n">get_latest</span><span class="p">()</span>
+        <span class="c1"># .get is slower than .get_latest, but safe if a ramp is</span>
+        <span class="c1"># interrupted</span>
+        <span class="n">v_start</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;ch</span><span class="si">{:02}</span><span class="s1">_v&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chan</span><span class="p">)]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
 
         <span class="n">offset</span> <span class="o">=</span> <span class="n">v_start</span>
         <span class="n">amplitude</span> <span class="o">=</span> <span class="n">setvoltage</span><span class="o">-</span><span class="n">v_start</span>
@@ -600,7 +605,12 @@
 <span class="sd">        Note that this procedure makes it very cumbersome to handle the returned</span>
 <span class="sd">        messages from concatenated commands, e.g. &#39;wav 1 1 1 0;fun 2 1 100 1 1&#39;</span>
 <span class="sd">        Please don&#39;t use concatenated commands</span>
+
+<span class="sd">        TODO (WilliamHPNielsen): add automatic de-concatenation of commands.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">debugmode</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Sending command string: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cmd</span><span class="p">))</span>
+            
         <span class="n">nr_bytes_written</span><span class="p">,</span> <span class="n">ret_code</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">check_error</span><span class="p">(</span><span class="n">ret_code</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_write_response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">read</span><span class="p">()</span></div>
