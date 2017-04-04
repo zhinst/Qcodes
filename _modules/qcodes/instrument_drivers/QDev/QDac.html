@@ -235,13 +235,13 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">num_chans</span> <span class="o">=</span> <span class="n">num_chans</span>
 
-
-
-        <span class="c1"># Assigned slopes. Entries will eventually be [chan, slope] (V/s)</span>
+        <span class="c1"># Assigned slopes. Entries will eventually be [chan, slope]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_slopes</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="c1"># Function generators (used in _set_voltage)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_fgs</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">9</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_assigned_fgs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="c1"># Sync channels</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_syncoutputs</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># Entries: [chan, syncchannel]</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">chan_range</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_chans</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">channel_validator</span> <span class="o">=</span> <span class="n">vals</span><span class="o">.</span><span class="n">Ints</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_chans</span><span class="p">)</span>
@@ -275,7 +275,14 @@
                                <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;V/s&#39;</span><span class="p">,</span>
                                <span class="n">set_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_setslope</span><span class="p">,</span> <span class="n">i</span><span class="p">),</span>
                                <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_getslope</span><span class="p">,</span> <span class="n">i</span><span class="p">),</span>
-                               <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Anything</span><span class="p">()</span>
+                               <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">MultiType</span><span class="p">(</span><span class="n">vals</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="s1">&#39;Inf&#39;</span><span class="p">),</span>
+                                                   <span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">(</span><span class="mf">1e-3</span><span class="p">,</span> <span class="mi">100</span><span class="p">))</span>
+                               <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;ch</span><span class="si">{:02}</span><span class="s1">_sync&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">),</span>
+                               <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Channel </span><span class="si">{}</span><span class="s1"> sync output&#39;</span><span class="p">,</span>
+                               <span class="n">set_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_setsync</span><span class="p">,</span> <span class="n">i</span><span class="p">),</span>
+                               <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_getsync</span><span class="p">,</span> <span class="n">i</span><span class="p">),</span>
+                               <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Ints</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
                                <span class="p">)</span>
 
         <span class="k">for</span> <span class="n">board</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">6</span><span class="p">):</span>
@@ -330,12 +337,16 @@
         <span class="n">slopechans</span> <span class="o">=</span> <span class="p">[</span><span class="n">sl</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">sl</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_slopes</span><span class="p">]</span>
         <span class="k">if</span> <span class="n">chan</span> <span class="ow">in</span> <span class="n">slopechans</span><span class="p">:</span>
             <span class="n">slope</span> <span class="o">=</span> <span class="p">[</span><span class="n">sl</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">sl</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_slopes</span> <span class="k">if</span> <span class="n">sl</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">chan</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="c1"># find and assign fg</span>
             <span class="n">fg</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_fgs</span><span class="o">.</span><span class="n">difference</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_assigned_fgs</span><span class="o">.</span><span class="n">values</span><span class="p">())))</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_assigned_fgs</span><span class="p">[</span><span class="n">chan</span><span class="p">]</span> <span class="o">=</span> <span class="n">fg</span>
-            <span class="n">v_start</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;ch</span><span class="si">{:02}</span><span class="s1">_v&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chan</span><span class="p">)]</span><span class="o">.</span><span class="n">get_latest</span><span class="p">()</span>
+            <span class="c1"># We need .get and not get_latest in case a ramp was interrupted</span>
+            <span class="n">v_start</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;ch</span><span class="si">{:02}</span><span class="s1">_v&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chan</span><span class="p">)]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
             <span class="n">time</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">v_set</span><span class="o">-</span><span class="n">v_start</span><span class="p">)</span><span class="o">/</span><span class="n">slope</span>
-            <span class="c1"># Attenuation compensation takes place inside _rampvoltage</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_rampvoltage</span><span class="p">(</span><span class="n">chan</span><span class="p">,</span> <span class="n">fg</span><span class="p">,</span> <span class="n">v_set</span><span class="p">,</span> <span class="n">time</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Slope: </span><span class="si">{}</span><span class="s1">, time: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">slope</span><span class="p">,</span> <span class="n">time</span><span class="p">))</span>
+            <span class="c1"># Attenuation compensation and syncing take place</span>
+            <span class="c1"># inside _rampvoltage</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_rampvoltage</span><span class="p">(</span><span class="n">chan</span><span class="p">,</span> <span class="n">fg</span><span class="p">,</span> <span class="n">v_start</span><span class="p">,</span> <span class="n">v_set</span><span class="p">,</span> <span class="n">time</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="c1"># compensate for the 0.1 multiplier, if it&#39;s on</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;ch</span><span class="si">{:02}</span><span class="s1">_vrange&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chan</span><span class="p">)]</span><span class="o">.</span><span class="n">get_latest</span><span class="p">()</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
@@ -489,6 +500,51 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_status_ts</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">chans</span>
 
+    <span class="k">def</span> <span class="nf">_setsync</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chan</span><span class="p">,</span> <span class="n">sync</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set_cmd for the chXX_sync parameter.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            chan (int): The channel number (1-48)</span>
+<span class="sd">            sync (int): The associated sync output. 0 means &#39;unassign&#39;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">chan</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">49</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Channel number must be 1-48.&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">sync</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># try to remove the sync</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">sc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_syncoutputs</span>
+                <span class="n">to_remove</span> <span class="o">=</span> <span class="p">[</span><span class="n">sc</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">syn</span><span class="p">)</span> <span class="k">for</span> <span class="n">syn</span> <span class="ow">in</span> <span class="n">sc</span> <span class="k">if</span> <span class="n">syn</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">chan</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_syncoutputs</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">sc</span><span class="p">[</span><span class="n">to_remove</span><span class="p">])</span>
+            <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+                <span class="k">pass</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="n">sync</span> <span class="ow">in</span> <span class="p">[</span><span class="n">syn</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">syn</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_syncoutputs</span><span class="p">]:</span>
+            <span class="n">oldchan</span> <span class="o">=</span> <span class="p">[</span><span class="n">syn</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">syn</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_syncoutputs</span> <span class="k">if</span> <span class="n">syn</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="n">sync</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_syncoutputs</span><span class="o">.</span><span class="n">remove</span><span class="p">([</span><span class="n">oldchan</span><span class="p">,</span> <span class="n">sync</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="n">chan</span> <span class="ow">in</span> <span class="p">[</span><span class="n">syn</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">syn</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_syncoutputs</span><span class="p">]:</span>
+            <span class="n">oldsyn</span> <span class="o">=</span> <span class="p">[</span><span class="n">syn</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">syn</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_syncoutputs</span> <span class="k">if</span> <span class="n">syn</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">chan</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_syncoutputs</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_syncoutputs</span><span class="o">.</span><span class="n">index</span><span class="p">([</span><span class="n">chan</span><span class="p">,</span> <span class="n">oldsyn</span><span class="p">])]</span> <span class="o">=</span> <span class="p">[</span><span class="n">chan</span><span class="p">,</span>
+                                                                          <span class="n">sync</span><span class="p">]</span>
+            <span class="k">return</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_syncoutputs</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">chan</span><span class="p">,</span> <span class="n">sync</span><span class="p">])</span>
+        <span class="k">return</span>
+
+    <span class="k">def</span> <span class="nf">_getsync</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chan</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        get_cmd of the chXX_sync parameter</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">chan</span> <span class="ow">in</span> <span class="p">[</span><span class="n">syn</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">syn</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_syncoutputs</span><span class="p">]:</span>
+            <span class="n">sync</span> <span class="o">=</span> <span class="p">[</span><span class="n">syn</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">syn</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_syncoutputs</span> <span class="k">if</span> <span class="n">syn</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">==</span><span class="n">chan</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">sync</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">0</span>
+
     <span class="k">def</span> <span class="nf">_setslope</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chan</span><span class="p">,</span> <span class="n">slope</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        set_cmd for the chXX_slope parameter, the maximum slope of a channel.</span>
@@ -543,13 +599,6 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="s1">&#39;Inf&#39;</span>
 
-<div class="viewcode-block" id="QDac.slopes"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.QDev.html#qcodes.instrument_drivers.QDev.QDac.QDac.slopes">[docs]</a>    <span class="k">def</span> <span class="nf">slopes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        unit the slopes assigned to each channel</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">for</span> <span class="p">(</span><span class="n">chan</span><span class="p">,</span> <span class="n">slope</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_slopes</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Channel </span><span class="si">{}</span><span class="s1">, slope: </span><span class="si">{}</span><span class="s1"> (V/s)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chan</span><span class="p">,</span> <span class="n">slope</span><span class="p">))</span></div>
-
 <div class="viewcode-block" id="QDac.printslopes"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.QDev.html#qcodes.instrument_drivers.QDev.QDac.QDac.printslopes">[docs]</a>    <span class="k">def</span> <span class="nf">printslopes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Print the finite slopes assigned to channels</span>
@@ -557,7 +606,7 @@
         <span class="k">for</span> <span class="n">sl</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_slopes</span><span class="p">:</span>
             <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Channel </span><span class="si">{}</span><span class="s1">, slope: </span><span class="si">{}</span><span class="s1"> (V/s)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sl</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">sl</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span></div>
 
-    <span class="k">def</span> <span class="nf">_rampvoltage</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chan</span><span class="p">,</span> <span class="n">fg</span><span class="p">,</span> <span class="n">setvoltage</span><span class="p">,</span> <span class="n">ramptime</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_rampvoltage</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chan</span><span class="p">,</span> <span class="n">fg</span><span class="p">,</span> <span class="n">v_start</span><span class="p">,</span> <span class="n">setvoltage</span><span class="p">,</span> <span class="n">ramptime</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Smoothly ramp the voltage of a channel by the means of a function</span>
 <span class="sd">        generator. Helper function used by _set_voltage.</span>
@@ -571,12 +620,10 @@
 
         <span class="c1"># Crazy stuff happens if the period is too small, e.g. the channel</span>
         <span class="c1"># can jump to its max voltage</span>
-        <span class="k">if</span> <span class="n">ramptime</span> <span class="o">&lt;</span> <span class="mf">0.002</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">ramptime</span> <span class="o">&lt;=</span> <span class="mf">0.002</span><span class="p">:</span>
             <span class="n">ramptime</span> <span class="o">=</span> <span class="mi">0</span>
-
-        <span class="c1"># .get is slower than .get_latest, but safe if a ramp is</span>
-        <span class="c1"># interrupted</span>
-        <span class="n">v_start</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;ch</span><span class="si">{:02}</span><span class="s1">_v&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chan</span><span class="p">)]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Cancelled a ramp with a ramptime of &#39;</span>
+                        <span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> s&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ramptime</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;. Voltage not changed.&#39;</span><span class="p">)</span>
 
         <span class="n">offset</span> <span class="o">=</span> <span class="n">v_start</span>
         <span class="n">amplitude</span> <span class="o">=</span> <span class="n">setvoltage</span><span class="o">-</span><span class="n">v_start</span>
@@ -587,6 +634,14 @@
         <span class="n">chanmssg</span> <span class="o">=</span> <span class="s1">&#39;wav </span><span class="si">{}</span><span class="s1"> </span><span class="si">{}</span><span class="s1"> </span><span class="si">{}</span><span class="s1"> </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chan</span><span class="p">,</span> <span class="n">fg</span><span class="p">,</span>
                                             <span class="n">amplitude</span><span class="p">,</span>
                                             <span class="n">offset</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">chan</span> <span class="ow">in</span> <span class="p">[</span><span class="n">syn</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">syn</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_syncoutputs</span><span class="p">]:</span>
+            <span class="n">syncing</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">sync</span> <span class="o">=</span> <span class="p">[</span><span class="n">syn</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">syn</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_syncoutputs</span> <span class="k">if</span> <span class="n">syn</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">chan</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">sync_duration</span> <span class="o">=</span> <span class="mi">10</span>  <span class="c1"># duration in ms</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;syn </span><span class="si">{}</span><span class="s1"> </span><span class="si">{}</span><span class="s1"> 0 </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">fg</span><span class="p">,</span> <span class="n">sync_duration</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">syncing</span> <span class="o">=</span> <span class="kc">False</span>
 
         <span class="n">typedict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;SINE&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;SQUARE&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;RAMP&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">}</span>
 
@@ -601,6 +656,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">chanmssg</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">funmssg</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;ch</span><span class="si">{:02}</span><span class="s1">_v&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chan</span><span class="p">)]</span><span class="o">.</span><span class="n">_save_val</span><span class="p">(</span><span class="n">setvoltage</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">syncing</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;syn </span><span class="si">{}</span><span class="s1"> 0 0 0&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sync</span><span class="p">))</span>
 
 <div class="viewcode-block" id="QDac.write"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.QDev.html#qcodes.instrument_drivers.QDev.QDac.QDac.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -731,7 +789,7 @@
       <script type="text/javascript" src="../../../../_static/jquery.js"></script>
       <script type="text/javascript" src="../../../../_static/underscore.js"></script>
       <script type="text/javascript" src="../../../../_static/doctools.js"></script>
-      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
 
   
 
