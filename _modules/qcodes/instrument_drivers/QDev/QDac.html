@@ -174,6 +174,7 @@
 <span class="kn">from</span> <span class="nn">operator</span> <span class="k">import</span> <span class="n">xor</span>
 <span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">OrderedDict</span>
 
+<span class="kn">from</span> <span class="nn">qcodes.instrument.parameter</span> <span class="k">import</span> <span class="n">ManualParameter</span>
 <span class="kn">from</span> <span class="nn">qcodes.instrument.visa</span> <span class="k">import</span> <span class="n">VisaInstrument</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils</span> <span class="k">import</span> <span class="n">validators</span> <span class="k">as</span> <span class="n">vals</span>
 
@@ -239,7 +240,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_slopes</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="c1"># Function generators (used in _set_voltage)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_fgs</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">9</span><span class="p">))</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_assigned_fgs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_assigned_fgs</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># {chan: fg}</span>
         <span class="c1"># Sync channels</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_syncoutputs</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># Entries: [chan, syncchannel]</span>
 
@@ -284,6 +285,18 @@
                                <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_getsync</span><span class="p">,</span> <span class="n">i</span><span class="p">),</span>
                                <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Ints</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
                                <span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;ch</span><span class="si">{:02}</span><span class="s1">_sync_delay&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">),</span>
+                               <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Channel </span><span class="si">{}</span><span class="s1"> sync pulse delay&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">),</span>
+                               <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;s&#39;</span><span class="p">,</span>
+                               <span class="n">parameter_class</span><span class="o">=</span><span class="n">ManualParameter</span><span class="p">,</span>
+                               <span class="n">initial_value</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;ch</span><span class="si">{:02}</span><span class="s1">_sync_duration&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">),</span>
+                               <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Channel </span><span class="si">{}</span><span class="s1"> sync pulse duration&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">),</span>
+                               <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;s&#39;</span><span class="p">,</span>
+                               <span class="n">parameter_class</span><span class="o">=</span><span class="n">ManualParameter</span><span class="p">,</span>
+                               <span class="n">initial_value</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)</span>
 
         <span class="k">for</span> <span class="n">board</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">6</span><span class="p">):</span>
             <span class="k">for</span> <span class="n">sensor</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
@@ -513,13 +526,17 @@
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Channel number must be 1-48.&#39;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">sync</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="c1"># try to remove the sync</span>
+            <span class="c1"># try to remove the sync from internal bookkeeping</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">sc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_syncoutputs</span>
                 <span class="n">to_remove</span> <span class="o">=</span> <span class="p">[</span><span class="n">sc</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">syn</span><span class="p">)</span> <span class="k">for</span> <span class="n">syn</span> <span class="ow">in</span> <span class="n">sc</span> <span class="k">if</span> <span class="n">syn</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">chan</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_syncoutputs</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">sc</span><span class="p">[</span><span class="n">to_remove</span><span class="p">])</span>
             <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
                 <span class="k">pass</span>
+            <span class="c1"># free the previously assigned sync</span>
+            <span class="n">oldsync</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;ch</span><span class="si">{:02d}</span><span class="s1">_sync&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chan</span><span class="p">)]</span><span class="o">.</span><span class="n">get_latest</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">oldsync</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;syn </span><span class="si">{}</span><span class="s1"> 0 0 0&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">oldsync</span><span class="p">))</span>
             <span class="k">return</span>
 
         <span class="k">if</span> <span class="n">sync</span> <span class="ow">in</span> <span class="p">[</span><span class="n">syn</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">syn</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_syncoutputs</span><span class="p">]:</span>
@@ -565,6 +582,10 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">_assigned_fgs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">chan</span><span class="p">)</span>
             <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
                 <span class="k">pass</span>
+            <span class="c1"># Remove a sync output, if one was assigned</span>
+            <span class="n">syncchans</span> <span class="o">=</span> <span class="p">[</span><span class="n">syn</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">syn</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_syncoutputs</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">chan</span> <span class="ow">in</span> <span class="n">syncchans</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;ch</span><span class="si">{:02d}</span><span class="s1">_sync&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chan</span><span class="p">)]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">sls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_slopes</span>
                 <span class="n">to_remove</span> <span class="o">=</span> <span class="p">[</span><span class="n">sls</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">sl</span><span class="p">)</span> <span class="k">for</span> <span class="n">sl</span> <span class="ow">in</span> <span class="n">sls</span> <span class="k">if</span> <span class="n">sl</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">chan</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
@@ -636,10 +657,14 @@
                                             <span class="n">offset</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">chan</span> <span class="ow">in</span> <span class="p">[</span><span class="n">syn</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">syn</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_syncoutputs</span><span class="p">]:</span>
-            <span class="n">syncing</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="c1">#syncing = True</span>
             <span class="n">sync</span> <span class="o">=</span> <span class="p">[</span><span class="n">syn</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">syn</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_syncoutputs</span> <span class="k">if</span> <span class="n">syn</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">chan</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
-            <span class="n">sync_duration</span> <span class="o">=</span> <span class="mi">10</span>  <span class="c1"># duration in ms</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;syn </span><span class="si">{}</span><span class="s1"> </span><span class="si">{}</span><span class="s1"> 0 </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">fg</span><span class="p">,</span> <span class="n">sync_duration</span><span class="p">))</span>
+            <span class="n">chstr</span> <span class="o">=</span> <span class="s1">&#39;ch</span><span class="si">{:02}</span><span class="s1">_sync&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chan</span><span class="p">)</span>
+            <span class="n">sync_duration</span> <span class="o">=</span> <span class="mi">1000</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">chstr</span><span class="o">+</span><span class="s1">&#39;_duration&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+            <span class="n">sync_delay</span> <span class="o">=</span> <span class="mi">1000</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">chstr</span><span class="o">+</span><span class="s1">&#39;_delay&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;syn </span><span class="si">{}</span><span class="s1"> </span><span class="si">{}</span><span class="s1"> </span><span class="si">{}</span><span class="s1"> </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sync</span><span class="p">,</span> <span class="n">fg</span><span class="p">,</span>
+                                                <span class="n">sync_delay</span><span class="p">,</span>
+                                                <span class="n">sync_duration</span><span class="p">))</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">syncing</span> <span class="o">=</span> <span class="kc">False</span>
 
@@ -657,8 +682,6 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">funmssg</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;ch</span><span class="si">{:02}</span><span class="s1">_v&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chan</span><span class="p">)]</span><span class="o">.</span><span class="n">_save_val</span><span class="p">(</span><span class="n">setvoltage</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">syncing</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;syn </span><span class="si">{}</span><span class="s1"> 0 0 0&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sync</span><span class="p">))</span>
 
 <div class="viewcode-block" id="QDac.write"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.QDev.html#qcodes.instrument_drivers.QDev.QDac.QDac.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
