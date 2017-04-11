@@ -1,0 +1,124 @@
+
+QCoDeS tutorial
+===============
+
+Basic overview of QCoDeS
+
+Typical QCodes workflow
+-----------------------
+
+1. Start up an interactive python session (e.g. using jupyter)
+2. import desired modules
+3. instantiate required instruments
+4. experiment!
+
+.. code:: ipython3
+
+    import qcodes as qc
+
+Instantiates all the instruments needed for the demo
+----------------------------------------------------
+
+.. code:: ipython3
+
+    # import dummy driver for the tutorial
+    from qcodes.tests.instrument_mocks import DummyInstrument
+    from qcodes.instrument.mock import ArrayGetter
+    
+    dac1 = DummyInstrument(name="dac")
+    dac2 = DummyInstrument(name="dac2")
+    # the default dummy instrument returns always a constant value, in the following line we make it random 
+    # just for the looks 💅
+    import random
+    dac2.dac2.get =  lambda: random.randint(0,100)
+    
+    # The station is a container for all instruments that makes it easy 
+    # to log meta-data
+    station = qc.Station(dac1, dac2)
+
+The location provider can be set globally
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code:: ipython3
+
+    loc_provider = qc.data.location.FormatLocation(fmt='data/{date}/#{counter}_{name}_{time}')
+    qc.data.data_set.DataSet.location_provider=loc_provider
+
+Running an experiment
+---------------------
+
+Defining the ``Loop`` and actions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Before you run a measurement loop you do two things: 1. You describe
+what parameter(s) to vary and how. This is the creation of a ``Loop``
+object: ``loop = Loop(sweep_values, ...)`` 2. You describe what to do at
+each step in the loop. This is ``loop.each(*actions)`` - measurements
+(any object with a ``.get`` method will be interpreted as a measurement)
+- ``Task``: some callable (which can have arguments with it) to be
+executed each time through the loop. Does not generate data. - ``Wait``:
+a specialized ``Task`` just to wait a certain time. - ``BreakIf``: some
+condition that, if it returns truthy, breaks (this level of) the loop
+
+.. code:: ipython3
+
+    loop = qc.Loop(dac1.dac1.sweep(0,20,0.1), delay=0.001).each(dac2.dac2)
+    data = loop.get_data_set(name='testsweep')
+
+.. code:: ipython3
+
+    plot = qc.QtPlot()
+    plot.add(data.dac2_dac2)
+    _ = loop.with_bg_task(plot.update, plot.save).run()
+
+.. code:: ipython3
+
+    plot
+
+Output of the loop
+------------------
+
+A loop returns a dataset.
+The representation of the dataset shows what arrays it contains and
+where it is saved.
+The dataset initially starts out empty (filled with NAN's) and get's
+filled while the Loop get's executed.
+
+Once the measurement is done, take a look at the file in finder/explorer
+(the dataset.location should give you the relative path). Note also the
+snapshot that captures the settings of all instruments at the start of
+the Loop. This metadata is also accesible from the dataset and captures
+a snapshot of each instrument listed in the station.
+
+.. code:: ipython3
+
+    dac2.snapshot()
+
+Loading data
+------------
+
+.. code:: ipython3
+
+    loaded_data = qc.load_data("location")
+    plot = qc.MatPlot(loaded_data.array_id)
+
+Example: multiple 2D measurements with live plotting
+----------------------------------------------------
+
+.. code:: ipython3
+
+    loop = qc.Loop(dac1.dac1.sweep(0,5,1), 0.1).loop(dac1.dac2.sweep(0,5,1), 0.1).each(
+        dac2.dac2
+        )
+    data = loop.get_data_set(name='2D_test')
+
+.. code:: ipython3
+
+    plot = qc.QtPlot()
+    plot.add(data.dac2_dac2, figsize=(1200, 500))
+    #plot.add(data.dac2_dac3, subplot=2)
+    _ = loop.with_bg_task(plot.update, plot.save).run()
+
+.. code:: ipython3
+
+    plot

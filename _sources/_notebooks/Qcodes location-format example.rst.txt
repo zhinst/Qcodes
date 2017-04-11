@@ -1,0 +1,177 @@
+
+Qcodes location-format example
+==============================
+
+.. code:: ipython3
+
+    %matplotlib nbagg
+    import matplotlib.pyplot as plt
+    import time
+    import numpy as np
+    
+    import qcodes as qc
+    
+    qc.set_mp_method('spawn')  # force Windows behavior on mac
+    
+    # this makes a widget in the corner of the window to show and control
+    # subprocesses and any output they would print to the terminal
+    qc.show_subprocess_widget()
+
+
+
+.. parsed-literal::
+
+    <IPython.core.display.Javascript object>
+
+
+
+.. raw:: html
+
+    <style>.qcodes-output-view:not(.ui-draggable) {
+        bottom: 0;
+        right: 5px;
+    }
+    .qcodes-output-view {
+        position: fixed;
+        z-index: 999;
+        background-color: #fff;
+        box-shadow: 0 0 12px 1px rgba(87, 87, 87, 0.2);
+    }
+    
+    .qcodes-output-header  {
+        float: right;
+    }
+    
+    .qcodes-output-view span {
+        padding: 2px 6px 3px 12px;
+    }
+    
+    .qcodes-output-view .btn {
+        margin: 0 3px 0 0;
+    }
+    
+    .qcodes-output-view[qcodes-state=docked] .qcodes-docked,
+    .qcodes-output-view[qcodes-state=floated] .qcodes-floated,
+    .qcodes-output-view[qcodes-state=minimized] .qcodes-minimized,
+    .qcodes-output-view[qcodes-state=minimized] .qcodes-content {
+        display: none;
+    }
+    
+    .qcodes-output-view .disabled {
+        opacity: 0.4;
+    }
+    
+    .qcodes-abort-loop {
+        background-color: #844;
+        color: #fff;
+    }
+    
+    .qcodes-output-view pre {
+        clear: both;
+        margin: 0;
+        border: 0;
+        border-top: 1px solid #ccc;
+        background-color: #ffe;
+        min-height: 50px;
+        max-height: 400px;
+        min-width: 400px;
+        max-width: 1000px;
+    }</style>
+
+
+.. code:: ipython3
+
+    # spawn doesn't like function or class definitions in the interpreter
+    # session - had to move them to a file.
+    from toymodel import AModel, MockGates, MockSource, MockMeter, AverageGetter, AverageAndRaw
+    
+    # now create this "experiment"
+    model = AModel()
+    gates = MockGates('gates', model=model)
+    source = MockSource('source', model=model)
+    meter = MockMeter('meter', model=model)
+    
+    station = qc.Station(gates, source, meter)
+    
+    # could measure any number of things by adding arguments to this
+    # function call, but here we're just measuring one, the meter amplitude
+    station.set_measurement(meter.amplitude)
+    
+    # it's nice to have the key parameters be part of the global namespace
+    # that way they're objects that we can easily set, get, and slice
+    # this could be simplified to a station method that gathers all parameters
+    # and adds them all as (disambiguated) globals, printing what it did
+    # something like:
+    #   station.gather_parameters(globals())
+    c0, c1, c2, vsd = gates.chan0, gates.chan1, gates.chan2, source.amplitude
+    
+    # once we have implemented a monitor, defining a station will start a
+    # DataServer process, and you would see it in the subprocess widget,
+    # or via active_children() as here:
+    # qc.active_children()
+
+.. code:: ipython3
+
+    loc_fmt='{date}/#{counter}_{name}_{date}_{time}'
+    loc_provider = qc.FormatLocation(fmt=loc_fmt)
+    loc_provider_junk = qc.FormatLocation(fmt='junk/'+loc_fmt)
+    
+    data2 = qc.Loop(c1[-15:15:1], 0).run(location=loc_provider, name='unicorn')
+
+
+.. parsed-literal::
+
+    DataSet: DataMode.PULL_FROM_SERVER, location='2016-05-16/#001_unicorn_2016-05-16_13-57-04'
+       amplitude: amplitude
+       chan1: chan1
+    started at 2016-05-16 13:57:05
+
+
+.. code:: ipython3
+
+    loc_fmt='{date}/#{counter}_{name}_{date}_{time}'
+    loc_provider = qc.FormatLocation(fmt=loc_fmt)
+    
+    data2 = qc.Loop(c1[-15:15:1], 0).run(location=loc_provider, name='rainbow')
+
+
+.. parsed-literal::
+
+    DataSet: DataMode.PULL_FROM_SERVER, location='2016-05-16/#002_rainbow_2016-05-16_13-57-14'
+       amplitude: amplitude
+       chan1: chan1
+    started at 2016-05-16 13:57:14
+
+
+.. code:: ipython3
+
+    loc_fmt='{date}/#{counter}_{name}_{date}_{time}'
+    loc_provider = qc.FormatLocation(fmt=loc_fmt)
+    
+    data2 = qc.Loop(c1[-15:15:1], 0).run(location=loc_provider_junk, loc_record={'name':'unicorn','date':'2050-1-541'})
+
+
+.. parsed-literal::
+
+    DataSet: DataMode.PULL_FROM_SERVER, location='junk/2050-1-541/#009_unicorn_2050-1-541_13-57-21'
+       amplitude: amplitude
+       chan1: chan1
+    started at 2016-05-16 13:57:22
+
+
+.. code:: ipython3
+
+    loc_fmt='{date}/#{counter}_{name}_{date}_{time}{}'
+    loc_provider = qc.FormatLocation(fmt=loc_fmt)
+    
+    data2 = qc.Loop(c1[-15:15:1], 0).run(location=loc_provider, name='rainbow')
+
+
+.. parsed-literal::
+
+    DataSet: DataMode.PULL_FROM_SERVER, location='2016-05-16/#005_rainbow_2016-05-16_13-59-15{}'
+       amplitude: amplitude
+       chan1: chan1
+    started at 2016-05-16 13:59:15
+
+
