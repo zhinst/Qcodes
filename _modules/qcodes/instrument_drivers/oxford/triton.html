@@ -178,10 +178,10 @@
 <span class="sd">    Triton Driver</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        tmpfile: Expects an exported windows registry file from the registry</span>
+<span class="sd">        tmpfile: Optional: an exported windows registry file from the registry</span>
 <span class="sd">            path:</span>
 <span class="sd">            `[HKEY_CURRENT_USER\Software\Oxford Instruments\Triton System Control\Thermometry]`</span>
-<span class="sd">            and is used to extract the available temperature channels.</span>
+<span class="sd">            It is used to extract the names of temperature channels if set.</span>
 
 
 <span class="sd">    Status: beta-version.</span>
@@ -258,9 +258,10 @@
                            <span class="n">vals</span><span class="o">=</span><span class="n">Enum</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">_heater_range_curr</span><span class="p">))</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">chan_alias</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">chan_temps</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chan_temp_names</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">if</span> <span class="n">tmpfile</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_get_temp_channels</span><span class="p">(</span><span class="n">tmpfile</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_get_temp_channel_names</span><span class="p">(</span><span class="n">tmpfile</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_get_temp_channels</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_get_pressure_channels</span><span class="p">()</span>
 
         <span class="k">try</span><span class="p">:</span>
@@ -289,9 +290,9 @@
 
         <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">((</span><span class="s1">&#39;vendor&#39;</span><span class="p">,</span> <span class="s1">&#39;model&#39;</span><span class="p">,</span> <span class="s1">&#39;serial&#39;</span><span class="p">,</span> <span class="s1">&#39;firmware&#39;</span><span class="p">),</span> <span class="n">idparts</span><span class="p">))</span></div>
 
-    <span class="k">def</span> <span class="nf">_get_control_channel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force_get</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_get_control_channel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force_get</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">force_get</span> <span class="ow">or</span> <span class="p">(</span><span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_control_channel</span><span class="p">):</span>
-            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">20</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">17</span><span class="p">):</span>
                 <span class="n">tempval</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;READ:DEV:T</span><span class="si">%s</span><span class="s1">:TEMP:LOOP:MODE&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">i</span><span class="p">))</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">tempval</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;NOT_FOUND&#39;</span><span class="p">):</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">_control_channel</span> <span class="o">=</span> <span class="n">i</span>
@@ -319,7 +320,7 @@
         <span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="n">allchans</span><span class="p">:</span>
             <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;READ:SYS:DR:CHAN:</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">ch</span>
             <span class="n">rep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-            <span class="k">if</span> <span class="s1">&#39;INVALID&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">rep</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;INVALID&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">rep</span> <span class="ow">and</span> <span class="s1">&#39;NONE&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">rep</span><span class="p">:</span>
                 <span class="n">alias</span><span class="p">,</span> <span class="n">chan</span> <span class="o">=</span> <span class="n">rep</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">chan_alias</span><span class="p">[</span><span class="n">alias</span><span class="p">]</span> <span class="o">=</span> <span class="n">chan</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">alias</span><span class="p">,</span>
@@ -328,16 +329,19 @@
                                    <span class="n">get_parser</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_parse_temp</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_get_pressure_channels</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chan_pressure</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">7</span><span class="p">):</span>
             <span class="n">chan</span> <span class="o">=</span> <span class="s1">&#39;P</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">i</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">chan_pressure</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">chan</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">chan</span><span class="p">,</span>
                                <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;bar&#39;</span><span class="p">,</span>
                                <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;READ:DEV:</span><span class="si">%s</span><span class="s1">:PRES:SIG:PRES&#39;</span> <span class="o">%</span> <span class="n">chan</span><span class="p">,</span>
                                <span class="n">get_parser</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_parse_pres</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chan_pressure</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chan_pressure</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_get_temp_channels</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_get_temp_channel_names</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file</span><span class="p">):</span>
         <span class="n">config</span> <span class="o">=</span> <span class="n">configparser</span><span class="o">.</span><span class="n">ConfigParser</span><span class="p">()</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;utf16&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
             <span class="nb">next</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
             <span class="n">config</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
 
@@ -345,13 +349,23 @@
             <span class="n">options</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">options</span><span class="p">(</span><span class="n">section</span><span class="p">)</span>
             <span class="n">namestr</span> <span class="o">=</span> <span class="s1">&#39;&quot;m_lpszname&quot;&#39;</span>
             <span class="k">if</span> <span class="n">namestr</span> <span class="ow">in</span> <span class="n">options</span><span class="p">:</span>
-                <span class="n">chan</span> <span class="o">=</span> <span class="s1">&#39;T&#39;</span><span class="o">+</span><span class="n">section</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;[&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">chan_number</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">section</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;[&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">+</span> <span class="mi">1</span>
+                <span class="c1"># the names used in the register file are base 0 but the api and the gui</span>
+                <span class="c1"># uses base one names so add one</span>
+                <span class="n">chan</span> <span class="o">=</span> <span class="s1">&#39;T&#39;</span><span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">chan_number</span><span class="p">)</span>
                 <span class="n">name</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">section</span><span class="p">,</span> <span class="s1">&#39;&quot;m_lpszname&quot;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">chan_temps</span><span class="p">[</span><span class="n">chan</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">chan</span><span class="p">,</span>
-                                   <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;K&#39;</span><span class="p">,</span>
-                                   <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;READ:DEV:</span><span class="si">%s</span><span class="s1">:TEMP:SIG:TEMP&#39;</span> <span class="o">%</span> <span class="n">chan</span><span class="p">,</span>
-                                   <span class="n">get_parser</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_parse_temp</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">chan_temp_names</span><span class="p">[</span><span class="n">chan</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">_get_temp_channels</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chan_temps</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">17</span><span class="p">):</span>
+            <span class="n">chan</span> <span class="o">=</span> <span class="s1">&#39;T</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">i</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">chan_temps</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">chan</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">chan</span><span class="p">,</span>
+                               <span class="n">unit</span> <span class="o">=</span> <span class="s1">&#39;K&#39;</span><span class="p">,</span>
+                               <span class="n">get_cmd</span> <span class="o">=</span> <span class="s1">&#39;READ:DEV:</span><span class="si">%s</span><span class="s1">:TEMP:SIG:TEMP&#39;</span> <span class="o">%</span> <span class="n">chan</span><span class="p">,</span>
+                               <span class="n">get_parser</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_temp</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chan_temps</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chan_temps</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_parse_action</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
         <span class="n">action</span> <span class="o">=</span> <span class="n">msg</span><span class="p">[</span><span class="mi">17</span><span class="p">:]</span>
