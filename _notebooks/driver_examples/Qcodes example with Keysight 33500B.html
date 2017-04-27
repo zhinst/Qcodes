@@ -109,7 +109,12 @@
 <li class="toctree-l3"><a class="reference internal" href="Qcodes example with Decadac.html">Qcodes example with Decadac</a></li>
 <li class="toctree-l3"><a class="reference internal" href="Qcodes example with Ithaco.html">Qcodes example with Ithaco</a></li>
 <li class="toctree-l3"><a class="reference internal" href="Qcodes example with Keithley 2600.html">Qcodes example with Keithley 2600</a></li>
-<li class="toctree-l3 current"><a class="current reference internal" href="#">Qcodes example with Keysight 33500B</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Qcodes example with Keysight 33500B</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#basic-usage">Basic usage</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#using-burst-mode">Using burst mode</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#error-handling">Error handling</a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="Qcodes example with Mercury IPS (Magnet).html">Qcodes example with Mercury IPS (Magnet)</a></li>
 <li class="toctree-l3"><a class="reference internal" href="Qcodes example with QDac.html">Qcodes example with QDac</a></li>
 <li class="toctree-l3"><a class="reference internal" href="Qcodes example with Rohde Schwarz ZN20.html">Qcodes example with Rohde Schwarz ZN20</a></li>
@@ -198,6 +203,11 @@
 <div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="n">ks</span> <span class="o">=</span> <span class="n">Keysight_33500B</span><span class="p">(</span><span class="s1">&#39;ks&#39;</span><span class="p">,</span> <span class="s1">&#39;TCPIP0::K-33522B-00256::inst0::INSTR&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">Connected</span> <span class="n">to</span><span class="p">:</span> <span class="n">Agilent</span> <span class="n">Technologies</span> <span class="mi">33522</span><span class="n">B</span> <span class="p">(</span><span class="n">serial</span><span class="p">:</span><span class="n">MY57800256</span><span class="p">,</span> <span class="n">firmware</span><span class="p">:</span><span class="mf">3.05</span><span class="o">-</span><span class="mf">1.19</span><span class="o">-</span><span class="mf">2.00</span><span class="o">-</span><span class="mi">52</span><span class="o">-</span><span class="mi">00</span><span class="p">)</span> <span class="ow">in</span> <span class="mf">0.11</span><span class="n">s</span>
+</pre></div>
+</div>
+<div class="section" id="basic-usage">
+<h2>Basic usage<a class="headerlink" href="#basic-usage" title="Permalink to this headline">¶</a></h2>
 <div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="c1"># SET up a sawtooth</span>
 <span class="n">ks</span><span class="o">.</span><span class="n">ch1_function_type</span><span class="p">(</span><span class="s1">&#39;RAMP&#39;</span><span class="p">)</span>
 <span class="n">ks</span><span class="o">.</span><span class="n">ch1_ramp_symmetry</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
@@ -221,8 +231,67 @@
 <span class="n">ks</span><span class="o">.</span><span class="n">ch1_output</span><span class="p">(</span><span class="s1">&#39;OFF&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
-<div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="n">ks</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</div>
+<div class="section" id="using-burst-mode">
+<h2>Using burst mode<a class="headerlink" href="#using-burst-mode" title="Permalink to this headline">¶</a></h2>
+<div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="c1"># In burst mode, the instrument starts running a task (e.g. a waveform generation) upon receiving a trigger</span>
+
+<span class="c1"># TRIGGERING</span>
+
+<span class="c1"># Can be &#39;EXT&#39; (external), &#39;IMM&#39; (immediate, internal),</span>
+<span class="c1"># &#39;BUS&#39; (software trigger), &#39;TIM&#39; (timed)</span>
+<span class="n">ks</span><span class="o">.</span><span class="n">ch1_trigger_source</span><span class="p">(</span><span class="s1">&#39;EXT&#39;</span><span class="p">)</span>
+
+<span class="n">ks</span><span class="o">.</span><span class="n">ch1_trigger_count</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">ks</span><span class="o">.</span><span class="n">ch1_trigger_delay</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>  <span class="c1"># seconds</span>
+
+<span class="c1"># for external triggering, a slope should be specified</span>
+<span class="n">ks</span><span class="o">.</span><span class="n">ch1_trigger_slope</span><span class="p">(</span><span class="s1">&#39;POS&#39;</span><span class="p">)</span>
+
+<span class="c1"># For timed triggering, the time between each trigger should be set</span>
+<span class="n">ks</span><span class="o">.</span><span class="n">ch1_trigger_timer</span><span class="p">(</span><span class="mf">50e-3</span><span class="p">)</span>
+
+<span class="c1"># BURSTING</span>
+
+<span class="n">ks</span><span class="o">.</span><span class="n">ch1_burst_state</span><span class="p">(</span><span class="s1">&#39;ON&#39;</span><span class="p">)</span>
+<span class="n">ks</span><span class="o">.</span><span class="n">ch1_burst_mode</span><span class="p">(</span><span class="s1">&#39;N Cycle&#39;</span><span class="p">)</span>  <span class="c1"># Can be &#39;N Cycle&#39; or &#39;Gated&#39;</span>
+
+<span class="c1"># when in &#39;N Cycle&#39; mode, the following options are available</span>
+<span class="n">ks</span><span class="o">.</span><span class="n">ch1_burst_ncycles</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># Can be 1, 2, 3,... , &#39;MIN&#39;, &#39;MAX&#39;, or &#39;INF&#39;</span>
+<span class="n">ks</span><span class="o">.</span><span class="n">ch1_burst_phase</span><span class="p">(</span><span class="mi">180</span><span class="p">)</span>  <span class="c1"># the starting phase (degrees)</span>
+
+<span class="c1"># If in &#39;Gated&#39; mode, the following should be specified</span>
+<span class="n">ks</span><span class="o">.</span><span class="n">ch1_burst_polarity</span><span class="p">(</span><span class="s1">&#39;NORM&#39;</span><span class="p">)</span>  <span class="c1"># Can be &#39;NORM&#39; or &#39;INV&#39;</span>
 </pre></div>
+</div>
+</div>
+<div class="section" id="error-handling">
+<h2>Error handling<a class="headerlink" href="#error-handling" title="Permalink to this headline">¶</a></h2>
+<div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="c1"># The instrument has an error queue of length up to 20 messages.</span>
+<span class="c1"># The queue message retrieval is first-in-first-out</span>
+
+<span class="c1"># The first (i.e. oldest) error message in the queue can be gotten (and thereby removed from the queue)</span>
+<span class="n">ks</span><span class="o">.</span><span class="n">error</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;No error&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="c1"># The entire queue can be flushed out</span>
+
+<span class="c1"># generate a few errors</span>
+<span class="k">for</span> <span class="n">ii</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+    <span class="n">ks</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;gimme an error!&#39;</span><span class="p">)</span>
+
+<span class="n">ks</span><span class="o">.</span><span class="n">flush_error_queue</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">-</span><span class="mi">113</span> <span class="n">Undefined</span> <span class="n">header</span>
+<span class="o">-</span><span class="mi">113</span> <span class="n">Undefined</span> <span class="n">header</span>
+<span class="o">-</span><span class="mi">113</span> <span class="n">Undefined</span> <span class="n">header</span>
+<span class="mi">0</span> <span class="n">No</span> <span class="n">error</span>
+</pre></div>
+</div>
 </div>
 </div>
 
