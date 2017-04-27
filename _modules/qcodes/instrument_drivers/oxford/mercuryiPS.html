@@ -168,8 +168,8 @@
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
-<span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="n">IPInstrument</span><span class="p">,</span> <span class="n">MultiParameter</span>
-<span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="k">import</span> <span class="n">Enum</span>
+<span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="n">IPInstrument</span><span class="p">,</span> <span class="n">MultiParameter</span><span class="p">,</span> <span class="n">ManualParameter</span>
+<span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="k">import</span> <span class="n">Enum</span><span class="p">,</span> <span class="n">Bool</span>
 
 <div class="viewcode-block" id="MercuryiPSArray"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.oxford.html#qcodes.instrument_drivers.oxford.mercuryiPS.MercuryiPSArray">[docs]</a><span class="k">class</span> <span class="nc">MercuryiPSArray</span><span class="p">(</span><span class="n">MultiParameter</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -242,6 +242,15 @@
         <span class="k">if</span> <span class="n">axes</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_determine_magnet_axes</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_determine_current_to_field</span><span class="p">()</span>
+
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;hold_after_set&#39;</span><span class="p">,</span>
+                           <span class="n">parameter_class</span><span class="o">=</span><span class="n">ManualParameter</span><span class="p">,</span>
+                           <span class="n">validator</span><span class="o">=</span><span class="n">Bool</span><span class="p">(),</span>
+                           <span class="n">initial_value</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                           <span class="n">docstring</span><span class="o">=</span><span class="s1">&#39;Should the driver block while waiting for the Magnet power supply &#39;</span>
+                                     <span class="s1">&#39;to go into hold mode.&#39;</span>
+                           <span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;setpoint&#39;</span><span class="p">,</span>
                            <span class="n">names</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="s1">&#39;B&#39;</span> <span class="o">+</span> <span class="n">ax</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">+</span> <span class="s1">&#39;_setpoint&#39;</span> <span class="k">for</span> <span class="n">ax</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">axes</span><span class="p">),</span>
@@ -362,6 +371,9 @@
     <span class="k">def</span> <span class="nf">_ramp_to_setpoint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">cmd</span><span class="p">,</span> <span class="n">setpoint</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_set_fld</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">cmd</span><span class="p">,</span> <span class="n">setpoint</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">rtos</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hold_after_set</span><span class="p">():</span>
+            <span class="k">while</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">([</span><span class="s1">&#39;HOLD&#39;</span> <span class="o">==</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">a</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">+</span> <span class="s1">&#39;_ACTN&#39;</span><span class="p">)()</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">ax</span><span class="p">]):</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_ramp_to_setpoint_and_wait</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">cmd</span><span class="p">,</span> <span class="n">setpoint</span><span class="p">):</span>
         <span class="n">error</span> <span class="o">=</span> <span class="mf">0.2e-3</span>
