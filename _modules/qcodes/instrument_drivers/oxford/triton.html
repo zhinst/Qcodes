@@ -170,7 +170,7 @@
 <span class="kn">from</span> <span class="nn">traceback</span> <span class="k">import</span> <span class="n">format_exc</span>
 
 <span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="n">IPInstrument</span>
-<span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="k">import</span> <span class="n">Enum</span>
+<span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="k">import</span> <span class="n">Enum</span><span class="p">,</span> <span class="n">Ints</span>
 
 
 <div class="viewcode-block" id="Triton"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.oxford.html#qcodes.instrument_drivers.oxford.triton.Triton">[docs]</a><span class="k">class</span> <span class="nc">Triton</span><span class="p">(</span><span class="n">IPInstrument</span><span class="p">):</span>
@@ -218,7 +218,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;pid_control_channel&#39;</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;PID control channel&#39;</span><span class="p">,</span>
                            <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_control_channel</span><span class="p">,</span>
-                           <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_control_channel</span><span class="p">)</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_control_channel</span><span class="p">,</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">Ints</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">16</span><span class="p">))</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;pid_mode&#39;</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;PID Mode&#39;</span><span class="p">,</span>
@@ -290,19 +291,26 @@
 
         <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">((</span><span class="s1">&#39;vendor&#39;</span><span class="p">,</span> <span class="s1">&#39;model&#39;</span><span class="p">,</span> <span class="s1">&#39;serial&#39;</span><span class="p">,</span> <span class="s1">&#39;firmware&#39;</span><span class="p">),</span> <span class="n">idparts</span><span class="p">))</span></div>
 
-    <span class="k">def</span> <span class="nf">_get_control_channel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force_get</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">force_get</span> <span class="ow">or</span> <span class="p">(</span><span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_control_channel</span><span class="p">):</span>
-            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">17</span><span class="p">):</span>
-                <span class="n">tempval</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;READ:DEV:T</span><span class="si">%s</span><span class="s1">:TEMP:LOOP:MODE&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">i</span><span class="p">))</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="n">tempval</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;NOT_FOUND&#39;</span><span class="p">):</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">_control_channel</span> <span class="o">=</span> <span class="n">i</span>
+    <span class="k">def</span> <span class="nf">_get_control_channel</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="c1"># verify current channel</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_control_channel</span><span class="p">:</span>
+            <span class="n">tempval</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;READ:DEV:T</span><span class="si">{}</span><span class="s1">:TEMP:LOOP:MODE&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_control_channel</span><span class="p">))</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">tempval</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;NOT_FOUND&#39;</span><span class="p">):</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_control_channel</span>
+
+        <span class="c1"># either _control_channel is not set or wrong</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">17</span><span class="p">):</span>
+            <span class="n">tempval</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;READ:DEV:T</span><span class="si">{}</span><span class="s1">:TEMP:LOOP:MODE&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">))</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">tempval</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;NOT_FOUND&#39;</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_control_channel</span> <span class="o">=</span> <span class="n">i</span>
+                <span class="k">break</span>
 
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_control_channel</span>
 
     <span class="k">def</span> <span class="nf">_set_control_channel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_control_channel</span> <span class="o">=</span> <span class="n">channel</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;SET:DEV:T</span><span class="si">%s</span><span class="s1">:TEMP:LOOP:HTR:H1&#39;</span> <span class="o">%</span>
-                   <span class="bp">self</span><span class="o">.</span><span class="n">_get_control_channel</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;SET:DEV:T</span><span class="si">{}</span><span class="s1">:TEMP:LOOP:HTR:H1&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">_get_control_param</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">):</span>
         <span class="n">chan</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_control_channel</span><span class="p">()</span>
