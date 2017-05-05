@@ -631,7 +631,33 @@
     <span class="k">def</span> <span class="nf">_gen_ch_get_func</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fun</span><span class="p">,</span> <span class="n">ch</span><span class="p">):</span>
         <span class="k">def</span> <span class="nf">get_func</span><span class="p">():</span>
             <span class="k">return</span> <span class="n">fun</span><span class="p">(</span><span class="n">ch</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">get_func</span></div>
+        <span class="k">return</span> <span class="n">get_func</span>
+
+<div class="viewcode-block" id="IVVI.adjust_parameter_validator"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.QuTech.html#qcodes.instrument_drivers.QuTech.IVVI.IVVI.adjust_parameter_validator">[docs]</a>    <span class="k">def</span> <span class="nf">adjust_parameter_validator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Adjust the parameter validator range based on the dac resolution.</span>
+
+<span class="sd">        The dac&#39;s of the IVVI have a finite resolution. If the validator range</span>
+<span class="sd">        min and max values are not values the dac&#39;s can actually have, then it</span>
+<span class="sd">        can occur that a set command results in the dac&#39;s going to a value just</span>
+<span class="sd">        outside the validator range. Adjusting the validators with this</span>
+<span class="sd">        function prevents that.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            param (StandardParameter): a dac of the IVVI instrument</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">_vals</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">Numbers</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Only the Numbers validator is supported.&#39;</span><span class="p">)</span>
+        <span class="n">min_val</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">_vals</span><span class="o">.</span><span class="n">_min_value</span>
+        <span class="n">max_val</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">_vals</span><span class="o">.</span><span class="n">_max_value</span>
+        <span class="n">min_val_pol_corr</span> <span class="o">=</span> <span class="n">min_val</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">pol_num</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">name</span><span class="p">[</span><span class="mi">3</span><span class="p">:])</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">max_val_pol_corr</span> <span class="o">=</span> <span class="n">max_val</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">pol_num</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">name</span><span class="p">[</span><span class="mi">3</span><span class="p">:])</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">min_val_bytes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mvoltage_to_bytes</span><span class="p">(</span><span class="n">min_val_pol_corr</span><span class="p">)</span>
+        <span class="n">min_val_upd</span> <span class="o">=</span> <span class="p">(</span><span class="n">min_val_bytes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">256</span> <span class="o">+</span> <span class="n">min_val_bytes</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">/</span> \
+            <span class="mf">65535.0</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">Fullrange</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">pol_num</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">name</span><span class="p">[</span><span class="mi">3</span><span class="p">:])</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">max_val_bytes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mvoltage_to_bytes</span><span class="p">(</span><span class="n">max_val_pol_corr</span><span class="p">)</span>
+        <span class="n">max_val_upd</span> <span class="o">=</span> <span class="p">(</span><span class="n">max_val_bytes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">256</span> <span class="o">+</span> <span class="n">max_val_bytes</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">/</span> \
+            <span class="mf">65535.0</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">Fullrange</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">pol_num</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">name</span><span class="p">[</span><span class="mi">3</span><span class="p">:])</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">param</span><span class="o">.</span><span class="n">_vals</span> <span class="o">=</span> <span class="n">Numbers</span><span class="p">(</span><span class="n">min_val_upd</span><span class="p">,</span> <span class="n">max_val_upd</span><span class="p">)</span></div></div>
 
 <span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">RS232 PROTOCOL</span>
