@@ -4,36 +4,85 @@ QCoDeS tutorial
 
 Basic overview of QCoDeS
 
-Typical QCodes workflow
------------------------
+Table of Contents 
+------------------
+
+-  `Workflow <#workflow>`_
+-  `Basic instrument interaction <#inst_io>`_
+-  `Measuring <#measurement>`_
+
+   -  `The loop: 1D example <#loop_1D>`_
+   -  `The loop: 2D example <#loop_2D>`_
+
+Typical QCodes workflow 
+------------------------
+
+(back to `ToC <#toc>`_)
 
 1. Start up an interactive python session (e.g. using jupyter)
 2. import desired modules
 3. instantiate required instruments
 4. experiment!
 
+Importing
+~~~~~~~~~
+
 .. code:: ipython3
 
+    # usually, one imports QCoDeS and some instruments
     import qcodes as qc
+    
+    # In this tutorial, we import the dummy instrument
+    from qcodes.tests.instrument_mocks import DummyInstrument
+    # real instruments are imported in a similar way, e.g.
+    # from qcodes.instrument_drivers.Keysight.Keysight_33500B import Keysight_33500B
 
-Instantiates all the instruments needed for the demo
-----------------------------------------------------
+Instantiation of instruments
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: ipython3
 
-    # import dummy driver for the tutorial
-    from qcodes.tests.instrument_mocks import DummyInstrument
+    # It is not enough to import the instruments, they must also be instantiated
+    # Note that this can only be done once. If you try to re-instantiate an existing instrument, QCoDeS will 
+    # complain that 'Another instrument has the name'.
     
-    dac1 = DummyInstrument(name="dac")
-    dac2 = DummyInstrument(name="dac2")
+    
+    # In this turotial, we consider a simple situation: A single DAC outputting voltages to a Digital Multi Meter
+    
+    dac = DummyInstrument(name="dac", gates=['ch1', 'ch2'])  # The DAC voltage source
+    dmm = DummyInstrument(name="dmm", gates=['voltage'])  # The DMM voltage reader
+    
     # the default dummy instrument returns always a constant value, in the following line we make it random 
     # just for the looks 💅
     import random
-    dac2.dac2.get =  lambda: random.randint(0,100)
+    dmm.voltage.get =  lambda: random.randint(0, 100)
     
-    # The station is a container for all instruments that makes it easy 
-    # to log meta-data
-    station = qc.Station(dac1, dac2)
+    # Finally, the instruments should be bound to a Station. Only instruments bound to the Station get recorded in the
+    # measurement metadata, so your metadata is blind to any instrument not in the Station.
+    
+    station = qc.Station(dac, dmm)
+
+.. code:: ipython3
+
+    # For the tutorial, we add a parameter that loudly prints what it is being set to
+    # (It is used below)
+    
+    chX = 0
+    
+    def myget():
+        return chX
+        
+    def myset(x):
+        global chX
+        chX = x
+        print('Setting to {}'.format(x))
+        return None
+        
+    dac.add_parameter('verbose_channel',
+                      label='Verbose Channel',
+                      unit='V',
+                      get_cmd=myget,
+                      set_cmd=myset)
 
 The location provider can be set globally
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -43,11 +92,121 @@ The location provider can be set globally
     loc_provider = qc.data.location.FormatLocation(fmt='data/{date}/#{counter}_{name}_{time}')
     qc.data.data_set.DataSet.location_provider=loc_provider
 
-Running an experiment
----------------------
+We are now ready to play with the instruments!
+
+Basic instrument interaction 
+-----------------------------
+
+(back to `ToC <#toc>`_)
+
+The interaction with instruments mainly consists of ``setting`` and
+``getting`` the instruments' ``parameters``. A parameter can be anything
+from the frequency of a signal generator over the output impedance of an
+AWG to the traces from a lock-in amplifier. In this tutorial we --for
+didactical reasons-- only consider scalar parameters.
+
+.. code:: ipython3
+
+    # The voltages output by the dac can be set like so
+    dac.ch1.set(8)  
+    # Now the output is 8 V. We can read this value back
+    dac.ch1.get()
+
+
+
+
+.. parsed-literal::
+
+    8
+
+
+
+Setting IMMEDIATELY changes a value. For voltages, that is sometimes
+undesired. The value can instead be ramped by stepping and waiting.
+
+.. code:: ipython3
+
+    dac.verbose_channel.set(0) 
+    dac.verbose_channel.set(9)  # immediate voltage jump of 9 Volts (!)
+    
+    # first set a step size
+    dac.verbose_channel.set_step(0.1)
+    # and a wait time
+    dac.verbose_channel.set_delay(0.25)  # in seconds
+    
+    # now a "staircase ramp" is performed by setting
+    dac.verbose_channel.set(5)
+
+
+.. parsed-literal::
+
+    Setting to 0
+    Setting to 9
+    Setting to 8.9
+    Setting to 8.8
+    Setting to 8.7
+    Setting to 8.6
+    Setting to 8.5
+    Setting to 8.4
+    Setting to 8.3
+    Setting to 8.2
+    Setting to 8.1
+    Setting to 8.0
+    Setting to 7.9
+    Setting to 7.8
+    Setting to 7.7
+    Setting to 7.6
+    Setting to 7.5
+    Setting to 7.4
+    Setting to 7.3
+    Setting to 7.2
+    Setting to 7.1
+    Setting to 7.0
+    Setting to 6.9
+    Setting to 6.8
+    Setting to 6.699999999999999
+    Setting to 6.6
+    Setting to 6.5
+    Setting to 6.4
+    Setting to 6.3
+    Setting to 6.199999999999999
+    Setting to 6.1
+    Setting to 6.0
+    Setting to 5.9
+    Setting to 5.8
+    Setting to 5.699999999999999
+    Setting to 5.6
+    Setting to 5.5
+    Setting to 5.4
+    Setting to 5.3
+    Setting to 5.199999999999999
+    Setting to 5.1
+    Setting to 5
+
+
+**NOTE**: that is ramp is blocking and has a low resolution since each
+``set`` on a real instrument has a latency on the order of ms. Some
+instrument drivers support native-resolution asynchronous ramping.
+Always refer to your instrument driver if you need high performance of
+an instrument.
+
+.. code:: ipython3
+
+    # after such a ramp, it is a good idea to reset the step and delay
+    dac.verbose_channel.set_step(0)
+    # and a wait time
+    dac.verbose_channel.set_delay(0)
+
+Measuring 
+----------
+
+(back to `ToC <#toc>`_)
+
+1D Loop example
+~~~~~~~~~~~~~~~
 
 Defining the ``Loop`` and actions
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Before you run a measurement loop you do two things: 1. You describe
 what parameter(s) to vary and how. This is the creation of a ``Loop``
@@ -61,21 +220,42 @@ condition that, if it returns truthy, breaks (this level of) the loop
 
 .. code:: ipython3
 
-    loop = qc.Loop(dac1.dac1.sweep(0,20,0.1), delay=0.001).each(dac2.dac2)
+    # For instance, sweep a dac voltage and record with the dmm
+    
+    loop = qc.Loop(dac.ch1.sweep(0, 20, 0.1), delay=0.001).each(dmm.voltage)
     data = loop.get_data_set(name='testsweep')
 
 .. code:: ipython3
 
-    plot = qc.QtPlot()
-    plot.add(data.dac2_dac2)
-    _ = loop.with_bg_task(plot.update, plot.save).run()
+    plot_1d = qc.QtPlot()  # create a plot
+    plot_1d.add(data.dmm_voltage)  # add a graph to the plot
+    _ = loop.with_bg_task(plot_1d.update, plot_1d.save).run()  # run the loop
+
+
+.. parsed-literal::
+
+    DataSet:
+       location = 'data/2017-05-08/#007_testsweep_14-44-29'
+       <Type>   | <array_id>  | <array.name> | <array.shape>
+       Setpoint | dac_ch1_set | ch1          | (201,)
+       Measured | dmm_voltage | voltage      | (201,)
+    started at 2017-05-08 14:45:16
+
 
 .. code:: ipython3
 
-    plot
+    # The plot may be recalled easily
+    plot_1d
+
+
+
+
+.. image:: Tutorial_files/Tutorial_19_0.png
+
+
 
 Output of the loop
-------------------
+^^^^^^^^^^^^^^^^^^
 
 A loop returns a dataset.
 The representation of the dataset shows what arrays it contains and
@@ -91,33 +271,127 @@ a snapshot of each instrument listed in the station.
 
 .. code:: ipython3
 
-    dac2.snapshot()
+    dac.snapshot()
+
+
+
+
+.. parsed-literal::
+
+    {'__class__': 'qcodes.tests.instrument_mocks.DummyInstrument',
+     'functions': {},
+     'name': 'dac',
+     'parameters': {'IDN': {'__class__': 'qcodes.instrument.parameter.StandardParameter',
+       'instrument': 'qcodes.tests.instrument_mocks.DummyInstrument',
+       'instrument_name': 'dac',
+       'label': 'IDN',
+       'name': 'IDN',
+       'ts': '2017-05-08 14:44:19',
+       'unit': '',
+       'vals': '<Anything>',
+       'value': {'firmware': None,
+        'model': 'dac',
+        'serial': None,
+        'vendor': None}},
+      'ch1': {'__class__': 'qcodes.instrument.parameter.ManualParameter',
+       'instrument': 'qcodes.tests.instrument_mocks.DummyInstrument',
+       'instrument_name': 'dac',
+       'label': 'Gate ch1',
+       'name': 'ch1',
+       'ts': '2017-05-08 14:45:15',
+       'unit': 'V',
+       'vals': '<Numbers -800<=v<=400>',
+       'value': 20.0},
+      'ch2': {'__class__': 'qcodes.instrument.parameter.ManualParameter',
+       'instrument': 'qcodes.tests.instrument_mocks.DummyInstrument',
+       'instrument_name': 'dac',
+       'label': 'Gate ch2',
+       'name': 'ch2',
+       'ts': '2017-05-08 14:44:19',
+       'unit': 'V',
+       'vals': '<Numbers -800<=v<=400>',
+       'value': 0},
+      'verbose_channel': {'__class__': 'qcodes.instrument.parameter.StandardParameter',
+       'instrument': 'qcodes.tests.instrument_mocks.DummyInstrument',
+       'instrument_name': 'dac',
+       'label': 'Verbose Channel',
+       'name': 'verbose_channel',
+       'ts': '2017-05-08 14:44:29',
+       'unit': 'V',
+       'vals': '<Numbers>',
+       'value': 5}}}
+
+
+
+There is also a more human-readable version of the essential
+information.
+
+.. code:: ipython3
+
+    dac.print_readable_snapshot()
+
+
+.. parsed-literal::
+
+    dac:
+    	parameter      value
+    --------------------------------------------------------------------------------
+    IDN             :	{'model': 'dac', 'firmware': None, 'serial': None, 'vendor'...
+    ch1             :	20 (V)
+    ch2             :	0 (V)
+    verbose_channel :	5 (V)
+
 
 Loading data
 ------------
 
+The dataset knows its own location, which we may use to load data.
+
 .. code:: ipython3
 
-    loaded_data = qc.load_data("location")
-    plot = qc.MatPlot(loaded_data.array_id)
+    
+    location = data.location
+    loaded_data = qc.load_data(location)
+    plot = qc.MatPlot(loaded_data.dmm_voltage)
 
 Example: multiple 2D measurements with live plotting
 ----------------------------------------------------
 
 .. code:: ipython3
 
-    loop = qc.Loop(dac1.dac1.sweep(0,5,1), 0.1).loop(dac1.dac2.sweep(0,5,1), 0.1).each(
-        dac2.dac2
+    # Loops can be nested, so that a new sweep runs for each point in the outer loop
+    
+    loop = qc.Loop(dac.ch1.sweep(0, 5, 1), 0.1).loop(dac.ch2.sweep(0, 5, 1), 0.1).each(
+        dmm.voltage
         )
     data = loop.get_data_set(name='2D_test')
 
 .. code:: ipython3
 
     plot = qc.QtPlot()
-    plot.add(data.dac2_dac2, figsize=(1200, 500))
-    #plot.add(data.dac2_dac3, subplot=2)
+    plot.add(data.dmm_voltage, figsize=(1200, 500))
     _ = loop.with_bg_task(plot.update, plot.save).run()
+
+
+.. parsed-literal::
+
+    DataSet:
+       location = 'data/2017-05-08/#008_2D_test_14-45-17'
+       <Type>   | <array_id>  | <array.name> | <array.shape>
+       Setpoint | dac_ch1_set | ch1          | (6,)
+       Setpoint | dac_ch2_set | ch2          | (6, 6)
+       Measured | dmm_voltage | voltage      | (6, 6)
+    started at 2017-05-08 14:45:22
+
 
 .. code:: ipython3
 
     plot
+
+
+
+
+.. image:: Tutorial_files/Tutorial_31_0.png
+
+
+
