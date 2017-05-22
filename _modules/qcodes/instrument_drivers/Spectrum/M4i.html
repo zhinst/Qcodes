@@ -760,6 +760,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">allchannels</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_channel_memsize</span> <span class="o">=</span> <span class="n">memsize</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_memory_size</span><span class="p">(</span><span class="n">memsize</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">channels</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">channels</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="n">channels</span><span class="p">:</span>
@@ -995,15 +996,27 @@
 
         <span class="k">return</span> <span class="n">voltages</span></div>
 
-<div class="viewcode-block" id="M4i.blockavg_hardware_trigger_acquisition"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.Spectrum.html#qcodes.instrument_drivers.Spectrum.M4i.M4i.blockavg_hardware_trigger_acquisition">[docs]</a>    <span class="k">def</span> <span class="nf">blockavg_hardware_trigger_acquisition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mV_range</span><span class="p">,</span> <span class="n">nr_averages</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_check_buffers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Check validity of buffers</span>
+
+<span class="sd">        See: manual section &quot;Limits of pre trigger, post trigger, memory size&quot;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">pretrigger</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_memory_size</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">posttrigger_memory_size</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">pretrigger</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="o">**</span><span class="mi">13</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;value of SPC_PRETRIGGER is invalid&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="M4i.blockavg_hardware_trigger_acquisition"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.Spectrum.html#qcodes.instrument_drivers.Spectrum.M4i.M4i.blockavg_hardware_trigger_acquisition">[docs]</a>    <span class="k">def</span> <span class="nf">blockavg_hardware_trigger_acquisition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mV_range</span><span class="p">,</span> <span class="n">nr_averages</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+                                              <span class="n">verbose</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">post_trigger</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; Acquire data using block averaging and hardware triggering</span>
 
 <span class="sd">        To read out multiple channels, use `initialize_channels`</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            mV_range</span>
+<span class="sd">            mV_range (float)</span>
 <span class="sd">            nr_averages (int): number of averages to take</span>
 <span class="sd">            verbose (int): output level</span>
+<span class="sd">            post_trigger (None or int): optional size of post_trigger buffer</span>
 <span class="sd">        Returns:</span>
 <span class="sd">            voltages (array): if multiple channels are read, then the data is interleaved</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -1013,6 +1026,17 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">card_mode</span><span class="p">(</span><span class="n">pyspcm</span><span class="o">.</span><span class="n">SPC_REC_STD_AVERAGE</span><span class="p">)</span>  <span class="c1"># single</span>
         <span class="n">memsize</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_memory_size</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">segment_size</span><span class="p">(</span><span class="n">memsize</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">post_trigger</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">pre_trigger</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="mi">2</span><span class="o">**</span><span class="mi">13</span><span class="p">,</span> <span class="n">memsize</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">post_trigger</span> <span class="o">=</span> <span class="n">memsize</span> <span class="o">-</span> <span class="n">pre_trigger</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">pre_trigger</span> <span class="o">=</span> <span class="n">memsize</span> <span class="o">-</span> <span class="n">post_trigger</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">posttrigger_memory_size</span><span class="p">(</span><span class="n">post_trigger</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pretrigger_memory_size</span><span class="p">(</span><span class="n">pre_trigger</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_buffers</span><span class="p">()</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">_set_param32bit</span><span class="p">(</span><span class="n">pyspcm</span><span class="o">.</span><span class="n">SPC_AVERAGES</span><span class="p">,</span> <span class="n">nr_averages</span><span class="p">)</span>
         <span class="n">numch</span> <span class="o">=</span> <span class="nb">bin</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">enable_channels</span><span class="p">())</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;1&quot;</span><span class="p">)</span>
 
