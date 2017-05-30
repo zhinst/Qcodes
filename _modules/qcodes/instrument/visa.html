@@ -165,10 +165,11 @@
   <h1>Source code for qcodes.instrument.visa</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Visa instrument driver based on pyvisa.&quot;&quot;&quot;</span>
 <span class="kn">import</span> <span class="nn">visa</span>
+<span class="kn">import</span> <span class="nn">pyvisa.constants</span> <span class="k">as</span> <span class="nn">vi_const</span>
+<span class="kn">import</span> <span class="nn">pyvisa.resources</span>
 
 <span class="kn">from</span> <span class="nn">.base</span> <span class="k">import</span> <span class="n">Instrument</span>
 <span class="kn">import</span> <span class="nn">qcodes.utils.validators</span> <span class="k">as</span> <span class="nn">vals</span>
-
 
 <div class="viewcode-block" id="VisaInstrument"><a class="viewcode-back" href="../../../api/generated/qcodes.VisaInstrument.html#qcodes.VisaInstrument">[docs]</a><span class="k">class</span> <span class="nc">VisaInstrument</span><span class="p">(</span><span class="n">Instrument</span><span class="p">):</span>
 
@@ -239,7 +240,13 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span> <span class="o">=</span> <span class="n">resource_manager</span><span class="o">.</span><span class="n">open_resource</span><span class="p">(</span><span class="n">address</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="c1"># Serial instruments have a separate flush method to clear their buffers</span>
+        <span class="c1"># which behaves differently to clear. This is particularly important</span>
+        <span class="c1"># for instruments which do not support SCPI commands.</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="p">,</span> <span class="n">pyvisa</span><span class="o">.</span><span class="n">resources</span><span class="o">.</span><span class="n">SerialInstrument</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">flush</span><span class="p">(</span><span class="n">vi_const</span><span class="o">.</span><span class="n">VI_READ_BUF_DISCARD</span> <span class="o">|</span> <span class="n">vi_const</span><span class="o">.</span><span class="n">VI_WRITE_BUF_DISCARD</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_address</span> <span class="o">=</span> <span class="n">address</span>
 
     <span class="k">def</span> <span class="nf">set_terminator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">terminator</span><span class="p">):</span>
