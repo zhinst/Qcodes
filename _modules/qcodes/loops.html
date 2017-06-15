@@ -228,6 +228,15 @@
 
 <span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
+<span class="k">def</span> <span class="nf">active_loop</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">ActiveLoop</span><span class="o">.</span><span class="n">active_loop</span>
+
+<span class="k">def</span> <span class="nf">active_data_set</span><span class="p">():</span>
+    <span class="n">loop</span> <span class="o">=</span> <span class="n">active_loop</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">loop</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">loop</span><span class="o">.</span><span class="n">data_set</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">loop</span><span class="o">.</span><span class="n">data_set</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
 
 <div class="viewcode-block" id="Loop"><a class="viewcode-back" href="../../api/generated/qcodes.Loop.html#qcodes.Loop">[docs]</a><span class="k">class</span> <span class="nc">Loop</span><span class="p">(</span><span class="n">Metadatable</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -496,6 +505,10 @@
 <span class="sd">    The *ActiveLoop* determines what *DataArray*\s it will need to hold the data</span>
 <span class="sd">    it collects, and it creates a *DataSet* holding these *DataArray*\s</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Currently active loop, is set when calling loop.run(set_active=True)</span>
+    <span class="c1"># is reset to None when active measurement is finished</span>
+    <span class="n">active_loop</span> <span class="o">=</span> <span class="kc">None</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sweep_values</span><span class="p">,</span> <span class="n">delay</span><span class="p">,</span> <span class="o">*</span><span class="n">actions</span><span class="p">,</span> <span class="n">then_actions</span><span class="o">=</span><span class="p">(),</span>
                  <span class="n">station</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">progress_interval</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">bg_task</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -818,7 +831,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">quiet</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">use_threads</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">quiet</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">station</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-            <span class="n">progress_interval</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+            <span class="n">progress_interval</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">set_active</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Execute this loop.</span>
 
@@ -878,6 +891,9 @@
 
         <span class="n">data_set</span><span class="o">.</span><span class="n">save_metadata</span><span class="p">()</span>
 
+        <span class="k">if</span> <span class="n">set_active</span><span class="p">:</span>
+            <span class="n">ActiveLoop</span><span class="o">.</span><span class="n">active_loop</span> <span class="o">=</span> <span class="bp">self</span>
+
         <span class="k">try</span><span class="p">:</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">quiet</span><span class="p">:</span>
             	<span class="nb">print</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;Started at %Y-%m-</span><span class="si">%d</span><span class="s1"> %H:%M:%S&#39;</span><span class="p">))</span>
@@ -893,6 +909,8 @@
             <span class="c1"># we want to clear the data_set attribute so we don&#39;t try to reuse</span>
             <span class="c1"># this one later.</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data_set</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">set_active</span><span class="p">:</span>
+                <span class="n">ActiveLoop</span><span class="o">.</span><span class="n">active_loop</span> <span class="o">=</span> <span class="kc">None</span>
 
         <span class="k">return</span> <span class="n">ds</span>
 
