@@ -232,7 +232,7 @@
                                   <span class="n">full_class</span><span class="p">,</span> <span class="n">named_repr</span><span class="p">,</span> <span class="n">warn_units</span><span class="p">)</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.metadata</span> <span class="k">import</span> <span class="n">Metadatable</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.command</span> <span class="k">import</span> <span class="n">Command</span><span class="p">,</span> <span class="n">NoCommandError</span>
-<span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="k">import</span> <span class="n">Validator</span><span class="p">,</span> <span class="n">Numbers</span><span class="p">,</span> <span class="n">Ints</span><span class="p">,</span> <span class="n">Enum</span>
+<span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="k">import</span> <span class="n">Validator</span><span class="p">,</span> <span class="n">Numbers</span><span class="p">,</span> <span class="n">Ints</span><span class="p">,</span> <span class="n">Enum</span><span class="p">,</span> <span class="n">Strings</span>
 <span class="kn">from</span> <span class="nn">qcodes.instrument.sweep_values</span> <span class="k">import</span> <span class="n">SweepFixedValues</span>
 <span class="kn">from</span> <span class="nn">qcodes.data.data_array</span> <span class="k">import</span> <span class="n">DataArray</span>
 
@@ -1238,9 +1238,9 @@
 <span class="sd">        instrument (Optional[Instrument]): the instrument this applies to,</span>
 <span class="sd">            if any.</span>
 
-<span class="sd">        initial_value (Optional[str]): starting value, the</span>
-<span class="sd">            only invalid value allowed, and None is only allowed as an initial</span>
-<span class="sd">            value, it cannot be set later</span>
+<span class="sd">        initial_value (Optional[str]): starting value, may be None even if</span>
+<span class="sd">            None does not pass the validator. None is only allowed as an</span>
+<span class="sd">            initial value and cannot be set after initiation.</span>
 
 <span class="sd">        **kwargs: Passed to Parameter parent class</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -1453,6 +1453,53 @@
             <span class="n">meta_data</span><span class="p">[</span><span class="n">param</span><span class="o">.</span><span class="n">full_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">snapshot</span><span class="p">()</span>
 
         <span class="k">return</span> <span class="n">meta_data</span></div>
+
+
+<span class="k">class</span> <span class="nc">InstrumentRefParameter</span><span class="p">(</span><span class="n">ManualParameter</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    An InstrumentRefParameter</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name (string): the name of the parameter that one wants to add.</span>
+
+<span class="sd">        instrument (Optional[Instrument]): the &quot;parent&quot; instrument this</span>
+<span class="sd">            parameter is attached to, if any.</span>
+
+<span class="sd">        initial_value (Optional[str]): starting value, may be None even if</span>
+<span class="sd">            None does not pass the validator. None is only allowed as an</span>
+<span class="sd">            initial value and cannot be set after initiation.</span>
+
+<span class="sd">        **kwargs: Passed to InstrumentRefParameter parent class</span>
+
+<span class="sd">    This parameter is useful when one needs a reference to another instrument</span>
+<span class="sd">    from within an instrument, e.g., when creating a meta instrument that</span>
+<span class="sd">    sets parameters on instruments it contains.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">get_instr</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the instance of the instrument with the name equal to the</span>
+<span class="sd">        value of this parameter.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ref_instrument_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="c1"># note that _instrument refers to the instrument this parameter belongs</span>
+        <span class="c1"># to, while the ref_instrument_name is the instrument that is the value</span>
+        <span class="c1"># of this parameter.</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">find_instrument</span><span class="p">(</span><span class="n">ref_instrument_name</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">set_validator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vals</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set a validator `vals` for this parameter.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            vals (Validator):  validator to set</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">vals</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_vals</span> <span class="o">=</span> <span class="n">Strings</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">vals</span><span class="p">,</span> <span class="n">Validator</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_vals</span> <span class="o">=</span> <span class="n">vals</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;vals must be a Validator&#39;</span><span class="p">)</span>
 </pre></div>
 
            </div>
