@@ -177,7 +177,285 @@
 <span class="kn">from</span> <span class="nn">.function</span> <span class="k">import</span> <span class="n">Function</span>
 
 
-<div class="viewcode-block" id="Instrument"><a class="viewcode-back" href="../../../api/generated/qcodes.Instrument.html#qcodes.Instrument">[docs]</a><span class="k">class</span> <span class="nc">Instrument</span><span class="p">(</span><span class="n">Metadatable</span><span class="p">,</span> <span class="n">DelegateAttributes</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">InstrumentBase</span><span class="p">(</span><span class="n">Metadatable</span><span class="p">,</span> <span class="n">DelegateAttributes</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Base class for all QCodes instruments and instrument channels</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name (str): an identifier for this instrument, particularly for</span>
+<span class="sd">            attaching it to a Station.</span>
+
+<span class="sd">        metadata (Optional[Dict]): additional static metadata to add to this</span>
+<span class="sd">            instrument&#39;s JSON snapshot.</span>
+
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        name (str): an identifier for this instrument, particularly for</span>
+<span class="sd">            attaching it to a Station.</span>
+
+<span class="sd">        parameters (Dict[Parameter]): All the parameters supported by this</span>
+<span class="sd">            instrument. Usually populated via ``add_parameter``</span>
+
+<span class="sd">        functions (Dict[Function]): All the functions supported by this</span>
+<span class="sd">            instrument. Usually populated via ``add_function``</span>
+
+<span class="sd">        submodules (Dict[Metadatable]): All the submodules of this instrument</span>
+<span class="sd">            such as channel lists or logical groupings of parameters.</span>
+<span class="sd">            Usually populated via ``add_submodule``</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">functions</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">submodules</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">add_parameter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">parameter_class</span><span class="o">=</span><span class="n">StandardParameter</span><span class="p">,</span>
+                      <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Bind one Parameter to this instrument.</span>
+
+<span class="sd">        Instrument subclasses can call this repeatedly in their ``__init__``</span>
+<span class="sd">        for every real parameter of the instrument.</span>
+
+<span class="sd">        In this sense, parameters are the state variables of the instrument,</span>
+<span class="sd">        anything the user can set and/or get</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name (str): How the parameter will be stored within</span>
+<span class="sd">                ``instrument.parameters`` and also how you address it using the</span>
+<span class="sd">                shortcut methods: ``instrument.set(param_name, value)`` etc.</span>
+
+<span class="sd">            parameter_class (Optional[type]): You can construct the parameter</span>
+<span class="sd">                out of any class. Default ``StandardParameter``.</span>
+
+<span class="sd">            **kwargs: constructor arguments for ``parameter_class``.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            KeyError: if this instrument already has a parameter with this</span>
+<span class="sd">                name.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s1">&#39;Duplicate parameter name </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+        <span class="n">param</span> <span class="o">=</span> <span class="n">parameter_class</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">instrument</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span>
+
+    <span class="k">def</span> <span class="nf">add_function</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Bind one Function to this instrument.</span>
+
+<span class="sd">        Instrument subclasses can call this repeatedly in their ``__init__``</span>
+<span class="sd">        for every real function of the instrument.</span>
+
+<span class="sd">        This functionality is meant for simple cases, principally things that</span>
+<span class="sd">        map to simple commands like &#39;\*RST&#39; (reset) or those with just a few</span>
+<span class="sd">        arguments. It requires a fixed argument count, and positional args</span>
+<span class="sd">        only. If your case is more complicated, you&#39;re probably better off</span>
+<span class="sd">        simply making a new method in your ``Instrument`` subclass definition.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name (str): how the Function will be stored within</span>
+<span class="sd">            ``instrument.Functions`` and also how you  address it using the</span>
+<span class="sd">            shortcut methods: ``instrument.call(func_name, *args)`` etc.</span>
+
+<span class="sd">            **kwargs: constructor kwargs for ``Function``</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            KeyError: if this instrument already has a function with this</span>
+<span class="sd">                name.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s1">&#39;Duplicate function name </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+        <span class="n">func</span> <span class="o">=</span> <span class="n">Function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">instrument</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">func</span>
+
+    <span class="k">def</span> <span class="nf">add_submodule</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">submodule</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Bind one submodule to this instrument.</span>
+
+<span class="sd">        Instrument subclasses can call this repeatedly in their ``__init__``</span>
+<span class="sd">        method for every submodule of the instrument.</span>
+
+<span class="sd">        Submodules can effectively be considered as instruments within the main</span>
+<span class="sd">        instrument, and should at minimum be snapshottable. For example, they can</span>
+<span class="sd">        be used to either store logical groupings of parameters, which may or may</span>
+<span class="sd">        not be repeated, or channel lists.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name (str): how the submodule will be stored within ``instrument.submodules``</span>
+<span class="sd">            and also how it can be addressed.</span>
+
+<span class="sd">            submodule (Metadatable): The submodule to be stored.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            KeyError: if this instrument already contains a submodule with this</span>
+<span class="sd">                name.</span>
+<span class="sd">            TypeError: if the submodule that we are trying to add is not an instance</span>
+<span class="sd">                of an Metadatable object.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">submodules</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s1">&#39;Duplicate submodule name </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">submodule</span><span class="p">,</span> <span class="n">Metadatable</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Submodules must be metadatable.&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">submodules</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">submodule</span>
+
+    <span class="k">def</span> <span class="nf">snapshot_base</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        State of the instrument as a JSON-compatible dict.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            update (bool): If True, update the state by querying the</span>
+<span class="sd">                instrument. If False, just use the latest values in memory.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict: base snapshot</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">snap</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;parameters&#39;</span><span class="p">:</span> <span class="nb">dict</span><span class="p">((</span><span class="n">name</span><span class="p">,</span> <span class="n">param</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="n">update</span><span class="p">))</span>
+                                   <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">param</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">items</span><span class="p">()),</span>
+                <span class="s1">&#39;functions&#39;</span><span class="p">:</span> <span class="nb">dict</span><span class="p">((</span><span class="n">name</span><span class="p">,</span> <span class="n">func</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="n">update</span><span class="p">))</span>
+                                  <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">func</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">items</span><span class="p">()),</span>
+                <span class="s1">&#39;submodules&#39;</span><span class="p">:</span> <span class="nb">dict</span><span class="p">((</span><span class="n">name</span><span class="p">,</span> <span class="n">subm</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="n">update</span><span class="p">))</span>
+                                   <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">subm</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">submodules</span><span class="o">.</span><span class="n">items</span><span class="p">()),</span>
+                <span class="s1">&#39;__class__&#39;</span><span class="p">:</span> <span class="n">full_class</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span>
+                <span class="p">}</span>
+        <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_meta_attrs</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">):</span>
+                <span class="n">snap</span><span class="p">[</span><span class="n">attr</span><span class="p">]</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">snap</span>
+
+    <span class="k">def</span> <span class="nf">print_readable_snapshot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">max_chars</span><span class="o">=</span><span class="mi">80</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Prints a readable version of the snapshot.</span>
+<span class="sd">        The readable snapshot includes the name, value and unit of each</span>
+<span class="sd">        parameter.</span>
+<span class="sd">        A convenience function to quickly get an overview of the status of an instrument.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            update (bool)  : If True, update the state by querying the</span>
+<span class="sd">                instrument. If False, just use the latest values in memory.</span>
+<span class="sd">                This argument gets passed to the snapshot function.</span>
+<span class="sd">            max_chars (int) : the maximum number of characters per line. The</span>
+<span class="sd">                readable snapshot will be cropped if this value is exceeded.</span>
+<span class="sd">                Defaults to 80 to be consistent with default terminal width.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">floating_types</span> <span class="o">=</span> <span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">)</span>
+        <span class="n">snapshot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="n">update</span><span class="p">)</span>
+
+        <span class="n">par_lengths</span> <span class="o">=</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">snapshot</span><span class="p">[</span><span class="s1">&#39;parameters&#39;</span><span class="p">]]</span>
+
+        <span class="c1"># Min of 50 is to prevent a super long parameter name to break this</span>
+        <span class="c1"># function</span>
+        <span class="n">par_field_len</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">par_lengths</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="mi">50</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;:&#39;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;{0:&lt;</span><span class="si">{1}</span><span class="s1">}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">parameter &#39;</span><span class="p">,</span> <span class="n">par_field_len</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;value&#39;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;-&#39;</span><span class="o">*</span><span class="n">max_chars</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">par</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">snapshot</span><span class="p">[</span><span class="s1">&#39;parameters&#39;</span><span class="p">]):</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">snapshot</span><span class="p">[</span><span class="s1">&#39;parameters&#39;</span><span class="p">][</span><span class="n">par</span><span class="p">][</span><span class="s1">&#39;name&#39;</span><span class="p">]</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;{0:&lt;</span><span class="si">{1}</span><span class="s1">}:&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">par_field_len</span><span class="p">)</span>
+            <span class="n">val</span> <span class="o">=</span> <span class="n">snapshot</span><span class="p">[</span><span class="s1">&#39;parameters&#39;</span><span class="p">][</span><span class="n">par</span><span class="p">][</span><span class="s1">&#39;value&#39;</span><span class="p">]</span>
+            <span class="n">unit</span> <span class="o">=</span> <span class="n">snapshot</span><span class="p">[</span><span class="s1">&#39;parameters&#39;</span><span class="p">][</span><span class="n">par</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;unit&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">unit</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="c1"># this may be a multi parameter</span>
+                <span class="n">unit</span> <span class="o">=</span> <span class="n">snapshot</span><span class="p">[</span><span class="s1">&#39;parameters&#39;</span><span class="p">][</span><span class="n">par</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;units&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">floating_types</span><span class="p">):</span>
+                <span class="n">msg</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\t</span><span class="si">{:.5g}</span><span class="s1"> &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\t</span><span class="si">{}</span><span class="s1"> &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">unit</span> <span class="ow">is</span> <span class="ow">not</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>  <span class="c1"># corresponds to no unit</span>
+                <span class="n">msg</span> <span class="o">+=</span> <span class="s1">&#39;(</span><span class="si">{}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">unit</span><span class="p">)</span>
+            <span class="c1"># Truncate the message if it is longer than max length</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">max_chars</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">max_chars</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="n">msg</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">max_chars</span><span class="o">-</span><span class="mi">3</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;...&#39;</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">submodule</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">submodules</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">submodule</span><span class="p">,</span> <span class="s1">&#39;_channels&#39;</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">submodule</span><span class="o">.</span><span class="n">_snapshotable</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">channel</span> <span class="ow">in</span> <span class="n">submodule</span><span class="o">.</span><span class="n">_channels</span><span class="p">:</span>
+                        <span class="n">channel</span><span class="o">.</span><span class="n">print_readable_snapshot</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">submodule</span><span class="o">.</span><span class="n">print_readable_snapshot</span><span class="p">(</span><span class="n">update</span><span class="p">,</span> <span class="n">max_chars</span><span class="p">)</span>
+
+    <span class="c1">#</span>
+    <span class="c1"># shortcuts to parameters &amp; setters &amp; getters                           #</span>
+    <span class="c1">#</span>
+    <span class="c1"># instrument[&#39;someparam&#39;] === instrument.parameters[&#39;someparam&#39;]        #</span>
+    <span class="c1"># instrument.someparam === instrument.parameters[&#39;someparam&#39;]           #</span>
+    <span class="c1"># instrument.get(&#39;someparam&#39;) === instrument[&#39;someparam&#39;].get()         #</span>
+    <span class="c1"># etc...                                                                #</span>
+    <span class="c1">#</span>
+    <span class="n">delegate_attr_dicts</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;parameters&#39;</span><span class="p">,</span> <span class="s1">&#39;functions&#39;</span><span class="p">,</span> <span class="s1">&#39;submodules&#39;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Delegate instrument[&#39;name&#39;] to parameter or function &#39;name&#39;.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_name</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Shortcut for setting a parameter from its name and new value.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            param_name (str): The name of a parameter of this instrument.</span>
+<span class="sd">            value (any): The new value to set.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">param_name</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Shortcut for getting a parameter from its name.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            param_name (str): The name of a parameter of this instrument.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            any: The current value of the parameter.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">param_name</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">call</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func_name</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Shortcut for calling a function from its name.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            func_name (str): The name of a function of this instrument.</span>
+<span class="sd">            *args: any arguments to the function.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            any: The return value of the function.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="p">[</span><span class="n">func_name</span><span class="p">]</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__getstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Prevent pickling instruments, and give a nice error message.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="s1">&#39;Pickling </span><span class="si">%s</span><span class="s1">. qcodes Instruments should not be pickled. Likely this means you &#39;</span>
+            <span class="s1">&#39;were trying to use a local instrument (defined with &#39;</span>
+            <span class="s1">&#39;server_name=None) in a background Loop. Local instruments can &#39;</span>
+            <span class="s1">&#39;only be used in Loops with background=False.&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">validate_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Validate the values of all gettable parameters</span>
+
+<span class="sd">        The validation is done for all parameters that have both a get and</span>
+<span class="sd">        set method.</span>
+
+<span class="sd">        Arguments:</span>
+<span class="sd">            verbose (bool): If True, then information about the parameters that are being check is printed.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">has_get</span> <span class="ow">and</span> <span class="n">p</span><span class="o">.</span><span class="n">has_set</span><span class="p">:</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;validate_status: param </span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">value</span><span class="p">))</span>
+                <span class="n">p</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="Instrument"><a class="viewcode-back" href="../../../api/generated/qcodes.Instrument.html#qcodes.Instrument">[docs]</a><span class="k">class</span> <span class="nc">Instrument</span><span class="p">(</span><span class="n">InstrumentBase</span><span class="p">):</span>
 
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Base class for all QCodes instruments.</span>
@@ -214,12 +492,7 @@
         <span class="k">if</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;server_name&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
             <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;server_name argument not supported any more&quot;</span><span class="p">,</span>
                           <span class="n">stacklevel</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">functions</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">submodules</span> <span class="o">=</span> <span class="p">{}</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;IDN&#39;</span><span class="p">,</span> <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">get_idn</span><span class="p">,</span>
                            <span class="n">vals</span><span class="o">=</span><span class="n">Anything</span><span class="p">())</span>
@@ -417,165 +690,6 @@
 
         <span class="k">return</span> <span class="n">ins</span>
 
-    <span class="k">def</span> <span class="nf">add_parameter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">parameter_class</span><span class="o">=</span><span class="n">StandardParameter</span><span class="p">,</span>
-                      <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Bind one Parameter to this instrument.</span>
-
-<span class="sd">        Instrument subclasses can call this repeatedly in their ``__init__``</span>
-<span class="sd">        for every real parameter of the instrument.</span>
-
-<span class="sd">        In this sense, parameters are the state variables of the instrument,</span>
-<span class="sd">        anything the user can set and/or get</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            name (str): How the parameter will be stored within</span>
-<span class="sd">                ``instrument.parameters`` and also how you address it using the</span>
-<span class="sd">                shortcut methods: ``instrument.set(param_name, value)`` etc.</span>
-
-<span class="sd">            parameter_class (Optional[type]): You can construct the parameter</span>
-<span class="sd">                out of any class. Default ``StandardParameter``.</span>
-
-<span class="sd">            **kwargs: constructor arguments for ``parameter_class``.</span>
-
-<span class="sd">        Raises:</span>
-<span class="sd">            KeyError: if this instrument already has a parameter with this</span>
-<span class="sd">                name.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s1">&#39;Duplicate parameter name </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
-        <span class="n">param</span> <span class="o">=</span> <span class="n">parameter_class</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">instrument</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span>
-
-    <span class="k">def</span> <span class="nf">add_function</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Bind one Function to this instrument.</span>
-
-<span class="sd">        Instrument subclasses can call this repeatedly in their ``__init__``</span>
-<span class="sd">        for every real function of the instrument.</span>
-
-<span class="sd">        This functionality is meant for simple cases, principally things that</span>
-<span class="sd">        map to simple commands like &#39;\*RST&#39; (reset) or those with just a few</span>
-<span class="sd">        arguments. It requires a fixed argument count, and positional args</span>
-<span class="sd">        only. If your case is more complicated, you&#39;re probably better off</span>
-<span class="sd">        simply making a new method in your ``Instrument`` subclass definition.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            name (str): how the Function will be stored within</span>
-<span class="sd">            ``instrument.Functions`` and also how you  address it using the</span>
-<span class="sd">            shortcut methods: ``instrument.call(func_name, *args)`` etc.</span>
-
-<span class="sd">            **kwargs: constructor kwargs for ``Function``</span>
-
-<span class="sd">        Raises:</span>
-<span class="sd">            KeyError: if this instrument already has a function with this</span>
-<span class="sd">                name.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s1">&#39;Duplicate function name </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
-        <span class="n">func</span> <span class="o">=</span> <span class="n">Function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">instrument</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">func</span>
-
-    <span class="k">def</span> <span class="nf">add_submodule</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">submodule</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Bind one submodule to this instrument.</span>
-
-<span class="sd">        Instrument subclasses can call this repeatedly in their ``__init__``</span>
-<span class="sd">        method for every submodule of the instrument.</span>
-
-<span class="sd">        Submodules can effectively be considered as instruments within the main</span>
-<span class="sd">        instrument, and should at minimum be snapshottable. For example, they can</span>
-<span class="sd">        be used to either store logical groupings of parameters, which may or may</span>
-<span class="sd">        not be repeated, or channel lists.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            name (str): how the submodule will be stored within ``instrument.submodules``</span>
-<span class="sd">            and also how it can be addressed.</span>
-
-<span class="sd">            submodule (Metadatable): The submodule to be stored.</span>
-
-<span class="sd">        Raises:</span>
-<span class="sd">            KeyError: if this instrument already contains a submodule with this</span>
-<span class="sd">                name.</span>
-<span class="sd">            TypeError: if the submodule that we are trying to add is not an instance</span>
-<span class="sd">                of an Metadatable object.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">submodules</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s1">&#39;Duplicate submodule name </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">submodule</span><span class="p">,</span> <span class="n">Metadatable</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Submodules must be metadatable.&#39;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">submodules</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">submodule</span>
-
-    <span class="k">def</span> <span class="nf">snapshot_base</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        State of the instrument as a JSON-compatible dict.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            update (bool): If True, update the state by querying the</span>
-<span class="sd">                instrument. If False, just use the latest values in memory.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            dict: base snapshot</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">snap</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;parameters&#39;</span><span class="p">:</span> <span class="nb">dict</span><span class="p">((</span><span class="n">name</span><span class="p">,</span> <span class="n">param</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="n">update</span><span class="p">))</span>
-                                   <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">param</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">items</span><span class="p">()),</span>
-                <span class="s1">&#39;functions&#39;</span><span class="p">:</span> <span class="nb">dict</span><span class="p">((</span><span class="n">name</span><span class="p">,</span> <span class="n">func</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="n">update</span><span class="p">))</span>
-                                  <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">func</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">items</span><span class="p">()),</span>
-                <span class="s1">&#39;submodules&#39;</span><span class="p">:</span> <span class="nb">dict</span><span class="p">((</span><span class="n">name</span><span class="p">,</span> <span class="n">subm</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="n">update</span><span class="p">))</span>
-                                  <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">subm</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">submodules</span><span class="o">.</span><span class="n">items</span><span class="p">()),</span>
-                <span class="s1">&#39;__class__&#39;</span><span class="p">:</span> <span class="n">full_class</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span>
-                <span class="p">}</span>
-        <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_meta_attrs</span><span class="p">):</span>
-            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">):</span>
-                <span class="n">snap</span><span class="p">[</span><span class="n">attr</span><span class="p">]</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">snap</span>
-
-    <span class="k">def</span> <span class="nf">print_readable_snapshot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">max_chars</span><span class="o">=</span><span class="mi">80</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Prints a readable version of the snapshot.</span>
-<span class="sd">        The readable snapshot includes the name, value and unit of each</span>
-<span class="sd">        parameter.</span>
-<span class="sd">        A convenience function to quickly get an overview of the status of an instrument.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            update (bool)  : If True, update the state by querying the</span>
-<span class="sd">                instrument. If False, just use the latest values in memory.</span>
-<span class="sd">                This argument gets passed to the snapshot function.</span>
-<span class="sd">            max_chars (int) : the maximum number of characters per line. The</span>
-<span class="sd">                readable snapshot will be cropped if this value is exceeded.</span>
-<span class="sd">                Defaults to 80 to be consistent with default terminal width.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">floating_types</span> <span class="o">=</span> <span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">)</span>
-        <span class="n">snapshot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="n">update</span><span class="p">)</span>
-
-        <span class="n">par_lengths</span> <span class="o">=</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">snapshot</span><span class="p">[</span><span class="s1">&#39;parameters&#39;</span><span class="p">]]</span>
-
-        <span class="c1"># Min of 50 is to prevent a super long parameter name to break this</span>
-        <span class="c1"># function</span>
-        <span class="n">par_field_len</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">par_lengths</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="mi">50</span><span class="p">)</span>
-
-        <span class="nb">print</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;:&#39;</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;{0:&lt;</span><span class="si">{1}</span><span class="s1">}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">parameter &#39;</span><span class="p">,</span> <span class="n">par_field_len</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;value&#39;</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;-&#39;</span><span class="o">*</span><span class="mi">80</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">par</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">snapshot</span><span class="p">[</span><span class="s1">&#39;parameters&#39;</span><span class="p">]):</span>
-            <span class="n">name</span> <span class="o">=</span> <span class="n">snapshot</span><span class="p">[</span><span class="s1">&#39;parameters&#39;</span><span class="p">][</span><span class="n">par</span><span class="p">][</span><span class="s1">&#39;name&#39;</span><span class="p">]</span>
-            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;{0:&lt;</span><span class="si">{1}</span><span class="s1">}:&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">par_field_len</span><span class="p">)</span>
-            <span class="n">val</span> <span class="o">=</span> <span class="n">snapshot</span><span class="p">[</span><span class="s1">&#39;parameters&#39;</span><span class="p">][</span><span class="n">par</span><span class="p">][</span><span class="s1">&#39;value&#39;</span><span class="p">]</span>
-            <span class="n">unit</span> <span class="o">=</span> <span class="n">snapshot</span><span class="p">[</span><span class="s1">&#39;parameters&#39;</span><span class="p">][</span><span class="n">par</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;unit&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">unit</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="c1"># this may be a multi parameter</span>
-                <span class="n">unit</span> <span class="o">=</span> <span class="n">snapshot</span><span class="p">[</span><span class="s1">&#39;parameters&#39;</span><span class="p">][</span><span class="n">par</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;units&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">floating_types</span><span class="p">):</span>
-                <span class="n">msg</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\t</span><span class="si">{:.5g}</span><span class="s1"> &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">msg</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\t</span><span class="si">{}</span><span class="s1"> &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">unit</span> <span class="ow">is</span> <span class="ow">not</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>  <span class="c1"># corresponds to no unit</span>
-                <span class="n">msg</span> <span class="o">+=</span> <span class="s1">&#39;(</span><span class="si">{}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">unit</span><span class="p">)</span>
-            <span class="c1"># Truncate the message if it is longer than max length</span>
-            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">max_chars</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">max_chars</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
-                <span class="n">msg</span> <span class="o">=</span> <span class="n">msg</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">max_chars</span><span class="o">-</span><span class="mi">3</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;...&#39;</span>
-            <span class="nb">print</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-
     <span class="c1"># `write_raw` and `ask_raw` are the interface to hardware                #</span>
     <span class="c1"># `write` and `ask` are standard wrappers to help with error reporting   #</span>
     <span class="c1">#</span>
@@ -653,85 +767,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
             <span class="s1">&#39;Instrument </span><span class="si">{}</span><span class="s1"> has not defined an ask method&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-                <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
-
-    <span class="c1">#</span>
-    <span class="c1"># shortcuts to parameters &amp; setters &amp; getters                            #</span>
-    <span class="c1">#</span>
-    <span class="c1"># instrument[&#39;someparam&#39;] === instrument.parameters[&#39;someparam&#39;]        #</span>
-    <span class="c1"># instrument.someparam === instrument.parameters[&#39;someparam&#39;]           #</span>
-    <span class="c1"># instrument.get(&#39;someparam&#39;) === instrument[&#39;someparam&#39;].get()         #</span>
-    <span class="c1"># etc...                                                                #</span>
-    <span class="c1">#</span>
-
-    <span class="n">delegate_attr_dicts</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;parameters&#39;</span><span class="p">,</span> <span class="s1">&#39;functions&#39;</span><span class="p">,</span> <span class="s1">&#39;submodules&#39;</span><span class="p">]</span>
-
-    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Delegate instrument[&#39;name&#39;] to parameter or function &#39;name&#39;.&quot;&quot;&quot;</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
-        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
-
-    <span class="k">def</span> <span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_name</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Shortcut for setting a parameter from its name and new value.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            param_name (str): The name of a parameter of this instrument.</span>
-<span class="sd">            value (any): The new value to set.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">param_name</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_name</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Shortcut for getting a parameter from its name.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            param_name (str): The name of a parameter of this instrument.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            any: The current value of the parameter.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">param_name</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
-
-    <span class="k">def</span> <span class="nf">call</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func_name</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Shortcut for calling a function from its name.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            func_name (str): The name of a function of this instrument.</span>
-<span class="sd">            *args: any arguments to the function.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            any: The return value of the function.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="p">[</span><span class="n">func_name</span><span class="p">]</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">__getstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Prevent pickling instruments, and give a nice error message.&quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
-            <span class="s1">&#39;Pickling </span><span class="si">%s</span><span class="s1">. qcodes Instruments should not be pickled. Likely this means you &#39;</span>
-            <span class="s1">&#39;were trying to use a local instrument (defined with &#39;</span>
-            <span class="s1">&#39;server_name=None) in a background Loop. Local instruments can &#39;</span>
-            <span class="s1">&#39;only be used in Loops with background=False.&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">validate_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Validate the values of all gettable parameters</span>
-
-<span class="sd">        The validation is done for all parameters that have both a get and</span>
-<span class="sd">        set method.</span>
-
-<span class="sd">        Arguments:</span>
-<span class="sd">            verbose (bool): If True, then information about the parameters that are being check is printed.</span>
-
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">has_get</span> <span class="ow">and</span> <span class="n">p</span><span class="o">.</span><span class="n">has_set</span><span class="p">:</span>
-                <span class="n">value</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
-                <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
-                    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;validate_status: param </span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">value</span><span class="p">))</span>
-                <span class="n">p</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div>
+                <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span></div>
 </pre></div>
 
            </div>

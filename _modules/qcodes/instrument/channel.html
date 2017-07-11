@@ -1,0 +1,653 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>qcodes.instrument.channel &mdash; QCoDeS 0.1.4 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../search.html"/>
+    <link rel="top" title="QCoDeS 0.1.4 documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> QCoDeS
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1.4
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../start/index.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../help.html">Get Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../user/index.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../community/index.html">Community Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/index.html">Classes and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/generated/qcodes.instrument_drivers.html">qcodes.instrument_drivers package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../roadmap.html">Qcodes project plan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changes/index.html">Changelogs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/index.html">Examples of using QCoDeS</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">QCoDeS</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>qcodes.instrument.channel</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for qcodes.instrument.channel</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot; Base class for the channel of an instrument &quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">from</span> <span class="nn">.base</span> <span class="k">import</span> <span class="n">InstrumentBase</span><span class="p">,</span> <span class="n">Instrument</span>
+<span class="kn">from</span> <span class="nn">.parameter</span> <span class="k">import</span> <span class="n">MultiParameter</span><span class="p">,</span> <span class="n">ArrayParameter</span>
+<span class="kn">from</span> <span class="nn">..utils.metadata</span> <span class="k">import</span> <span class="n">Metadatable</span>
+<span class="kn">from</span> <span class="nn">..utils.helpers</span> <span class="k">import</span> <span class="n">full_class</span>
+
+
+<div class="viewcode-block" id="InstrumentChannel"><a class="viewcode-back" href="../../../api/generated/qcodes.InstrumentChannel.html#qcodes.InstrumentChannel">[docs]</a><span class="k">class</span> <span class="nc">InstrumentChannel</span><span class="p">(</span><span class="n">InstrumentBase</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Base class for a channel in an instrument</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        parent (Instrument): the instrument to which this channel should be</span>
+<span class="sd">          attached</span>
+
+<span class="sd">        name (str): the name of this channel</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        name (str): the name of this channel</span>
+
+<span class="sd">        parameters (Dict[Parameter]): All the parameters supported by this</span>
+<span class="sd">          channel. Usually populated via ``add_parameter``</span>
+
+<span class="sd">        functions (Dict[Function]): All the functions supported by this</span>
+<span class="sd">          channel. Usually populated via ``add_function``</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="InstrumentChannel.__init__"><a class="viewcode-back" href="../../../api/generated/qcodes.InstrumentChannel.html#qcodes.InstrumentChannel.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="p">:</span> <span class="n">Instrument</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="c1"># Initialize base classes of Instrument. We will overwrite what we</span>
+        <span class="c1"># want to do in the Instrument initializer</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">_</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">parent</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">short_name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_meta_attrs</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parent</span> <span class="o">=</span> <span class="n">parent</span></div>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Custom repr to give parent information&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s1">&#39;&lt;</span><span class="si">{}</span><span class="s1">: </span><span class="si">{}</span><span class="s1"> of </span><span class="si">{}</span><span class="s1">: </span><span class="si">{}</span><span class="s1">&gt;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+                                           <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                                           <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_parent</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+                                           <span class="bp">self</span><span class="o">.</span><span class="n">_parent</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="c1"># Pass any commands to read or write from the instrument up to the parent</span>
+    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parent</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">write_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parent</span><span class="o">.</span><span class="n">write_raw</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">ask</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parent</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">ask_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parent</span><span class="o">.</span><span class="n">ask_raw</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span></div>
+
+
+<span class="k">class</span> <span class="nc">MultiChannelInstrumentParameter</span><span class="p">(</span><span class="n">MultiParameter</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Parameter to get or set multiple channels simultaneously.</span>
+
+<span class="sd">    Will normally be created by a ChannelList and not directly by anything</span>
+<span class="sd">    else.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        channels(list[chan_type]): A list of channels which we can operate on</span>
+<span class="sd">          simultaneously.</span>
+
+<span class="sd">        param_name(str): Name of the multichannel parameter</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">channels</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">],</span>
+                 <span class="n">param_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span> <span class="o">=</span> <span class="n">channels</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_param_name</span> <span class="o">=</span> <span class="n">param_name</span>
+
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return a tuple containing the data from each of the channels in the</span>
+<span class="sd">        list</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">chan</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_param_name</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span> <span class="k">for</span> <span class="n">chan</span>
+                     <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set all parameters to this value</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            value (unknown): The value to set to. The type is given by the</span>
+<span class="sd">            underlying parameter.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">chan</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">:</span>
+            <span class="nb">getattr</span><span class="p">(</span><span class="n">chan</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_param_name</span><span class="p">)</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">full_names</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Overwrite full_names because the instrument name is already included</span>
+<span class="sd">        in the name. This happens because the instrument name is included in</span>
+<span class="sd">        the channel name merged into the parameter name above.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">names</span>
+
+
+<div class="viewcode-block" id="ChannelList"><a class="viewcode-back" href="../../../api/generated/qcodes.ChannelList.html#qcodes.ChannelList">[docs]</a><span class="k">class</span> <span class="nc">ChannelList</span><span class="p">(</span><span class="n">Metadatable</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Container for channelized parameters that allows for sweeps over</span>
+<span class="sd">    all channels, as well as addressing of individual channels.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        parent (Instrument): the instrument to which this channel</span>
+<span class="sd">            should be attached</span>
+
+<span class="sd">        name (string): the name of the channel list</span>
+
+<span class="sd">        chan_type (InstrumentChannel): the type of channel contained</span>
+<span class="sd">            within this list</span>
+
+<span class="sd">        chan_list (Iterable[chan_type]): An optional iterable of</span>
+<span class="sd">            channels of type chan_type.  This will create a list and</span>
+<span class="sd">            immediately lock the ChannelList.</span>
+
+<span class="sd">        snapshotable (bool): Optionally disables taking of snapshots</span>
+<span class="sd">            for a given channel list.  This is used when objects</span>
+<span class="sd">            stored inside a channel list are accessible in multiple</span>
+<span class="sd">            ways and should not be repeated in an instrument snapshot.</span>
+
+<span class="sd">        multichan_paramclass (MultiChannelInstrumentParameter): The class of</span>
+<span class="sd">            the object to be returned by the ChanneList&#39;s __getattr__ method.</span>
+<span class="sd">            Should be a subclass of MultiChannelInstrumentParameter.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If chan_type is not a subclass of InstrumentChannel</span>
+<span class="sd">        ValueError: If multichan_paramclass if not a subclass of</span>
+<span class="sd">            MultiChannelInstrumentParameter (note that a class is a subclass</span>
+<span class="sd">            of itself).</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="ChannelList.__init__"><a class="viewcode-back" href="../../../api/generated/qcodes.ChannelList.html#qcodes.ChannelList.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="p">:</span> <span class="n">Instrument</span><span class="p">,</span>
+                 <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">chan_type</span><span class="p">:</span> <span class="nb">type</span><span class="p">,</span>
+                 <span class="n">chan_list</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">snapshotable</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                 <span class="n">multichan_paramclass</span><span class="p">:</span> <span class="nb">type</span> <span class="o">=</span> <span class="n">MultiChannelInstrumentParameter</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parent</span> <span class="o">=</span> <span class="n">parent</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">chan_type</span><span class="p">,</span> <span class="nb">type</span><span class="p">)</span> <span class="ow">or</span>
+                <span class="ow">not</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">chan_type</span><span class="p">,</span> <span class="n">InstrumentChannel</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Channel Lists can only hold instances of type&quot;</span>
+                             <span class="s2">&quot; InstrumentChannel&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">multichan_paramclass</span><span class="p">,</span> <span class="nb">type</span><span class="p">)</span> <span class="ow">or</span>
+                <span class="ow">not</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">multichan_paramclass</span><span class="p">,</span>
+                               <span class="n">MultiChannelInstrumentParameter</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;multichan_paramclass must be a (subclass of) &quot;</span>
+                             <span class="s2">&quot;MultiChannelInstrumentParameter&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_chan_type</span> <span class="o">=</span> <span class="n">chan_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_snapshotable</span> <span class="o">=</span> <span class="n">snapshotable</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_paramclass</span> <span class="o">=</span> <span class="n">multichan_paramclass</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_channel_mapping</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># provide lookup of channels by name</span>
+        <span class="c1"># If a list of channels is not provided, define a list to store</span>
+        <span class="c1"># channels. This will eventually become a locked tuple.</span>
+        <span class="k">if</span> <span class="n">chan_list</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_locked</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_locked</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">chan_list</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_channel_mapping</span> <span class="o">=</span> <span class="p">{</span><span class="n">channel</span><span class="o">.</span><span class="n">short_name</span><span class="p">:</span> <span class="n">channel</span>
+                                     <span class="k">for</span> <span class="n">channel</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">}</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">chan</span><span class="p">,</span> <span class="n">chan_type</span><span class="p">)</span> <span class="k">for</span> <span class="n">chan</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;All items in this channel list must be of &quot;</span>
+                                <span class="s2">&quot;type </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chan_type</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span></div>
+
+    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">slice</span><span class="p">]):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return either a single channel, or a new ChannelList containing only</span>
+<span class="sd">        the specified channels</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            i (int/slice): Either a single channel index or a slice of channels</span>
+<span class="sd">              to get</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="nb">slice</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">ChannelList</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_parent</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_chan_type</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                               <span class="n">multichan_paramclass</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_paramclass</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;ChannelList(</span><span class="si">{!r}</span><span class="s2">, </span><span class="si">{}</span><span class="s2">, </span><span class="si">{!r}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_parent</span><span class="p">,</span>
+                                                    <span class="bp">self</span><span class="o">.</span><span class="n">_chan_type</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+                                                    <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__add__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="s1">&#39;ChannelList&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return a new channel list containing the channels from both</span>
+<span class="sd">        ChannelList self and r.</span>
+
+<span class="sd">        Both channel lists must hold the same type and have the same parent.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            other(ChannelList): Right argument to add.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ChannelList</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span>
+                                                               <span class="n">ChannelList</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Can&#39;t add objects of type&quot;</span>
+                            <span class="s2">&quot; </span><span class="si">{}</span><span class="s2"> and </span><span class="si">{}</span><span class="s2"> together&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+                                                         <span class="nb">type</span><span class="p">(</span><span class="n">other</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_chan_type</span> <span class="o">!=</span> <span class="n">other</span><span class="o">.</span><span class="n">_chan_type</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Both l and r arguments to add must contain &quot;</span>
+                            <span class="s2">&quot;channels of the same type.&quot;</span>
+                            <span class="s2">&quot; Adding channels of type &quot;</span>
+                            <span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> and </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_chan_type</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+                                                <span class="n">other</span><span class="o">.</span><span class="n">_chan_type</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parent</span> <span class="o">!=</span> <span class="n">other</span><span class="o">.</span><span class="n">_parent</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Can only add channels from the same parent &quot;</span>
+                             <span class="s2">&quot;together.&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">ChannelList</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_parent</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_chan_type</span><span class="p">,</span>
+                           <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span> <span class="o">+</span> <span class="n">other</span><span class="o">.</span><span class="n">_channels</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">append</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">:</span> <span class="n">InstrumentChannel</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        When initially constructing the channel list, a new channel to add to</span>
+<span class="sd">        the end of the list</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            obj(chan_type): New channel to add to the list.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_locked</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s2">&quot;Cannot append to a locked channel list&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_chan_type</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;All items in a channel list must be of the same &quot;</span>
+                            <span class="s2">&quot;type. Adding </span><span class="si">{}</span><span class="s2"> to a list of </span><span class="si">{}</span><span class="s2">&quot;</span>
+                            <span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+                                       <span class="bp">self</span><span class="o">.</span><span class="n">_chan_type</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_channel_mapping</span><span class="p">[</span><span class="n">obj</span><span class="o">.</span><span class="n">short_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">obj</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">extend</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">objects</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Insert an iterable of objects into the list of channels.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            objects(Iterable[chan_type]): A list of objects to add into the</span>
+<span class="sd">              ChannelList.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># objects may be a generator but we need to iterate over it twice</span>
+        <span class="c1"># below so copy it into a tuple just in case.</span>
+        <span class="n">objects</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">objects</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_locked</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s2">&quot;Cannot extend a locked channel list&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_chan_type</span><span class="p">)</span> <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">objects</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;All items in a channel list must be of the same &quot;</span>
+                            <span class="s2">&quot;type.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">objects</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">:</span> <span class="n">InstrumentChannel</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the index of the given object</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            obj(chan_type): The object to find in the channel list.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">insert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">obj</span><span class="p">:</span> <span class="n">InstrumentChannel</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Insert an object into the channel list at a specific index.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            index(int): Index to insert object.</span>
+
+<span class="sd">            obj(chan_type): Object of type chan_type to insert.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_locked</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s2">&quot;Cannot insert into a locked channel list&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_chan_type</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;All items in a channel list must be of the same &quot;</span>
+                            <span class="s2">&quot;type. Adding </span><span class="si">{}</span><span class="s2"> to a list of </span><span class="si">{}</span><span class="s2">&quot;</span>
+                            <span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+                                       <span class="bp">self</span><span class="o">.</span><span class="n">_chan_type</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">obj</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">lock</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Lock the channel list. Once this is done, the channel list is</span>
+<span class="sd">        converted to a tuple and any future changes to the list are prevented.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_locked</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_locked</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">snapshot_base</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        State of the instrument as a JSON-compatible dict.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            update (bool): If True, update the state by querying the</span>
+<span class="sd">                instrument. If False, just use the latest values in memory..</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict: base snapshot</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_snapshotable</span><span class="p">:</span>
+            <span class="n">snap</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;channels&#39;</span><span class="p">:</span> <span class="nb">dict</span><span class="p">((</span><span class="n">chan</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">chan</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="n">update</span><span class="p">))</span>
+                                     <span class="k">for</span> <span class="n">chan</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">),</span>
+                    <span class="s1">&#39;snapshotable&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_snapshotable</span><span class="p">,</span>
+                    <span class="s1">&#39;__class__&#39;</span><span class="p">:</span> <span class="n">full_class</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span>
+                    <span class="p">}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">snap</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;snapshotable&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_snapshotable</span><span class="p">,</span>
+                    <span class="s1">&#39;__class__&#39;</span><span class="p">:</span> <span class="n">full_class</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span>
+                    <span class="p">}</span>
+        <span class="k">return</span> <span class="n">snap</span>
+
+    <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return a multi-channel function or parameter that we can use to get or</span>
+<span class="sd">        set all items in a channel list simultaneously.</span>
+
+<span class="sd">        Params:</span>
+<span class="sd">            name(str): The name of the parameter or function that we want to</span>
+<span class="sd">            operate on.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Check if this is a valid parameter</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">parameters</span><span class="p">:</span>
+            <span class="n">setpoints</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">setpoint_names</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">setpoint_labels</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">setpoint_units</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="c1"># We need to construct a MultiParameter object to get each of the</span>
+            <span class="c1"># values our of each parameter in our list, we don&#39;t currently try</span>
+            <span class="c1"># to construct a multiparameter from a list of multi parameters</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">name</span><span class="p">],</span> <span class="n">MultiParameter</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Slicing is currently not &quot;</span>
+                                          <span class="s2">&quot;supported for MultiParameters&quot;</span><span class="p">)</span>
+            <span class="n">names</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">_</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chan</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+                          <span class="k">for</span> <span class="n">chan</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">)</span>
+            <span class="n">labels</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">chan</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">label</span>
+                           <span class="k">for</span> <span class="n">chan</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">)</span>
+            <span class="n">units</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">chan</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">unit</span>
+                          <span class="k">for</span> <span class="n">chan</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">name</span><span class="p">],</span> <span class="n">ArrayParameter</span><span class="p">):</span>
+                <span class="n">shapes</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">chan</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span> <span class="k">for</span>
+                               <span class="n">chan</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">setpoints</span><span class="p">:</span>
+                    <span class="n">setpoints</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">chan</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">setpoints</span> <span class="k">for</span>
+                                      <span class="n">chan</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">setpoint_names</span><span class="p">:</span>
+                    <span class="n">setpoint_names</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">chan</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">setpoint_names</span>
+                                           <span class="k">for</span> <span class="n">chan</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">setpoint_labels</span><span class="p">:</span>
+                    <span class="n">setpoint_labels</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
+                        <span class="n">chan</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">setpoint_labels</span>
+                        <span class="k">for</span> <span class="n">chan</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">setpoint_units</span><span class="p">:</span>
+                    <span class="n">setpoint_units</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">chan</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">setpoint_units</span>
+                                           <span class="k">for</span> <span class="n">chan</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">shapes</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(()</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">)</span>
+
+            <span class="n">param</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paramclass</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">,</span>
+                                     <span class="n">param_name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                                     <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Multi_</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">),</span>
+                                     <span class="n">names</span><span class="o">=</span><span class="n">names</span><span class="p">,</span>
+                                     <span class="n">shapes</span><span class="o">=</span><span class="n">shapes</span><span class="p">,</span>
+                                     <span class="n">instrument</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_parent</span><span class="p">,</span>
+                                     <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span>
+                                     <span class="n">units</span><span class="o">=</span><span class="n">units</span><span class="p">,</span>
+                                     <span class="n">setpoints</span><span class="o">=</span><span class="n">setpoints</span><span class="p">,</span>
+                                     <span class="n">setpoint_names</span><span class="o">=</span><span class="n">setpoint_names</span><span class="p">,</span>
+                                     <span class="n">setpoint_units</span><span class="o">=</span><span class="n">setpoint_units</span><span class="p">,</span>
+                                     <span class="n">setpoint_labels</span><span class="o">=</span><span class="n">setpoint_labels</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">param</span>
+
+        <span class="c1"># Check if this is a valid function</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">functions</span><span class="p">:</span>
+            <span class="c1"># We want to return a reference to a function that would call the</span>
+            <span class="c1"># function for each of the channels in turn.</span>
+            <span class="k">def</span> <span class="nf">multi_func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">chan</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">:</span>
+                    <span class="n">chan</span><span class="o">.</span><span class="n">functions</span><span class="p">[</span><span class="n">name</span><span class="p">](</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">multi_func</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channel_mapping</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+        <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\&#39;</span><span class="si">{}</span><span class="se">\&#39;</span><span class="s1"> object has no attribute </span><span class="se">\&#39;</span><span class="si">{}</span><span class="se">\&#39;</span><span class="s1">&#39;</span>
+                             <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">__dir__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+        <span class="n">names</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__dir__</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">:</span>
+            <span class="n">names</span> <span class="o">+=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+            <span class="n">names</span> <span class="o">+=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+            <span class="n">names</span> <span class="o">+=</span> <span class="p">[</span><span class="n">channel</span><span class="o">.</span><span class="n">short_name</span> <span class="k">for</span> <span class="n">channel</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">]</span>
+        <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">names</span><span class="p">))</span></div>
+</pre></div>
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.1.4',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>
