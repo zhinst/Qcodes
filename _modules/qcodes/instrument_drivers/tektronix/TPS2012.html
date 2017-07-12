@@ -171,6 +171,7 @@
 <span class="kn">from</span> <span class="nn">functools</span> <span class="k">import</span> <span class="n">partial</span>
 
 <span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="n">VisaInstrument</span><span class="p">,</span> <span class="n">validators</span> <span class="k">as</span> <span class="n">vals</span>
+<span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="n">InstrumentChannel</span><span class="p">,</span> <span class="n">ChannelList</span>
 <span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="n">ArrayParameter</span>
 
 <span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
@@ -182,7 +183,8 @@
 
 <div class="viewcode-block" id="ScopeArray"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.TPS2012.ScopeArray">[docs]</a><span class="k">class</span> <span class="nc">ScopeArray</span><span class="p">(</span><span class="n">ArrayParameter</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">instrument</span><span class="p">,</span> <span class="n">channel</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="s1">&#39;scope_measurement&#39;</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">2500</span><span class="p">,),</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                         <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">2500</span><span class="p">,),</span>
                          <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Voltage&#39;</span><span class="p">,</span>
                          <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;V &#39;</span><span class="p">,</span>
                          <span class="n">setpoint_names</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;Time&#39;</span><span class="p">,</span> <span class="p">),</span>
@@ -209,19 +211,17 @@
         <span class="c1"># For the instrument to return the full preamble, the channel</span>
         <span class="c1"># in question must be displayed</span>
 
-        <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;ch1_state&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">,</span>
-                  <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;ch2_state&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">]</span>
-        <span class="n">states</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="o">-</span><span class="mi">1</span><span class="p">](</span><span class="s1">&#39;ON&#39;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">data_source</span><span class="p">(</span><span class="s1">&#39;CH</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;state&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;ON&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">_parent</span><span class="o">.</span><span class="n">data_source</span><span class="p">(</span><span class="s1">&#39;CH</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">))</span>
 
         <span class="n">xdata</span><span class="p">,</span> <span class="n">no_of_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_set_points</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">setpoints</span> <span class="o">=</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">xdata</span><span class="p">),</span> <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">no_of_points</span><span class="p">,</span> <span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">trace_ready</span> <span class="o">=</span> <span class="kc">True</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">_parent</span><span class="o">.</span><span class="n">trace_ready</span> <span class="o">=</span> <span class="kc">True</span></div>
 
 <div class="viewcode-block" id="ScopeArray.get"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.TPS2012.ScopeArray.get">[docs]</a>    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">trace_ready</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">_parent</span><span class="o">.</span><span class="n">trace_ready</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">TraceNotReady</span><span class="p">(</span><span class="s1">&#39;Please run prepare_curvedata to prepare &#39;</span>
                                 <span class="s1">&#39;the scope for giving a trace.&#39;</span><span class="p">)</span>
         <span class="n">message</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_curveasker</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">channel</span><span class="p">)</span>
@@ -247,13 +247,13 @@
 
 <span class="sd">        Args:</span>
 <span class="sd">            curve (str): the return value of &#39;CURVe?&#39; when</span>
-<span class="sd">            DATa:ENCdg is set to RPBinary.</span>
-<span class="sd">            Note: The header and final newline character</span>
-<span class="sd">            must be removed.</span>
+<span class="sd">              DATa:ENCdg is set to RPBinary.</span>
+<span class="sd">              Note: The header and final newline character</span>
+<span class="sd">              must be removed.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            nparray: the curve in units where the digitisation range</span>
-<span class="sd">            is mapped to (-32768, 32767).</span>
+<span class="sd">              is mapped to (-32768, 32767).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># TODO: Add support for data width = 1 mode?</span>
         <span class="n">output</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">curve</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">))</span>  <span class="c1"># data width 2</span>
@@ -339,6 +339,49 @@
         <span class="k">return</span> <span class="n">xdata</span><span class="p">,</span> <span class="n">ydata</span><span class="p">,</span> <span class="n">preamble</span><span class="p">[</span><span class="s1">&#39;no_of_points&#39;</span><span class="p">]</span></div>
 
 
+<div class="viewcode-block" id="TPS2012Channel"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.TPS2012.TPS2012Channel">[docs]</a><span class="k">class</span> <span class="nc">TPS2012Channel</span><span class="p">(</span><span class="n">InstrumentChannel</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">channel</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parent</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;scale&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Channel </span><span class="si">{}</span><span class="s1"> Scale&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">),</span>
+                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;V/div&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;CH</span><span class="si">{}</span><span class="s1">:SCAle?&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">),</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;CH</span><span class="si">{}</span><span class="s1">:SCAle </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">&#39;</span><span class="p">),</span>
+                           <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span>
+                           <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;position&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Channel </span><span class="si">{}</span><span class="s1"> Position&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">),</span>
+                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;div&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;CH</span><span class="si">{}</span><span class="s1">:POSition?&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">),</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;CH</span><span class="si">{}</span><span class="s1">:POSition </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">&#39;</span><span class="p">),</span>
+                           <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span>
+                           <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;curvedata&#39;</span><span class="p">,</span>
+                           <span class="n">channel</span><span class="o">=</span><span class="n">channel</span><span class="p">,</span>
+                           <span class="n">parameter_class</span><span class="o">=</span><span class="n">ScopeArray</span><span class="p">,</span>
+                           <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;state&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Channel </span><span class="si">{}</span><span class="s1"> display state&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">),</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;SELect:CH</span><span class="si">{}</span><span class="s1"> </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">&#39;</span><span class="p">),</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_state</span><span class="p">,</span> <span class="n">channel</span><span class="p">),</span>
+                           <span class="n">val_mapping</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;ON&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;OFF&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="s1">&#39;ON&#39;</span><span class="p">,</span> <span class="s1">&#39;OFF&#39;</span><span class="p">)</span>
+                           <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ch</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        get_cmd for the chX_state parameter</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># &#39;SELect?&#39; returns a &#39;;&#39;-separated string of 0s and 1s</span>
+        <span class="c1"># denoting state display state of ch1, ch2, ?, ?, ?</span>
+        <span class="c1"># (maybe ch1, ch2, math, ref1, ref2 ..?)</span>
+        <span class="n">selected</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;SELect?&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;;&#39;</span><span class="p">)))</span>
+        <span class="n">state</span> <span class="o">=</span> <span class="n">selected</span><span class="p">[</span><span class="n">ch</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">state</span></div>
+
+
 <div class="viewcode-block" id="TPS2012"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.TPS2012.TPS2012">[docs]</a><span class="k">class</span> <span class="nc">TPS2012</span><span class="p">(</span><span class="n">VisaInstrument</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    This is the QCoDeS driver for the Tektronix 2012B oscilloscope.</span>
@@ -419,34 +462,14 @@
                                           <span class="mi">1</span><span class="p">,</span> <span class="mf">2.5</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">25</span><span class="p">,</span> <span class="mi">50</span><span class="p">))</span>
 
         <span class="c1"># channel-specific parameters</span>
-
-        <span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">):</span>
-
-            <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;ch</span><span class="si">{}</span><span class="s1">_scale&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ch</span><span class="p">),</span>
-                               <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Channel </span><span class="si">{}</span><span class="s1"> Scale&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ch</span><span class="p">),</span>
-                               <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;V/div&#39;</span><span class="p">,</span>
-                               <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;CH</span><span class="si">{}</span><span class="s1">:SCAle?&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ch</span><span class="p">),</span>
-                               <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;CH</span><span class="si">{}</span><span class="s1">:SCAle </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ch</span><span class="p">,</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">&#39;</span><span class="p">),</span>
-                               <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span>
-                               <span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;ch</span><span class="si">{}</span><span class="s1">_position&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ch</span><span class="p">),</span>
-                               <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Channel </span><span class="si">{}</span><span class="s1"> Position&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ch</span><span class="p">),</span>
-                               <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;div&#39;</span><span class="p">,</span>
-                               <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;CH</span><span class="si">{}</span><span class="s1">:POSition?&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ch</span><span class="p">),</span>
-                               <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;CH</span><span class="si">{}</span><span class="s1">:POSition </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ch</span><span class="p">,</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">&#39;</span><span class="p">),</span>
-                               <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span>
-                               <span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;ch</span><span class="si">{}</span><span class="s1">_curvedata&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ch</span><span class="p">),</span>
-                               <span class="n">channel</span><span class="o">=</span><span class="n">ch</span><span class="p">,</span>
-                               <span class="n">parameter_class</span><span class="o">=</span><span class="n">ScopeArray</span><span class="p">,</span>
-                               <span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;ch</span><span class="si">{}</span><span class="s1">_state&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ch</span><span class="p">),</span>
-                               <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Channel </span><span class="si">{}</span><span class="s1"> display state&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ch</span><span class="p">),</span>
-                               <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;SELect:CH</span><span class="si">{}</span><span class="s1"> </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ch</span><span class="p">,</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">&#39;</span><span class="p">),</span>
-                               <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_state</span><span class="p">,</span> <span class="n">ch</span><span class="p">),</span>
-                               <span class="n">val_mapping</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;ON&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;OFF&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
-                               <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="s1">&#39;ON&#39;</span><span class="p">,</span> <span class="s1">&#39;OFF&#39;</span><span class="p">)</span>
-                               <span class="p">)</span>
+        <span class="n">channels</span> <span class="o">=</span> <span class="n">ChannelList</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;ScopeChannels&quot;</span><span class="p">,</span> <span class="n">TPS2012Channel</span><span class="p">,</span> <span class="n">snapshotable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">ch_num</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">):</span>
+            <span class="n">ch_name</span> <span class="o">=</span> <span class="s2">&quot;ch</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ch_num</span><span class="p">)</span>
+            <span class="n">channel</span> <span class="o">=</span> <span class="n">TPS2012Channel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ch_name</span><span class="p">,</span> <span class="n">ch_num</span><span class="p">)</span>
+            <span class="n">channels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">channel</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_submodule</span><span class="p">(</span><span class="n">ch_name</span><span class="p">,</span> <span class="n">channel</span><span class="p">)</span>
+        <span class="n">channels</span><span class="o">.</span><span class="n">lock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_submodule</span><span class="p">(</span><span class="s2">&quot;channels&quot;</span><span class="p">,</span> <span class="n">channels</span><span class="p">)</span>
 
         <span class="c1"># Necessary settings for parsing the binary curve data</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">encoding</span> <span class="o">=</span> <span class="s1">&#39;latin-1&#39;</span>
@@ -459,17 +482,6 @@
         <span class="c1"># Note: using data width 2 has been tested to not add</span>
         <span class="c1"># significantly to transfer times. The maximal length</span>
         <span class="c1"># of an array in one transfer is 2500 points.</span>
-
-    <span class="k">def</span> <span class="nf">_get_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ch</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        get_cmd for the chX_state parameter</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># &#39;SELect?&#39; returns a &#39;;&#39;-separated string of 0s and 1s</span>
-        <span class="c1"># denoting state display state of ch1, ch2, ?, ?, ?</span>
-        <span class="c1"># (maybe ch1, ch2, math, ref1, ref2 ..?)</span>
-        <span class="n">selected</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;SELect?&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;;&#39;</span><span class="p">)))</span>
-        <span class="n">state</span> <span class="o">=</span> <span class="n">selected</span><span class="p">[</span><span class="n">ch</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-        <span class="k">return</span> <span class="n">state</span>
 
     <span class="k">def</span> <span class="nf">_set_timescale</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scale</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
