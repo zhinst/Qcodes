@@ -267,7 +267,21 @@
                            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;s&#39;</span><span class="p">,</span>
                            <span class="n">parameter_class</span><span class="o">=</span><span class="n">ManualParameter</span><span class="p">,</span>
                            <span class="n">initial_value</span><span class="o">=</span><span class="mf">0.01</span>
-                           <span class="p">)</span></div>
+                           <span class="p">)</span>
+
+<div class="viewcode-block" id="QDacChannel.snapshot_base"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.QDev.html#qcodes.instrument_drivers.QDev.QDac_channels.QDacChannel.snapshot_base">[docs]</a>    <span class="k">def</span> <span class="nf">snapshot_base</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">params_to_skip_update</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">update_currents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parent</span><span class="o">.</span><span class="n">_update_currents</span> <span class="ow">and</span> <span class="n">update</span>
+        <span class="k">if</span> <span class="n">update</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parent</span><span class="o">.</span><span class="n">_get_status_performed</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_parent</span><span class="o">.</span><span class="n">_get_status</span><span class="p">(</span><span class="n">readcurrents</span><span class="o">=</span><span class="n">update_currents</span><span class="p">)</span>
+        <span class="c1"># call get_status rather than getting the status individually for</span>
+        <span class="c1"># each parameter. This is only done if _get_status_performed is False</span>
+        <span class="c1"># this is used to signal that the parent has already called it and</span>
+        <span class="c1"># no need to repeat.</span>
+        <span class="k">if</span> <span class="n">params_to_skip_update</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">params_to_skip_update</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="s1">&#39;i&#39;</span><span class="p">,</span> <span class="s1">&#39;irange&#39;</span><span class="p">,</span> <span class="s1">&#39;vrange&#39;</span><span class="p">)</span>
+        <span class="n">snap</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">snapshot_base</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="n">update</span><span class="p">,</span>
+                                     <span class="n">params_to_skip_update</span><span class="o">=</span><span class="n">params_to_skip_update</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">snap</span></div></div>
 
 
 <div class="viewcode-block" id="QDacMultiChannelParameter"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.QDev.html#qcodes.instrument_drivers.QDev.QDac_channels.QDacMultiChannelParameter">[docs]</a><span class="k">class</span> <span class="nc">QDacMultiChannelParameter</span><span class="p">(</span><span class="n">MultiChannelInstrumentParameter</span><span class="p">):</span>
@@ -328,8 +342,9 @@
 <span class="sd">            QDac object</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">address</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_output_n_lines</span> <span class="o">=</span> <span class="mi">50</span>
         <span class="n">handle</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span>
-
+        <span class="bp">self</span><span class="o">.</span><span class="n">_get_status_performed</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="c1"># This is the baud rate on power-up. It can be changed later but</span>
         <span class="c1"># you must start out with this value.</span>
         <span class="n">handle</span><span class="o">.</span><span class="n">baud_rate</span> <span class="o">=</span> <span class="mi">480600</span>
@@ -403,9 +418,24 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">connect_message</span><span class="p">()</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;[*] Querying all channels for voltages and currents...&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_get_status</span><span class="p">(</span><span class="n">readcurrents</span><span class="o">=</span><span class="n">update_currents</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_currents</span> <span class="o">=</span> <span class="n">update_currents</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;[+] Done&#39;</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_output_n_lines</span> <span class="o">=</span> <span class="mi">50</span>
+<div class="viewcode-block" id="QDac.snapshot_base"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.QDev.html#qcodes.instrument_drivers.QDev.QDac_channels.QDac.snapshot_base">[docs]</a>    <span class="k">def</span> <span class="nf">snapshot_base</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">params_to_skip_update</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">update_currents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_currents</span> <span class="ow">and</span> <span class="n">update</span>
+        <span class="k">if</span> <span class="n">update</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_get_status</span><span class="p">(</span><span class="n">readcurrents</span><span class="o">=</span><span class="n">update_currents</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_get_status_performed</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="c1"># call get_status rather than getting the status individually for</span>
+        <span class="c1"># each parameter. We set _get_status_performed to True</span>
+        <span class="c1"># to indicate that each update channel does not need to call this</span>
+        <span class="c1"># function as opposed to when snapshot is called on an individual</span>
+        <span class="c1"># channel</span>
+        <span class="n">snap</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">snapshot_base</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="n">update</span><span class="p">,</span>
+                                     <span class="n">params_to_skip_update</span><span class="o">=</span><span class="n">params_to_skip_update</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_get_status_performed</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="n">snap</span></div>
+
     <span class="c1">#########################</span>
     <span class="c1"># Channel gets/sets</span>
     <span class="c1">#########################</span>
