@@ -616,52 +616,56 @@
         <span class="k">while</span> <span class="p">(</span><span class="n">zi_error</span> <span class="ow">or</span> <span class="n">timedout</span><span class="p">)</span> <span class="ow">and</span> <span class="n">error_counter</span> <span class="o">&lt;</span> <span class="n">num_retries</span><span class="p">:</span>
             <span class="c1"># one shot per trigger. This needs to be set every time</span>
             <span class="c1"># a the scope is enabled as below using scope_runstop</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">daq</span><span class="o">.</span><span class="n">setInt</span><span class="p">(</span><span class="s1">&#39;/</span><span class="si">{}</span><span class="s1">/scopes/0/single&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">device</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">daq</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="c1"># we wrap this in try finally to ensure that scope.finish is always called</span>
+                <span class="c1"># even if the measurement is interrupted</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">daq</span><span class="o">.</span><span class="n">setInt</span><span class="p">(</span><span class="s1">&#39;/</span><span class="si">{}</span><span class="s1">/scopes/0/single&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">device</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">daq</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
 
-            <span class="n">scope</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">scope</span> <span class="c1"># There are issues reusing the scope.</span>
-            <span class="n">scope</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;scopeModule/clearhistory&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="n">scope</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">scope</span> <span class="c1"># There are issues reusing the scope.</span>
+                <span class="n">scope</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;scopeModule/clearhistory&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
 
-            <span class="c1"># Start the scope triggering/acquiring</span>
-            <span class="n">params</span><span class="p">[</span><span class="s1">&#39;scope_runstop&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;run&#39;</span><span class="p">)</span> <span class="c1"># set /dev/scopes/0/enable to 1</span>
+                <span class="c1"># Start the scope triggering/acquiring</span>
+                <span class="n">params</span><span class="p">[</span><span class="s1">&#39;scope_runstop&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;run&#39;</span><span class="p">)</span> <span class="c1"># set /dev/scopes/0/enable to 1</span>
 
-            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;[*] Starting ZI scope acquisition.&#39;</span><span class="p">)</span>
-            <span class="c1"># Start something... hauling data from the scopeModule?</span>
-            <span class="n">scope</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
-            <span class="n">starttime</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
-            <span class="n">timedout</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;[*] Starting ZI scope acquisition.&#39;</span><span class="p">)</span>
+                <span class="c1"># Start something... hauling data from the scopeModule?</span>
+                <span class="n">scope</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+                <span class="n">starttime</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+                <span class="n">timedout</span> <span class="o">=</span> <span class="kc">False</span>
 
-            <span class="k">while</span> <span class="n">scope</span><span class="o">.</span><span class="n">progress</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
-                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>  <span class="c1"># This while+sleep is how ZI engineers do it</span>
-                <span class="k">if</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span><span class="o">-</span><span class="n">starttime</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">meas_time</span><span class="p">:</span>
-                    <span class="n">timedout</span> <span class="o">=</span> <span class="kc">True</span>
-                    <span class="k">break</span>
-            <span class="n">metadata</span> <span class="o">=</span> <span class="n">scope</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;scopeModule/*&quot;</span><span class="p">)</span>
-            <span class="n">zi_error</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;error&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+                <span class="k">while</span> <span class="n">scope</span><span class="o">.</span><span class="n">progress</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>  <span class="c1"># This while+sleep is how ZI engineers do it</span>
+                    <span class="k">if</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span><span class="o">-</span><span class="n">starttime</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">20</span><span class="o">*</span><span class="n">meas_time</span><span class="o">+</span><span class="mi">1</span><span class="p">:</span>
+                        <span class="n">timedout</span> <span class="o">=</span> <span class="kc">True</span>
+                        <span class="k">break</span>
+                <span class="n">metadata</span> <span class="o">=</span> <span class="n">scope</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;scopeModule/*&quot;</span><span class="p">)</span>
+                <span class="n">zi_error</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;error&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
 
-            <span class="c1"># Stop the scope from running</span>
-            <span class="n">params</span><span class="p">[</span><span class="s1">&#39;scope_runstop&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;stop&#39;</span><span class="p">)</span>
+                <span class="c1"># Stop the scope from running</span>
+                <span class="n">params</span><span class="p">[</span><span class="s1">&#39;scope_runstop&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;stop&#39;</span><span class="p">)</span>
 
-            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">timedout</span> <span class="ow">or</span> <span class="n">zi_error</span><span class="p">):</span>
-                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;[+] ZI scope acquisition completed OK&#39;</span><span class="p">)</span>
-                <span class="n">rawdata</span> <span class="o">=</span> <span class="n">scope</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
-                <span class="k">if</span> <span class="s1">&#39;error&#39;</span> <span class="ow">in</span> <span class="n">rawdata</span><span class="p">:</span>
-                    <span class="n">zi_error</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">rawdata</span><span class="p">[</span><span class="s1">&#39;error&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scopedataparser</span><span class="p">(</span><span class="n">rawdata</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
-                                             <span class="n">npts</span><span class="p">,</span> <span class="n">segs</span><span class="p">,</span> <span class="n">channels</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;[-] ZI scope acquisition attempt </span><span class="si">{}</span><span class="s1"> &#39;</span>
-                            <span class="s1">&#39;failed, Timeout: </span><span class="si">{}</span><span class="s1">, Error: </span><span class="si">{}</span><span class="s1">, &#39;</span>
-                            <span class="s1">&#39;retrying&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">error_counter</span><span class="p">,</span> <span class="n">timedout</span><span class="p">,</span> <span class="n">zi_error</span><span class="p">))</span>
-                <span class="n">rawdata</span> <span class="o">=</span> <span class="kc">None</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-                <span class="n">error_counter</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">timedout</span> <span class="ow">or</span> <span class="n">zi_error</span><span class="p">):</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;[+] ZI scope acquisition completed OK&#39;</span><span class="p">)</span>
+                    <span class="n">rawdata</span> <span class="o">=</span> <span class="n">scope</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="s1">&#39;error&#39;</span> <span class="ow">in</span> <span class="n">rawdata</span><span class="p">:</span>
+                        <span class="n">zi_error</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">rawdata</span><span class="p">[</span><span class="s1">&#39;error&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+                    <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scopedataparser</span><span class="p">(</span><span class="n">rawdata</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
+                                                 <span class="n">npts</span><span class="p">,</span> <span class="n">segs</span><span class="p">,</span> <span class="n">channels</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;[-] ZI scope acquisition attempt </span><span class="si">{}</span><span class="s1"> &#39;</span>
+                                <span class="s1">&#39;failed, Timeout: </span><span class="si">{}</span><span class="s1">, Error: </span><span class="si">{}</span><span class="s1">, &#39;</span>
+                                <span class="s1">&#39;retrying&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">error_counter</span><span class="p">,</span> <span class="n">timedout</span><span class="p">,</span> <span class="n">zi_error</span><span class="p">))</span>
+                    <span class="n">rawdata</span> <span class="o">=</span> <span class="kc">None</span>
+                    <span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                    <span class="n">error_counter</span> <span class="o">+=</span> <span class="mi">1</span>
 
-            <span class="c1"># cleanup and make ready for next scope acquisition</span>
-            <span class="n">scope</span><span class="o">.</span><span class="n">finish</span><span class="p">()</span>
-            <span class="k">if</span> <span class="n">error_counter</span> <span class="o">&gt;=</span> <span class="n">num_retries</span><span class="p">:</span>
-                <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;[+] ZI scope acquisition failed, maximum number&#39;</span>
-                            <span class="s1">&#39;of retries performed. No data returned&#39;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">error_counter</span> <span class="o">&gt;=</span> <span class="n">num_retries</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;[+] ZI scope acquisition failed, maximum number&#39;</span>
+                                <span class="s1">&#39;of retries performed. No data returned&#39;</span><span class="p">)</span>
+            <span class="k">finally</span><span class="p">:</span>
+                <span class="c1"># cleanup and make ready for next scope acquisition</span>
+                <span class="n">scope</span><span class="o">.</span><span class="n">finish</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">data</span></div>
 
     <span class="nd">@staticmethod</span>
