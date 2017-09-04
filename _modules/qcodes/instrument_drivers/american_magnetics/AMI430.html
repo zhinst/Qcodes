@@ -163,28 +163,17 @@
            <div itemprop="articleBody">
             
   <h1>Source code for qcodes.instrument_drivers.american_magnetics.AMI430</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">logging</span>
-<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span></span><span class="kn">import</span> <span class="nn">collections</span>
+<span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">time</span>
-
-<span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="n">Instrument</span><span class="p">,</span> <span class="n">VisaInstrument</span><span class="p">,</span> <span class="n">IPInstrument</span>
-<span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="k">import</span> <span class="n">Numbers</span><span class="p">,</span> <span class="n">Anything</span>
-
 <span class="kn">from</span> <span class="nn">functools</span> <span class="k">import</span> <span class="n">partial</span>
 
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
-<div class="viewcode-block" id="R_y"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.american_magnetics.html#qcodes.instrument_drivers.american_magnetics.AMI430.R_y">[docs]</a><span class="k">def</span> <span class="nf">R_y</span><span class="p">(</span><span class="n">theta</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot; Construct rotation matrix around y-axis. &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)],</span>
-                     <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
-                     <span class="p">[</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">)]])</span></div>
-
-
-<div class="viewcode-block" id="R_z"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.american_magnetics.html#qcodes.instrument_drivers.american_magnetics.AMI430.R_z">[docs]</a><span class="k">def</span> <span class="nf">R_z</span><span class="p">(</span><span class="n">theta</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot; Construct rotation matrix around z-axis. &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span> <span class="mi">0</span><span class="p">],</span>
-                     <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span> <span class="mi">0</span><span class="p">],</span>
-                     <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]])</span></div>
+<span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="n">Instrument</span><span class="p">,</span> <span class="n">IPInstrument</span>
+<span class="kn">from</span> <span class="nn">qcodes.instrument.mockers.ami430</span> <span class="k">import</span> <span class="n">MockAMI430</span>
+<span class="kn">from</span> <span class="nn">qcodes.math.field_vector</span> <span class="k">import</span> <span class="n">FieldVector</span>
+<span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="k">import</span> <span class="n">Numbers</span><span class="p">,</span> <span class="n">Anything</span>
 
 
 <div class="viewcode-block" id="AMI430"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.american_magnetics.html#qcodes.instrument_drivers.american_magnetics.AMI430.AMI430">[docs]</a><span class="k">class</span> <span class="nc">AMI430</span><span class="p">(</span><span class="n">IPInstrument</span><span class="p">):</span>
@@ -204,21 +193,32 @@
 <span class="sd">        current_ramp_limit (float): current ramp limit in ampere per second</span>
 <span class="sd">        persistent_switch (bool): whether this magnet has a persistent switch</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">address</span><span class="p">,</span> <span class="n">port</span><span class="p">,</span> <span class="n">coil_constant</span><span class="p">,</span> <span class="n">current_rating</span><span class="p">,</span>
-                 <span class="n">current_ramp_limit</span><span class="p">,</span> <span class="n">persistent_switch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                 <span class="n">reset</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">terminator</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\r\n</span><span class="s1">&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">address</span><span class="p">,</span> <span class="n">port</span><span class="p">,</span> <span class="n">terminator</span><span class="o">=</span><span class="n">terminator</span><span class="p">,</span>
+
+    <span class="n">mocker_class</span> <span class="o">=</span> <span class="n">MockAMI430</span>
+    <span class="n">default_current_ramp_limit</span> <span class="o">=</span> <span class="mf">0.06</span>  <span class="c1"># [A/s]</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">address</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">persistent_switch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                 <span class="n">reset</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">current_ramp_limit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">terminator</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\r\n</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">testing</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="kc">None</span> <span class="ow">in</span> <span class="p">[</span><span class="n">address</span><span class="p">,</span> <span class="n">port</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">testing</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;The port and address values need to be given if not in testing mode&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">current_ramp_limit</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">current_ramp_limit</span> <span class="o">=</span> <span class="n">AMI430</span><span class="o">.</span><span class="n">default_current_ramp_limit</span>
+
+        <span class="k">elif</span> <span class="n">current_ramp_limit</span> <span class="o">&gt;</span> <span class="n">AMI430</span><span class="o">.</span><span class="n">default_current_ramp_limit</span><span class="p">:</span>
+            <span class="n">warning_message</span> <span class="o">=</span> <span class="s2">&quot;Increasing maximum ramp rate: we have a default current ramp rate limit of </span><span class="si">{dcrl}</span><span class="s2"> &quot;</span> \
+                              <span class="s2">&quot;A/s. We do not want to ramp faster then a set maximum so as to avoid quenching &quot;</span> \
+                              <span class="s2">&quot;the magnet. A value of </span><span class="si">{dcrl}</span><span class="s2"> A/s seems like a safe, conservative value for any &quot;</span> \
+                              <span class="s2">&quot;magnet. Change this value at your own responsibility after consulting the specs of &quot;</span> \
+                              <span class="s2">&quot;your particular magnet&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dcrl</span><span class="o">=</span><span class="n">AMI430</span><span class="o">.</span><span class="n">default_current_ramp_limit</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Warning</span><span class="p">(</span><span class="n">warning_message</span><span class="p">)</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">address</span><span class="p">,</span> <span class="n">port</span><span class="p">,</span> <span class="n">terminator</span><span class="o">=</span><span class="n">terminator</span><span class="p">,</span> <span class="n">testing</span><span class="o">=</span><span class="n">testing</span><span class="p">,</span>
                          <span class="n">write_confirmation</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_parent_instrument</span> <span class="o">=</span> <span class="kc">None</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">_coil_constant</span> <span class="o">=</span> <span class="n">coil_constant</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_current_rating</span> <span class="o">=</span> <span class="n">current_rating</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_current_ramp_limit</span> <span class="o">=</span> <span class="n">current_ramp_limit</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_persistent_switch</span> <span class="o">=</span> <span class="n">persistent_switch</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">_field_rating</span> <span class="o">=</span> <span class="n">coil_constant</span> <span class="o">*</span> <span class="n">current_rating</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_field_ramp_limit</span> <span class="o">=</span> <span class="n">coil_constant</span> <span class="o">*</span> <span class="n">current_ramp_limit</span>
+        <span class="c1"># If we are in testing mode there is no need to have pauses built-in when setting field values.</span>
 
         <span class="c1"># Make sure the ramp rate time unit is seconds</span>
         <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;RAMP:RATE:UNITS?&#39;</span><span class="p">))</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
@@ -227,6 +227,19 @@
         <span class="c1"># Make sure the field unit is Tesla</span>
         <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;FIELD:UNITS?&#39;</span><span class="p">))</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;CONF:FIELD:UNITS 1&#39;</span><span class="p">)</span>
+
+        <span class="n">ramp_rate_reply</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s2">&quot;RAMP:RATE:CURRENT:1?&quot;</span><span class="p">)</span>
+        <span class="n">current_rating</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">ramp_rate_reply</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="n">coil_constant</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s2">&quot;COIL?&quot;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_coil_constant</span> <span class="o">=</span> <span class="n">coil_constant</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_current_rating</span> <span class="o">=</span> <span class="n">current_rating</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_current_ramp_limit</span> <span class="o">=</span> <span class="n">current_ramp_limit</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_persistent_switch</span> <span class="o">=</span> <span class="n">persistent_switch</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_field_rating</span> <span class="o">=</span> <span class="n">coil_constant</span> <span class="o">*</span> <span class="n">current_rating</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_field_ramp_limit</span> <span class="o">=</span> <span class="n">coil_constant</span> <span class="o">*</span> <span class="n">current_ramp_limit</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;field&#39;</span><span class="p">,</span>
                            <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;FIELD:MAG?&#39;</span><span class="p">,</span>
@@ -245,7 +258,7 @@
                            <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_ramp_rate</span><span class="p">,</span>
                            <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_ramp_rate</span><span class="p">,</span>
                            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T/s&#39;</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_field_ramp_limit</span><span class="p">))</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_current_ramp_limit</span><span class="p">))</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;setpoint&#39;</span><span class="p">,</span>
                            <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;FIELD:TARG?&#39;</span><span class="p">,</span>
@@ -285,17 +298,22 @@
                            <span class="p">})</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">add_function</span><span class="p">(</span><span class="s1">&#39;get_error&#39;</span><span class="p">,</span> <span class="n">call_cmd</span><span class="o">=</span><span class="s1">&#39;SYST:ERR?&#39;</span><span class="p">)</span>
-
         <span class="bp">self</span><span class="o">.</span><span class="n">add_function</span><span class="p">(</span><span class="s1">&#39;ramp&#39;</span><span class="p">,</span> <span class="n">call_cmd</span><span class="o">=</span><span class="s1">&#39;RAMP&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_function</span><span class="p">(</span><span class="s1">&#39;pause&#39;</span><span class="p">,</span> <span class="n">call_cmd</span><span class="o">=</span><span class="s1">&#39;PAUSE&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_function</span><span class="p">(</span><span class="s1">&#39;zero&#39;</span><span class="p">,</span> <span class="n">call_cmd</span><span class="o">=</span><span class="s1">&#39;ZERO&#39;</span><span class="p">)</span>
-
         <span class="bp">self</span><span class="o">.</span><span class="n">add_function</span><span class="p">(</span><span class="s1">&#39;reset&#39;</span><span class="p">,</span> <span class="n">call_cmd</span><span class="o">=</span><span class="s1">&#39;*RST&#39;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">reset</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">connect_message</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_sleep</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">t</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sleep for a number of seconds t. If we are in testing mode, commit this&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_testing</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_can_start_ramping</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -322,6 +340,9 @@
 
         <span class="k">return</span> <span class="kc">False</span>
 
+<div class="viewcode-block" id="AMI430.set_field"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.american_magnetics.html#qcodes.instrument_drivers.american_magnetics.AMI430.AMI430.set_field">[docs]</a>    <span class="k">def</span> <span class="nf">set_field</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">perform_safety_check</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_field</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">perform_safety_check</span><span class="o">=</span><span class="n">perform_safety_check</span><span class="p">)</span></div>
+
     <span class="k">def</span> <span class="nf">_set_field</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">perform_safety_check</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Blocking method to ramp to a certain field</span>
@@ -334,12 +355,10 @@
         <span class="c1"># If part of a parent driver, set the value using that driver</span>
         <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_field_rating</span><span class="p">:</span>
             <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;Aborted _set_field; </span><span class="si">{}</span><span class="s1"> is higher than limit of </span><span class="si">{}</span><span class="s1">&#39;</span>
-
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_field_rating</span><span class="p">))</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parent_instrument</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">perform_safety_check</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_parent_instrument</span><span class="o">.</span><span class="n">_request_field_change</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
-
             <span class="k">return</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_can_start_ramping</span><span class="p">():</span>
@@ -354,23 +373,20 @@
                     <span class="bp">self</span><span class="o">.</span><span class="n">switch_heater_enabled</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">ramp</span><span class="p">()</span>
-
-            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_sleep</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>
 
             <span class="c1"># Wait until no longer ramping</span>
             <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">ramping_state</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;ramping&#39;</span><span class="p">:</span>
-                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.3</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_sleep</span><span class="p">(</span><span class="mf">0.3</span><span class="p">)</span>
 
-            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">2.0</span><span class="p">)</span>
-
+            <span class="bp">self</span><span class="o">.</span><span class="n">_sleep</span><span class="p">(</span><span class="mf">2.0</span><span class="p">)</span>
             <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ramping_state</span><span class="p">()</span>
 
-            <span class="c1"># If we are now holding, it was succesful</span>
+            <span class="c1"># If we are now holding, it was successful</span>
             <span class="k">if</span> <span class="n">state</span> <span class="o">==</span> <span class="s1">&#39;holding&#39;</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">pause</span><span class="p">()</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;_set_field(</span><span class="si">{}</span><span class="s1">) failed with state: </span><span class="si">{}</span><span class="s1">&#39;</span>
-
                 <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">state</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">_ramp_to</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
@@ -423,20 +439,18 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">on</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;PS 1&#39;</span><span class="p">)</span>
-
-            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_sleep</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>
 
             <span class="c1"># Wait until heating is finished</span>
             <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">ramping_state</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;heating switch&#39;</span><span class="p">:</span>
-                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.3</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_sleep</span><span class="p">(</span><span class="mf">0.3</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;PS 0&#39;</span><span class="p">)</span>
-
-            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_sleep</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>
 
             <span class="c1"># Wait until cooling is finished</span>
             <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">ramping_state</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;cooling switch&#39;</span><span class="p">:</span>
-                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.3</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_sleep</span><span class="p">(</span><span class="mf">0.3</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_connect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -445,391 +459,198 @@
 <span class="sd">        :return: None</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_connect</span><span class="p">()</span>
-        <span class="nb">print</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_recv</span><span class="p">())</span></div>
-
-<div class="viewcode-block" id="AMI430_2D"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.american_magnetics.html#qcodes.instrument_drivers.american_magnetics.AMI430.AMI430_2D">[docs]</a><span class="k">class</span> <span class="nc">AMI430_2D</span><span class="p">(</span><span class="n">Instrument</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Virtual driver for a system of two AMI430 magnet power supplies.</span>
-<span class="sd">    This driver provides methods that simplify setting fields as vectors.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        name (string): a name for the instrument</span>
-<span class="sd">        magnet_x (AMI430): magnet for the x component</span>
-<span class="sd">        magnet_y (AMI430): magnet for the y component</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">magnet_x</span><span class="p">,</span> <span class="n">magnet_y</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">magnet_x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">magnet_y</span> <span class="o">=</span> <span class="n">magnet_x</span><span class="p">,</span> <span class="n">magnet_y</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">_angle_offset</span> <span class="o">=</span> <span class="mf">0.0</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_angle</span> <span class="o">=</span> <span class="mf">0.0</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_field</span> <span class="o">=</span> <span class="mf">0.0</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;angle_offset&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_angle_offset</span><span class="p">,</span>
-                           <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_angle_offset</span><span class="p">,</span>
-                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;deg&#39;</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">())</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;angle&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_angle</span><span class="p">,</span>
-                           <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_angle</span><span class="p">,</span>
-                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;deg&#39;</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">())</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;field&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_field</span><span class="p">,</span>
-                           <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_field</span><span class="p">,</span>
-                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">())</span>
-
-    <span class="k">def</span> <span class="nf">_get_angle_offset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">degrees</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_angle_offset</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">_set_angle_offset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">angle</span><span class="p">):</span>
-        <span class="c1"># Adjust the field if the offset angle is changed</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_angle_offset</span> <span class="o">!=</span> <span class="n">np</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="n">angle</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_angle_offset</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="n">angle</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_set_field</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_field</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">_get_angle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">angle</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">magnet_y</span><span class="o">.</span><span class="n">field</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">magnet_x</span><span class="o">.</span><span class="n">field</span><span class="p">())</span>
-
-        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">degrees</span><span class="p">(</span><span class="n">angle</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_angle_offset</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">_set_angle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">angle</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_angle</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="n">angle</span><span class="p">)</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">_set_field</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_field</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">_get_field</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">magnet_x</span><span class="o">.</span><span class="n">field</span><span class="p">()</span>
-        <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">magnet_y</span><span class="o">.</span><span class="n">field</span><span class="p">()</span>
-
-        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">x</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">y</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">_set_field</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_field</span> <span class="o">=</span> <span class="n">field</span>
-
-        <span class="n">B_x</span> <span class="o">=</span> <span class="n">field</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_angle</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_angle_offset</span><span class="p">)</span>
-        <span class="n">B_y</span> <span class="o">=</span> <span class="n">field</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_angle</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_angle_offset</span><span class="p">)</span>
-
-        <span class="c1"># First ramp the magnet that is decreasing in field strength</span>
-        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">magnet_x</span><span class="o">.</span><span class="n">field</span><span class="p">())</span> <span class="o">&lt;</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">B_x</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">magnet_x</span><span class="o">.</span><span class="n">field</span><span class="p">(</span><span class="n">B_x</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">magnet_y</span><span class="o">.</span><span class="n">field</span><span class="p">(</span><span class="n">B_y</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">magnet_y</span><span class="o">.</span><span class="n">field</span><span class="p">(</span><span class="n">B_y</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">magnet_x</span><span class="o">.</span><span class="n">field</span><span class="p">(</span><span class="n">B_x</span><span class="p">)</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">flush_connection</span><span class="p">()</span></div>
 
 
 <div class="viewcode-block" id="AMI430_3D"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.american_magnetics.html#qcodes.instrument_drivers.american_magnetics.AMI430.AMI430_3D">[docs]</a><span class="k">class</span> <span class="nc">AMI430_3D</span><span class="p">(</span><span class="n">Instrument</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Virtual driver for a system of three AMI430 magnet power supplies.</span>
-<span class="sd">    This driver provides methods that simplify setting fields in</span>
-<span class="sd">    different coordinate systems.</span>
-
-<span class="sd">    Cartesian, spherical and cylindrical coordinates are supported, with</span>
-<span class="sd">    the following parameters:</span>
-
-<span class="sd">    Carthesian:     x,      y,      z</span>
-<span class="sd">    Spherical:      phi,    theta,  field</span>
-<span class="sd">    Cylindrical:    phi,    rho,    z</span>
-
-<span class="sd">    For the spherical system theta is the polar angle from the positive</span>
-<span class="sd">    z-axis to the negative z-axis (0 to pi). Phi is the azimuthal angle</span>
-<span class="sd">    starting at the positive x-axis in the direction of the positive</span>
-<span class="sd">    y-axis (0 to 2*pi).</span>
-
-<span class="sd">    In the cylindrical system phi is identical to that in the spherical</span>
-<span class="sd">    system, and z is identical to that in the cartesian system.</span>
-
-<span class="sd">    All angles are set and returned in units of degrees and are automatically</span>
-<span class="sd">    phase-wrapped.</span>
-
-<span class="sd">    If you want to control the magnets in this virtual driver individually,</span>
-<span class="sd">    one can set the _parent_instrument parameter of the magnet to None.</span>
-<span class="sd">    This is done at your own risk, as it skips field strength checks and</span>
-<span class="sd">    might result in a magnet quench.</span>
-
-<span class="sd">    Example of instantiation:</span>
-
-<span class="sd">    magnet = AMI430_3D(&#39;AMI430_3D&#39;,</span>
-<span class="sd">        AMI430(&#39;AMI430_X&#39;, &#39;192.168.2.3&#39;, 0.0146, 68.53, 0.2),</span>
-<span class="sd">        AMI430(&#39;AMI430_Y&#39;, &#39;192.168.2.2&#39;, 0.0426, 70.45, 0.05),</span>
-<span class="sd">        AMI430(&#39;AMI430_Z&#39;, &#39;192.168.2.1&#39;, 0.1107, 81.33, 0.08),</span>
-<span class="sd">        field_limit=1.0)</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        name (string): a name for the instrument</span>
-<span class="sd">        magnet_x (AMI430): magnet driver for the x component</span>
-<span class="sd">        magnet_y (AMI430): magnet driver for the y component</span>
-<span class="sd">        magnet_z (AMI430): magnet driver for the z component</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">magnet_x</span><span class="p">,</span> <span class="n">magnet_y</span><span class="p">,</span> <span class="n">magnet_z</span><span class="p">,</span> <span class="n">field_limit</span><span class="p">,</span>
-                 <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">instrument_x</span><span class="p">,</span> <span class="n">instrument_y</span><span class="p">,</span> <span class="n">instrument_z</span><span class="p">,</span> <span class="n">field_limit</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
-        <span class="c1"># Register this instrument as the parent of the individual magnets</span>
-        <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="p">[</span><span class="n">magnet_x</span><span class="p">,</span> <span class="n">magnet_y</span><span class="p">,</span> <span class="n">magnet_z</span><span class="p">]:</span>
-            <span class="n">m</span><span class="o">.</span><span class="n">_parent_instrument</span> <span class="o">=</span> <span class="bp">self</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Name should be a string&quot;</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_magnet_x</span> <span class="o">=</span> <span class="n">magnet_x</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_magnet_y</span> <span class="o">=</span> <span class="n">magnet_y</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_magnet_z</span> <span class="o">=</span> <span class="n">magnet_z</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">([</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">instrument</span><span class="p">,</span> <span class="n">Instrument</span><span class="p">)</span> <span class="k">for</span> <span class="n">instrument</span> <span class="ow">in</span> <span class="p">[</span><span class="n">instrument_x</span><span class="p">,</span> <span class="n">instrument_y</span><span class="p">,</span> <span class="n">instrument_z</span><span class="p">]]):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Instruments need to be instances of the class Instrument&quot;</span><span class="p">)</span>
 
-        <span class="c1"># Make this into a parameter?</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_field_limit</span> <span class="o">=</span> <span class="n">field_limit</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_x</span> <span class="o">=</span> <span class="n">instrument_x</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_y</span> <span class="o">=</span> <span class="n">instrument_y</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_z</span> <span class="o">=</span> <span class="n">instrument_z</span>
 
-        <span class="c1"># Initialize the internal magnet field setpoints</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">update_internal_setpoints</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">repr</span><span class="p">(</span><span class="n">field_limit</span><span class="p">)</span><span class="o">.</span><span class="n">isnumeric</span><span class="p">()</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">field_limit</span><span class="p">,</span> <span class="n">collections</span><span class="o">.</span><span class="n">Iterable</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_field_limit</span> <span class="o">=</span> <span class="n">field_limit</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;field limit should either be a number or an iterable&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_point</span> <span class="o">=</span> <span class="n">FieldVector</span><span class="p">(</span>
+            <span class="n">x</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_instrument_x</span><span class="o">.</span><span class="n">field</span><span class="p">(),</span>
+            <span class="n">y</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_instrument_y</span><span class="o">.</span><span class="n">field</span><span class="p">(),</span>
+            <span class="n">z</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_instrument_z</span><span class="o">.</span><span class="n">field</span><span class="p">()</span>
+        <span class="p">)</span>
 
         <span class="c1"># Get-only parameters that return a measured value</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;cartesian_measured&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_measured</span><span class="p">,</span> <span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">),</span>
-                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s1">&#39;cartesian_measured&#39;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_measured</span><span class="p">,</span> <span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">),</span>
+            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span>
+        <span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;x_measured&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_measured</span><span class="p">,</span> <span class="s1">&#39;x&#39;</span><span class="p">),</span>
-                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s1">&#39;x_measured&#39;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_measured</span><span class="p">,</span> <span class="s1">&#39;x&#39;</span><span class="p">),</span>
+            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span>
+        <span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;y_measured&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_measured</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">),</span>
-                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s1">&#39;y_measured&#39;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_measured</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">),</span>
+            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span>
+        <span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;z_measured&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_measured</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">),</span>
-                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s1">&#39;z_measured&#39;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_measured</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">),</span>
+            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span>
+        <span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;spherical_measured&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_measured</span><span class="p">,</span> <span class="s1">&#39;field&#39;</span><span class="p">,</span>
-                                                               <span class="s1">&#39;theta&#39;</span><span class="p">,</span>
-                                                               <span class="s1">&#39;phi&#39;</span><span class="p">),</span>
-                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s1">&#39;spherical_measured&#39;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_get_measured</span><span class="p">,</span>
+                <span class="s1">&#39;r&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;theta&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;phi&#39;</span>
+            <span class="p">),</span>
+            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span>
+        <span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;phi_measured&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_measured</span><span class="p">,</span> <span class="s1">&#39;phi&#39;</span><span class="p">),</span>
-                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;deg&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s1">&#39;phi_measured&#39;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_measured</span><span class="p">,</span> <span class="s1">&#39;phi&#39;</span><span class="p">),</span>
+            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;deg&#39;</span>
+        <span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;theta_measured&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_measured</span><span class="p">,</span> <span class="s1">&#39;theta&#39;</span><span class="p">),</span>
-                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;deg&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s1">&#39;theta_measured&#39;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_measured</span><span class="p">,</span> <span class="s1">&#39;theta&#39;</span><span class="p">),</span>
+            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;deg&#39;</span>
+        <span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;field_measured&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_measured</span><span class="p">,</span> <span class="s1">&#39;field&#39;</span><span class="p">),</span>
-                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s1">&#39;field_measured&#39;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_measured</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">),</span>
+            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;cylindrical_measured&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_measured</span><span class="p">,</span> <span class="s1">&#39;rho&#39;</span><span class="p">,</span>
-                                                               <span class="s1">&#39;phi&#39;</span><span class="p">,</span>
-                                                               <span class="s1">&#39;z&#39;</span><span class="p">),</span>
-                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s1">&#39;cylindrical_measured&#39;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_measured</span><span class="p">,</span>
+                            <span class="s1">&#39;rho&#39;</span><span class="p">,</span>
+                            <span class="s1">&#39;phi&#39;</span><span class="p">,</span>
+                            <span class="s1">&#39;z&#39;</span><span class="p">),</span>
+            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;rho_measured&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_measured</span><span class="p">,</span> <span class="s1">&#39;rho&#39;</span><span class="p">),</span>
-                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s1">&#39;rho_measured&#39;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_measured</span><span class="p">,</span> <span class="s1">&#39;rho&#39;</span><span class="p">),</span>
+            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span>
+        <span class="p">)</span>
 
-        <span class="c1"># Get and set parameters for the setpoints of the coordinates</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;cartesian&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_setpoints</span><span class="p">,</span> <span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">),</span>
-                           <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_fields</span><span class="p">,</span>
-                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">Anything</span><span class="p">())</span>
+        <span class="c1"># Get and set parameters for the set points of the coordinates</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s1">&#39;cartesian&#39;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_setpoints</span><span class="p">,</span> <span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">),</span>
+            <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_cartesian</span><span class="p">,</span>
+            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span><span class="p">,</span>
+            <span class="n">vals</span><span class="o">=</span><span class="n">Anything</span><span class="p">()</span>
+        <span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_setpoints</span><span class="p">,</span> <span class="s1">&#39;x&#39;</span><span class="p">),</span>
-                           <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_x</span><span class="p">,</span>
-                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s1">&#39;x&#39;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_setpoints</span><span class="p">,</span> <span class="s1">&#39;x&#39;</span><span class="p">),</span>
+            <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_x</span><span class="p">,</span>
+            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span><span class="p">,</span>
+            <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">()</span>
+        <span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;y&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_setpoints</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">),</span>
-                           <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_y</span><span class="p">,</span>
-                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s1">&#39;y&#39;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_setpoints</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">),</span>
+            <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_y</span><span class="p">,</span>
+            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span><span class="p">,</span>
+            <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">()</span>
+        <span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;z&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_setpoints</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">),</span>
-                           <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_z</span><span class="p">,</span>
-                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s1">&#39;z&#39;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_setpoints</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">),</span>
+            <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_z</span><span class="p">,</span>
+            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span><span class="p">,</span>
+            <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">()</span>
+        <span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;spherical&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_setpoints</span><span class="p">,</span> <span class="s1">&#39;field&#39;</span><span class="p">,</span>
-                                                                <span class="s1">&#39;theta&#39;</span><span class="p">,</span>
-                                                                <span class="s1">&#39;phi&#39;</span><span class="p">),</span>
-                           <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_spherical</span><span class="p">,</span>
-                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;tuple?&#39;</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">Anything</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s1">&#39;spherical&#39;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_get_setpoints</span><span class="p">,</span>
+                <span class="s1">&#39;r&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;theta&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;phi&#39;</span>
+            <span class="p">),</span>
+            <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_spherical</span><span class="p">,</span>
+            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;tuple?&#39;</span><span class="p">,</span>
+            <span class="n">vals</span><span class="o">=</span><span class="n">Anything</span><span class="p">()</span>
+        <span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;phi&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_setpoints</span><span class="p">,</span> <span class="s1">&#39;phi&#39;</span><span class="p">),</span>
-                           <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_phi</span><span class="p">,</span>
-                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;deg&#39;</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s1">&#39;phi&#39;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_setpoints</span><span class="p">,</span> <span class="s1">&#39;phi&#39;</span><span class="p">),</span>
+            <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_phi</span><span class="p">,</span>
+            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;deg&#39;</span><span class="p">,</span>
+            <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">()</span>
+        <span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;theta&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_setpoints</span><span class="p">,</span> <span class="s1">&#39;theta&#39;</span><span class="p">),</span>
-                           <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_theta</span><span class="p">,</span>
-                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;deg&#39;</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s1">&#39;theta&#39;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_setpoints</span><span class="p">,</span> <span class="s1">&#39;theta&#39;</span><span class="p">),</span>
+            <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_theta</span><span class="p">,</span>
+            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;deg&#39;</span><span class="p">,</span>
+            <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">()</span>
+        <span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;field&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_setpoints</span><span class="p">,</span> <span class="s1">&#39;field&#39;</span><span class="p">),</span>
-                           <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_field</span><span class="p">,</span>
-                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s1">&#39;field&#39;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_setpoints</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">),</span>
+            <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_r</span><span class="p">,</span>
+            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span><span class="p">,</span>
+            <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">()</span>
+        <span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;cylindrical&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_setpoints</span><span class="p">,</span> <span class="s1">&#39;rho&#39;</span><span class="p">,</span>
-                                                                <span class="s1">&#39;phi&#39;</span><span class="p">,</span>
-                                                                <span class="s1">&#39;z&#39;</span><span class="p">),</span>
-                           <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_cylindrical</span><span class="p">,</span>
-                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;tuple?&#39;</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">Anything</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s1">&#39;cylindrical&#39;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_get_setpoints</span><span class="p">,</span>
+                <span class="s1">&#39;rho&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;phi&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;z&#39;</span>
+            <span class="p">),</span>
+            <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_cylindrical</span><span class="p">,</span>
+            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;tuple?&#39;</span><span class="p">,</span>
+            <span class="n">vals</span><span class="o">=</span><span class="n">Anything</span><span class="p">()</span>
+        <span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;rho&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_setpoints</span><span class="p">,</span> <span class="s1">&#39;rho&#39;</span><span class="p">),</span>
-                           <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_rho</span><span class="p">,</span>
-                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s1">&#39;rho&#39;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_setpoints</span><span class="p">,</span> <span class="s1">&#39;rho&#39;</span><span class="p">),</span>
+            <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_rho</span><span class="p">,</span>
+            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span><span class="p">,</span>
+            <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">()</span>
+        <span class="p">)</span>
 
-<div class="viewcode-block" id="AMI430_3D.update_internal_setpoints"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.american_magnetics.html#qcodes.instrument_drivers.american_magnetics.AMI430.AMI430_3D.update_internal_setpoints">[docs]</a>    <span class="k">def</span> <span class="nf">update_internal_setpoints</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Set the internal setpoints to the measured field values.</span>
-<span class="sd">        This can be done in case the magnets have been adjusted manually.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">__x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_magnet_x</span><span class="o">.</span><span class="n">field</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">__y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_magnet_y</span><span class="o">.</span><span class="n">field</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">__z</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_magnet_z</span><span class="o">.</span><span class="n">field</span><span class="p">()</span></div>
+    <span class="k">def</span> <span class="nf">_verify_safe_setpoint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">setpoint_values</span><span class="p">):</span>
 
-    <span class="k">def</span> <span class="nf">_request_field_change</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">magnet</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        This method is called by the child x/y/z magnets if they are set</span>
-<span class="sd">        individually. It results in additional safety checks being</span>
-<span class="sd">        performed by this 3D driver.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="n">magnet</span> <span class="ow">is</span> <span class="bp">self</span><span class="o">.</span><span class="n">_magnet_x</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">magnet</span> <span class="ow">is</span> <span class="bp">self</span><span class="o">.</span><span class="n">_magnet_y</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">magnet</span> <span class="ow">is</span> <span class="bp">self</span><span class="o">.</span><span class="n">_magnet_z</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">z</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;This magnet doesnt belong to its specified parent </span><span class="si">{}</span><span class="s1">&#39;</span>
+        <span class="k">if</span> <span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_field_limit</span><span class="p">)</span><span class="o">.</span><span class="n">isnumeric</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">setpoint_values</span><span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_field_limit</span>
 
-            <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
-
-    <span class="k">def</span> <span class="nf">_cartesian_to_other</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Convert a cartesian set of coordinates to values of interest. &quot;&quot;&quot;</span>
-        <span class="n">field</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">x</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">y</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">z</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
-        <span class="n">phi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arctan2</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
-        <span class="n">rho</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">x</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">y</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
-
-        <span class="c1"># Define theta to be 0 for zero field</span>
-        <span class="n">theta</span> <span class="o">=</span> <span class="mf">0.0</span>
-        <span class="k">if</span> <span class="n">field</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
-            <span class="n">theta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arccos</span><span class="p">(</span><span class="n">z</span> <span class="o">/</span> <span class="n">field</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">phi</span><span class="p">,</span> <span class="n">theta</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">rho</span>
-
-    <span class="k">def</span> <span class="nf">_from_xyz</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="o">*</span><span class="n">names</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Convert x/y/z values into the other coordinates and return a</span>
-<span class="sd">        tuple of the requested values.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            *names: a series of coordinate names as specified in the function.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">phi</span><span class="p">,</span> <span class="n">theta</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">rho</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cartesian_to_other</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">)</span>
-
-        <span class="n">coords</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="n">x</span><span class="p">,</span>
-            <span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="n">y</span><span class="p">,</span>
-            <span class="s1">&#39;z&#39;</span><span class="p">:</span> <span class="n">z</span><span class="p">,</span>
-            <span class="s1">&#39;field&#39;</span><span class="p">:</span> <span class="n">field</span><span class="p">,</span>
-            <span class="s1">&#39;phi&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">degrees</span><span class="p">(</span><span class="n">phi</span><span class="p">),</span>
-            <span class="s1">&#39;theta&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">degrees</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span>
-            <span class="s1">&#39;rho&#39;</span><span class="p">:</span> <span class="n">rho</span>
-        <span class="p">}</span>
-
-        <span class="n">returned</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">coords</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">names</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">returned</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">returned</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">returned</span>
-
-    <span class="k">def</span> <span class="nf">_get_measured</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">names</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Return the measured coordinates specified in names. &quot;&quot;&quot;</span>
-        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_magnet_x</span><span class="o">.</span><span class="n">field</span><span class="p">()</span>
-        <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_magnet_y</span><span class="o">.</span><span class="n">field</span><span class="p">()</span>
-        <span class="n">z</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_magnet_z</span><span class="o">.</span><span class="n">field</span><span class="p">()</span>
-
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_from_xyz</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="o">*</span><span class="n">names</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">_get_setpoints</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">names</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot; Return the setpoints specified in names. &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_from_xyz</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__y</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__z</span><span class="p">,</span> <span class="o">*</span><span class="n">names</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">_set_x</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_set_fields</span><span class="p">((</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__y</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__z</span><span class="p">))</span>
-
-    <span class="k">def</span> <span class="nf">_set_y</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_set_fields</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">__x</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__z</span><span class="p">))</span>
-
-    <span class="k">def</span> <span class="nf">_set_z</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_set_fields</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">__x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__y</span><span class="p">,</span> <span class="n">value</span><span class="p">))</span>
-
-    <span class="k">def</span> <span class="nf">_set_spherical</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
-        <span class="n">field</span><span class="p">,</span> <span class="n">theta</span><span class="p">,</span> <span class="n">phi</span> <span class="o">=</span> <span class="n">values</span>
-
-        <span class="n">phi</span><span class="p">,</span> <span class="n">theta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="n">phi</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span>
-
-        <span class="n">x</span> <span class="o">=</span> <span class="n">field</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span>
-        <span class="n">y</span> <span class="o">=</span> <span class="n">field</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span>
-        <span class="n">z</span> <span class="o">=</span> <span class="n">field</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">_set_fields</span><span class="p">((</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">))</span>
-
-    <span class="k">def</span> <span class="nf">_set_phi</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
-        <span class="n">field</span><span class="p">,</span> <span class="n">theta</span><span class="p">,</span> <span class="n">phi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_setpoints</span><span class="p">(</span><span class="s1">&#39;field&#39;</span><span class="p">,</span> <span class="s1">&#39;theta&#39;</span><span class="p">,</span> <span class="s1">&#39;phi&#39;</span><span class="p">)</span>
-
-        <span class="n">phi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">_set_spherical</span><span class="p">((</span><span class="n">field</span><span class="p">,</span> <span class="n">theta</span><span class="p">,</span> <span class="n">phi</span><span class="p">))</span>
-
-    <span class="k">def</span> <span class="nf">_set_theta</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
-        <span class="n">field</span><span class="p">,</span> <span class="n">theta</span><span class="p">,</span> <span class="n">phi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_setpoints</span><span class="p">(</span><span class="s1">&#39;field&#39;</span><span class="p">,</span> <span class="s1">&#39;theta&#39;</span><span class="p">,</span> <span class="s1">&#39;phi&#39;</span><span class="p">)</span>
-
-        <span class="n">theta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">_set_spherical</span><span class="p">((</span><span class="n">field</span><span class="p">,</span> <span class="n">theta</span><span class="p">,</span> <span class="n">phi</span><span class="p">))</span>
-
-    <span class="k">def</span> <span class="nf">_set_field</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
-        <span class="n">field</span><span class="p">,</span> <span class="n">theta</span><span class="p">,</span> <span class="n">phi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_setpoints</span><span class="p">(</span><span class="s1">&#39;field&#39;</span><span class="p">,</span> <span class="s1">&#39;theta&#39;</span><span class="p">,</span> <span class="s1">&#39;phi&#39;</span><span class="p">)</span>
-
-        <span class="n">field</span> <span class="o">=</span> <span class="n">value</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">_set_spherical</span><span class="p">((</span><span class="n">field</span><span class="p">,</span> <span class="n">theta</span><span class="p">,</span> <span class="n">phi</span><span class="p">))</span>
-
-    <span class="k">def</span> <span class="nf">_set_cylindrical</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
-        <span class="n">phi</span><span class="p">,</span> <span class="n">rho</span><span class="p">,</span> <span class="n">z</span> <span class="o">=</span> <span class="n">values</span>
-
-        <span class="n">phi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span>
-
-        <span class="n">x</span> <span class="o">=</span> <span class="n">rho</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span>
-        <span class="n">y</span> <span class="o">=</span> <span class="n">rho</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">_set_fields</span><span class="p">((</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">))</span>
-
-    <span class="k">def</span> <span class="nf">_set_rho</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
-        <span class="n">phi</span><span class="p">,</span> <span class="n">rho</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_setpoints</span><span class="p">(</span><span class="s1">&#39;phi&#39;</span><span class="p">,</span> <span class="s1">&#39;rho&#39;</span><span class="p">)</span>
-
-        <span class="n">rho</span> <span class="o">=</span> <span class="n">value</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">_set_cylindrical</span><span class="p">((</span><span class="n">phi</span><span class="p">,</span> <span class="n">rho</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__z</span><span class="p">))</span>
+        <span class="k">return</span> <span class="nb">any</span><span class="p">([</span><span class="n">limit_function</span><span class="p">(</span><span class="o">*</span><span class="n">setpoint_values</span><span class="p">)</span> <span class="k">for</span> <span class="n">limit_function</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_field_limit</span><span class="p">])</span>
 
     <span class="k">def</span> <span class="nf">_set_fields</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -840,64 +661,134 @@
 <span class="sd">        Args:</span>
 <span class="sd">            values (tuple): a tuple of cartesian coordinates (x, y, z).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span> <span class="o">=</span> <span class="n">values</span>
-
-        <span class="c1"># Check if exceeding an individual magnet field limit</span>
-        <span class="c1"># These will throw a ValueError on an invalid value</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_magnet_x</span><span class="o">.</span><span class="n">field</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_magnet_y</span><span class="o">.</span><span class="n">field</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_magnet_z</span><span class="o">.</span><span class="n">field</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
 
         <span class="c1"># Check if exceeding the global field limit</span>
-        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">x</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">y</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">z</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_field_limit</span><span class="p">:</span>
-            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;_set_fields aborted; field would exceed limit of </span><span class="si">{}</span><span class="s1"> T&#39;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_verify_safe_setpoint</span><span class="p">(</span><span class="n">values</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;_set_fields aborted; field would exceed limit&quot;</span><span class="p">)</span>
 
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_field_limit</span><span class="p">))</span>
+        <span class="c1"># Check if the individual instruments are ready</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">([</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">],</span> <span class="n">values</span><span class="p">):</span>
 
-        <span class="c1"># Check if the individual magnet are not already ramping</span>
-        <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_magnet_x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_magnet_y</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_magnet_z</span><span class="p">]:</span>
-            <span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">ramping_state</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;ramping&#39;</span><span class="p">:</span>
+            <span class="n">instrument</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_instrument_</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+            <span class="n">instrument</span><span class="o">.</span><span class="n">field</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">instrument</span><span class="o">.</span><span class="n">ramping_state</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;ramping&quot;</span><span class="p">:</span>
                 <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;_set_fields aborted; magnet </span><span class="si">{}</span><span class="s1"> is already ramping&#39;</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">instrument</span><span class="p">))</span>
 
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">m</span><span class="p">))</span>
+        <span class="c1"># Now that we know we can proceed, call the individual instruments</span>
 
-        <span class="n">swept_x</span><span class="p">,</span> <span class="n">swept_y</span><span class="p">,</span> <span class="n">swept_z</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">False</span>
+        <span class="k">for</span> <span class="n">operator</span> <span class="ow">in</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">less</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">greater</span><span class="p">]:</span>
+            <span class="c1"># First ramp the coils that are decreasing in field strength.</span>
+            <span class="c1"># This will ensure that we are always in a save region as far as the quenching of the magnets is concerned</span>
+            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">([</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">],</span> <span class="n">values</span><span class="p">):</span>
 
-        <span class="c1"># First ramp the coils that are decreasing in field strength</span>
-        <span class="c1"># If the new setpoint is practically equal to the current one</span>
-        <span class="c1"># then leave it be</span>
-        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__x</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-8</span><span class="p">):</span>
-            <span class="n">swept_x</span> <span class="o">=</span> <span class="kc">True</span>
-        <span class="k">elif</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_magnet_x</span><span class="o">.</span><span class="n">field</span><span class="p">())</span> <span class="o">&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_magnet_x</span><span class="o">.</span><span class="n">_set_field</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">perform_safety_check</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-            <span class="n">swept_x</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">instrument</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_instrument_</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+                <span class="n">current_actual</span> <span class="o">=</span> <span class="n">instrument</span><span class="o">.</span><span class="n">field</span><span class="p">()</span>
+                <span class="c1"># If the new set point is practically equal to the current one then do nothing</span>
+                <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">current_actual</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-8</span><span class="p">):</span>
+                    <span class="k">continue</span>
+                <span class="c1"># evaluate if the new set point is lesser or greater then the current value</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">operator</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">value</span><span class="p">),</span> <span class="nb">abs</span><span class="p">(</span><span class="n">current_actual</span><span class="p">)):</span>
+                    <span class="k">continue</span>
 
-        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__y</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-8</span><span class="p">):</span>
-            <span class="n">swept_y</span> <span class="o">=</span> <span class="kc">True</span>
-        <span class="k">elif</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_magnet_y</span><span class="o">.</span><span class="n">field</span><span class="p">())</span> <span class="o">&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">y</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_magnet_y</span><span class="o">.</span><span class="n">_set_field</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">perform_safety_check</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-            <span class="n">swept_y</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">instrument</span><span class="o">.</span><span class="n">set_field</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">perform_safety_check</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__z</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-8</span><span class="p">):</span>
-            <span class="n">swept_z</span> <span class="o">=</span> <span class="kc">True</span>
-        <span class="k">elif</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_magnet_z</span><span class="o">.</span><span class="n">field</span><span class="p">())</span> <span class="o">&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">z</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_magnet_z</span><span class="o">.</span><span class="n">_set_field</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">perform_safety_check</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-            <span class="n">swept_z</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">def</span> <span class="nf">_request_field_change</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instrument</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This method is called by the child x/y/z magnets if they are set</span>
+<span class="sd">        individually. It results in additional safety checks being</span>
+<span class="sd">        performed by this 3D driver.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">instrument</span> <span class="ow">is</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_x</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_set_x</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">instrument</span> <span class="ow">is</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_y</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_set_y</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">instrument</span> <span class="ow">is</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_z</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_set_z</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;This magnet doesnt belong to its specified parent </span><span class="si">{}</span><span class="s1">&#39;</span>
+            <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
 
-        <span class="c1"># Finally, ramp up the coils that are increasing</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">swept_x</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_magnet_x</span><span class="o">.</span><span class="n">_set_field</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">perform_safety_check</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">_get_measured</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">names</span><span class="p">):</span>
 
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">swept_y</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_magnet_y</span><span class="o">.</span><span class="n">_set_field</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">perform_safety_check</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_x</span><span class="o">.</span><span class="n">field</span><span class="p">()</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_y</span><span class="o">.</span><span class="n">field</span><span class="p">()</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_z</span><span class="o">.</span><span class="n">field</span><span class="p">()</span>
+        <span class="n">measured_values</span> <span class="o">=</span> <span class="n">FieldVector</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="n">z</span><span class="p">)</span><span class="o">.</span><span class="n">get_components</span><span class="p">(</span><span class="o">*</span><span class="n">names</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">swept_z</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_magnet_z</span><span class="o">.</span><span class="n">_set_field</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">perform_safety_check</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="c1"># Convert angles from radians to degrees</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="n">measured_values</span><span class="p">))</span>
+        <span class="n">return_value</span> <span class="o">=</span> <span class="p">[</span><span class="n">d</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">names</span><span class="p">]</span>  <span class="c1"># Do not do &quot;return list(d.values())&quot;, because then there is no</span>
+        <span class="c1"># guaranty that the order in which the values are returned is the same as the original intention</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">names</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">return_value</span> <span class="o">=</span> <span class="n">return_value</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
-        <span class="c1"># Set the new actual setpoints</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">__x</span> <span class="o">=</span> <span class="n">x</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">__y</span> <span class="o">=</span> <span class="n">y</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">__z</span> <span class="o">=</span> <span class="n">z</span></div>
+        <span class="k">return</span> <span class="n">return_value</span>
+
+    <span class="k">def</span> <span class="nf">_get_setpoints</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">names</span><span class="p">):</span>
+
+        <span class="n">measured_values</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_set_point</span><span class="o">.</span><span class="n">get_components</span><span class="p">(</span><span class="o">*</span><span class="n">names</span><span class="p">)</span>
+
+        <span class="c1"># Convert angles from radians to degrees</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="n">measured_values</span><span class="p">))</span>
+        <span class="n">return_value</span> <span class="o">=</span> <span class="p">[</span><span class="n">d</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">names</span><span class="p">]</span>  <span class="c1"># Do not do &quot;return list(d.values())&quot;, because then there is no</span>
+        <span class="c1"># guaranty that the order in which the values are returned is the same as the original intention</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">names</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">return_value</span> <span class="o">=</span> <span class="n">return_value</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">return_value</span>
+
+    <span class="k">def</span> <span class="nf">_set_cartesian</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+        <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span> <span class="o">=</span> <span class="n">values</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_point</span><span class="o">.</span><span class="n">set_vector</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="n">z</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_fields</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_point</span><span class="o">.</span><span class="n">get_components</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_set_x</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_point</span><span class="o">.</span><span class="n">set_component</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_fields</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_point</span><span class="o">.</span><span class="n">get_components</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_set_y</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_point</span><span class="o">.</span><span class="n">set_component</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_fields</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_point</span><span class="o">.</span><span class="n">get_components</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_set_z</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">z</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_point</span><span class="o">.</span><span class="n">set_component</span><span class="p">(</span><span class="n">z</span><span class="o">=</span><span class="n">z</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_fields</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_point</span><span class="o">.</span><span class="n">get_components</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_set_spherical</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+        <span class="n">r</span><span class="p">,</span> <span class="n">theta</span><span class="p">,</span> <span class="n">phi</span> <span class="o">=</span> <span class="n">values</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_point</span><span class="o">.</span><span class="n">set_vector</span><span class="p">(</span><span class="n">r</span><span class="o">=</span><span class="n">r</span><span class="p">,</span> <span class="n">theta</span><span class="o">=</span><span class="n">theta</span><span class="p">,</span> <span class="n">phi</span><span class="o">=</span><span class="n">phi</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_fields</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_point</span><span class="o">.</span><span class="n">get_components</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_set_r</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">r</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_point</span><span class="o">.</span><span class="n">set_component</span><span class="p">(</span><span class="n">r</span><span class="o">=</span><span class="n">r</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_fields</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_point</span><span class="o">.</span><span class="n">get_components</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_set_theta</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">theta</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_point</span><span class="o">.</span><span class="n">set_component</span><span class="p">(</span><span class="n">theta</span><span class="o">=</span><span class="n">theta</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_fields</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_point</span><span class="o">.</span><span class="n">get_components</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_set_phi</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phi</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_point</span><span class="o">.</span><span class="n">set_component</span><span class="p">(</span><span class="n">phi</span><span class="o">=</span><span class="n">phi</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_fields</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_point</span><span class="o">.</span><span class="n">get_components</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_set_cylindrical</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+        <span class="n">rho</span><span class="p">,</span> <span class="n">phi</span><span class="p">,</span> <span class="n">z</span> <span class="o">=</span> <span class="n">values</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_point</span><span class="o">.</span><span class="n">set_vector</span><span class="p">(</span><span class="n">rho</span><span class="o">=</span><span class="n">rho</span><span class="p">,</span> <span class="n">phi</span><span class="o">=</span><span class="n">phi</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="n">z</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_fields</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_point</span><span class="o">.</span><span class="n">get_components</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_set_rho</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rho</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_point</span><span class="o">.</span><span class="n">set_component</span><span class="p">(</span><span class="n">rho</span><span class="o">=</span><span class="n">rho</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_fields</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_point</span><span class="o">.</span><span class="n">get_components</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">))</span>
+
+<div class="viewcode-block" id="AMI430_3D.get_mocker_messages"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.american_magnetics.html#qcodes.instrument_drivers.american_magnetics.AMI430.AMI430_3D.get_mocker_messages">[docs]</a>    <span class="k">def</span> <span class="nf">get_mocker_messages</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">messages</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">]:</span>
+            <span class="n">instrument</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_instrument_</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">instrument</span><span class="o">.</span><span class="n">is_testing</span><span class="p">():</span>
+                <span class="n">messages</span> <span class="o">+=</span> <span class="n">instrument</span><span class="o">.</span><span class="n">get_mock_messages</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">messages</span></div></div>
 </pre></div>
 
            </div>
