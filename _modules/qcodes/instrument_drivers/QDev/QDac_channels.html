@@ -414,9 +414,7 @@
                            <span class="n">parameter_class</span><span class="o">=</span><span class="n">ManualParameter</span><span class="p">,</span>
                            <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Bool</span><span class="p">(),</span>
                            <span class="n">initial_value</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                           <span class="n">docstring</span><span class="o">=</span><span class="s2">&quot;&quot;&quot;&quot;Toggles if DC voltage set should unset any ramp attached to this channel.</span>
-<span class="s2">                                     If you enable this you should ensure that any function generator is unset</span>
-<span class="s2">                                     from the channel before setting voltage&quot;&quot;&quot;</span><span class="p">)</span>
+                           <span class="n">docstring</span><span class="o">=</span><span class="s2">&quot;&quot;&quot;&quot;Deprecated with no functionality&quot;&quot;&quot;</span><span class="p">)</span>
         <span class="c1"># Initialise the instrument, all channels DC (unbind func. generators)</span>
         <span class="k">for</span> <span class="n">chan</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">chan_range</span><span class="p">:</span>
             <span class="c1"># Note: this call does NOT change the voltage on the channel</span>
@@ -487,9 +485,8 @@
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="p">[</span><span class="n">chan</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">vrange</span><span class="o">.</span><span class="n">get_latest</span><span class="p">()</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
                 <span class="n">v_set</span> <span class="o">=</span> <span class="n">v_set</span><span class="o">*</span><span class="mi">10</span>
             <span class="c1"># set the mode back to DC in case it had been changed</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">fast_voltage_set</span><span class="p">():</span>
-               <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;wav </span><span class="si">{}</span><span class="s1"> 0 0 0&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chan</span><span class="p">))</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;set </span><span class="si">{}</span><span class="s1"> </span><span class="si">{:.6f}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chan</span><span class="p">,</span> <span class="n">v_set</span><span class="p">))</span>
+            <span class="c1"># and then set the voltage</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;wav </span><span class="si">{}</span><span class="s1"> 0 0 0;set </span><span class="si">{}</span><span class="s1"> </span><span class="si">{:.6f}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">chan</span><span class="p">,</span> <span class="n">chan</span><span class="p">,</span> <span class="n">v_set</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">_set_vrange</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chan</span><span class="p">,</span> <span class="n">switchint</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -807,18 +804,20 @@
 <span class="sd">        if you want to use this response, we put it in self._write_response</span>
 <span class="sd">        (but only for the very last write call)</span>
 
-<span class="sd">        Note that this procedure makes it cumbersome to handle the returned</span>
-<span class="sd">        messages from concatenated commands, e.g. &#39;wav 1 1 1 0;fun 2 1 100 1 1&#39;</span>
-<span class="sd">        Please don&#39;t use concatenated commands</span>
+<span class="sd">        In this method we expect to read one termination char per command. As</span>
+<span class="sd">        commands are concatenated by `;` we count the number of concatenated</span>
+<span class="sd">        commands as count(&#39;;&#39;) + 1 e.g. &#39;wav 1 1 1 0;fun 2 1 100 1 1&#39; is two</span>
+<span class="sd">        commands. Note that only the response of the last command will be</span>
+<span class="sd">        available in `_write_response`</span>
 
-<span class="sd">        TODO (WilliamHPNielsen): add automatic de-concatenation of commands.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">debugmode</span><span class="p">:</span>
             <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Sending command string: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cmd</span><span class="p">))</span>
 
         <span class="n">nr_bytes_written</span><span class="p">,</span> <span class="n">ret_code</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">check_error</span><span class="p">(</span><span class="n">ret_code</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_write_response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">read</span><span class="p">()</span></div>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">cmd</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s1">&#39;;&#39;</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_write_response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">read</span><span class="p">()</span></div>
 
 <div class="viewcode-block" id="QDac.read"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.QDev.html#qcodes.instrument_drivers.QDev.QDac_channels.QDac.read">[docs]</a>    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">read</span><span class="p">()</span></div>
