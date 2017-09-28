@@ -2,396 +2,163 @@
 Qcodes example with Keithley 2600
 =================================
 
+**NOTE** This example is for the new (as of September 2017) channelised
+driver. If you are considering using the old driver, please reconsider.
+There is no functionality of the old driver that is not contained in the
+new one, but it might have a (slightly) different name.
+
 .. code:: ipython3
 
-    %matplotlib nbagg
-    import matplotlib.pyplot as plt
-    import time
-    import numpy as np
-    
     import qcodes as qc
     
-    qc.halt_bg()
-    qc.set_mp_method('spawn')  # force Windows behavior on mac
-    
-    # this makes a widget in the corner of the window to show and control
-    # subprocesses and any output they would print to the terminal
-    qc.show_subprocess_widget()
+    from qcodes.instrument_drivers.tektronix.Keithley_2600_channels import Keithley_2600
 
+.. code:: ipython3
+
+    # Create a station to hold all the instruments
+    
+    station = qc.Station()
+    
+    # instantiate the Keithley and add it to the station
+    
+    keith = Keithley_2600('keithley', 'TCPIP0::192.168.15.116::inst0::INSTR')
+    station.add_component(keith)
 
 
 .. parsed-literal::
 
-    <IPython.core.display.Javascript object>
-
-
-
-.. raw:: html
-
-    <style>.qcodes-output-view:not(.ui-draggable) {
-        bottom: 0;
-        right: 5px;
-    }
-    .qcodes-output-view {
-        position: fixed;
-        z-index: 999;
-        background-color: #fff;
-        box-shadow: 0 0 12px 1px rgba(87, 87, 87, 0.2);
-    }
-    
-    .qcodes-output-header  {
-        float: right;
-    }
-    
-    .qcodes-output-view span {
-        padding: 2px 6px 3px 12px;
-    }
-    
-    .qcodes-output-view .btn {
-        margin: 0 3px 0 0;
-    }
-    
-    .qcodes-output-view[qcodes-state=docked] .qcodes-docked,
-    .qcodes-output-view[qcodes-state=floated] .qcodes-floated,
-    .qcodes-output-view[qcodes-state=minimized] .qcodes-minimized,
-    .qcodes-output-view[qcodes-state=minimized] .qcodes-content {
-        display: none;
-    }
-    
-    .qcodes-output-view .disabled {
-        opacity: 0.4;
-    }
-    
-    .qcodes-abort-loop {
-        background-color: #844;
-        color: #fff;
-    }
-    
-    .qcodes-output-view pre {
-        clear: both;
-        margin: 0;
-        border: 0;
-        border-top: 1px solid #ccc;
-        background-color: #ffe;
-        min-height: 50px;
-        max-height: 400px;
-        min-width: 400px;
-        max-width: 1000px;
-    }</style>
-
-
-.. parsed-literal::
-
-    No loop running
-
-
-.. code:: ipython3
-
-    import qcodes.instrument_drivers.tektronix.Keithley_2600 as keith
-
-.. code:: ipython3
-
-    # spawn doesn't like function or class definitions in the interpreter
-    # session - had to move them to a file.
-    
-    # now create this "experiment"
-    k1 = keith.Keithley_2600('Keithley1', 'GPIB0::15::INSTR',channel='a')#,server_name=None)
-    k2 = keith.Keithley_2600('Keithley2', 'GPIB0::15::INSTR',channel='b')#,server_name=None)
-    
-    station = qc.Station(k1,k2)
-    
-    # could measure any number of things by adding arguments to this
-    # function call, but here we're just measuring one, the meter amplitude
-    station.set_measurement(k1.curr,k2.curr)
-    
-    # it's nice to have the key parameters be part of the global namespace
-    # that way they're objects that we can easily set, get, and slice
-    # this could be simplified to a station method that gathers all parameters
-    # and adds them all as (disambiguated) globals, printing what it did
-    # something like:
-    #   station.gather_parameters(globals())
-    
-    vsd1, vsd2, curr1, curr2 = k1.volt, k2.volt, k1.curr, k2.curr
-    
-    # once we have implemented a monitor, defining a station will start a
-    # DataServer process, and you would see it in the subprocess widget,
-    # or via active_children() as here:
-    # qc.active_children()
-
-.. code:: ipython3
-
-    station.snapshot()
+    Connected to: Keithley Instruments Inc. 2614B (serial:4084407, firmware:3.2.1) in 0.09s
 
 
 
 
 .. parsed-literal::
 
-    {'instruments': {'Keithley1': {'functions': {},
-       'metadata': {'info': {'model': '2614B',
-         'serial_number': '4083825',
-         'software_revision': '3.2.1',
-         'vendor': 'Keithley Instruments Inc.'}},
-       'parameters': {'curr': {'ts': None, 'value': None},
-        'limiti': {'ts': None, 'value': None},
-        'limitv': {'ts': None, 'value': None},
-        'mode': {'ts': None, 'value': None},
-        'output': {'ts': None, 'value': None},
-        'rangei': {'ts': None, 'value': None},
-        'rangev': {'ts': None, 'value': None},
-        'volt': {'ts': None, 'value': None}}},
-      'Keithley2': {'functions': {},
-       'metadata': {'info': {'model': '2614B',
-         'serial_number': '4083825',
-         'software_revision': '3.2.1',
-         'vendor': 'Keithley Instruments Inc.'}},
-       'parameters': {'curr': {'ts': None, 'value': None},
-        'limiti': {'ts': None, 'value': None},
-        'limitv': {'ts': None, 'value': None},
-        'mode': {'ts': None, 'value': None},
-        'output': {'ts': None, 'value': None},
-        'rangei': {'ts': None, 'value': None},
-        'rangev': {'ts': None, 'value': None},
-        'volt': {'ts': None, 'value': None}}}}}
+    'keithley'
 
 
+
+The Keithley 2600 has two channels, here called ``smua`` and ``smub`` in
+agreement with the instrument manual.
+
+The two channels are basically two separate instruments with different
+integration times (``nplc``), operation modes (``mode``) etc.
 
 .. code:: ipython3
 
-    # we can get the measured quantities right now
-    station.measure()
-
-
+    # Get an overview of the settings
+    #
+    # You will notice that the two channels have identical parameters but
+    # potentially different values for them
+    #
+    keith.print_readable_snapshot()
 
 
 .. parsed-literal::
 
-    [2.98023e-13, -9.41753e-13]
+    keithley:
+    	parameter      value
+    --------------------------------------------------------------------------------
+    IDN             :	{'vendor': 'Keithley Instruments Inc.', 'model': '2614B', '...
+    display_settext :	None 
+    timeout         :	5 (s)
+    keithley_smua:
+    	parameter     value
+    --------------------------------------------------------------------------------
+    curr           :	3.0994e-07 (A)
+    fastsweep      :	None 
+    limiti         :	0.1 (A)
+    limitv         :	20 (V)
+    measurerange_i :	0.1 (A)
+    measurerange_v :	2.00000e+01 (V)
+    mode           :	voltage 
+    nplc           :	0.05 
+    output         :	on 
+    sourcerange_i  :	1e-07 (A)
+    sourcerange_v  :	20 (V)
+    volt           :	1.9999 (V)
+    keithley_smub:
+    	parameter     value
+    --------------------------------------------------------------------------------
+    curr           :	-3.6955e-13 (A)
+    fastsweep      :	None 
+    limiti         :	0.1 (A)
+    limitv         :	20 (V)
+    measurerange_i :	1e-07 (A)
+    measurerange_v :	2.00000e-01 (V)
+    mode           :	voltage 
+    nplc           :	1 
+    output         :	off 
+    sourcerange_i  :	1e-07 (A)
+    sourcerange_v  :	0.2 (V)
+    volt           :	1.1206e-06 (V)
 
 
+Basic operation
+---------------
+
+Each channel operates in either ``voltage`` or ``current`` mode. The
+mode controls the *source* behaviour of the instrument, i.e. ``voltage``
+mode corresponds to an amp-meter (voltage source, current meter) and
+vice versa.
 
 .. code:: ipython3
 
-    # start a Loop (which by default runs in a seprarate process)
-    # the sweep values are defined by slicing the parameter object
-    # but more complicated sweeps (eg nonlinear, or adaptive) can
-    # easily be used instead
+    # Let's set up a single-shot current measurement
+    # on channel a
     
-    # Notice that I'm using an explicit location and `overwrite=True` here so that
-    # running this notebook over and over won't result in extra files.
-    # But if you leave these out, you get a new timestamped DataSet each time.
-    data = qc.Loop(vsd1[-5:5:0.5], 0.03).run(location='testsweep', overwrite=True)
+    keith.smua.mode('voltage')
+    keith.smua.nplc(0.05)  # 0.05 Power Line Cycles per measurement. At 50 Hz, this corresponds to 1 ms
+    keith.smua.sourcerange_v(20) 
+    keith.smua.measurerange_i(0.1)
+    #
+    keith.smua.volt(1)  # set the source to output 1 V
+    keith.smua.output('on')  # turn output on
+    curr = keith.smua.curr()
+    keith.smua.output('off')
     
-    # now there should be two extra processes running, DataServer and a sweep
-    # I'll omit the active_children call now because you can see them in the
-    # subprocess widget
+    print('Measured one current value: {} A'.format(curr))
 
 
 .. parsed-literal::
 
-    DataSet: DataMode.PULL_FROM_SERVER, location='testsweep'
-       curr_0: curr
-       curr_1: curr
-       volt: volt
-    started at 2016-04-20 15:37:23
+    Measured one current value: -1.54972e-06 A
 
+
+Fast IV curves
+--------------
+
+Onboard the Keithley 2600 sits a small computer that can interpret
+``Lua`` scripts. This can be used to make fast IV-curves and is
+supported by the QCoDeS driver.
 
 .. code:: ipython3
 
-    # manually bring the data into the main process and display it as numbers
-    data.sync()
-    data.arrays
+    # Let's make a fast IV curve by sweeping the voltage from 1 V to 2 V in 500 steps
+    # (when making this notebook, nothing was connected to the instrument, so we just measure noise)
 
+.. code:: ipython3
 
+    # This function performs the fast sweep and returns a QCoDeS DataSet
+    data = keith.smua.doFastSweep(1, 2, 500, mode='IV')
 
 
 .. parsed-literal::
 
-    {'curr_0': DataArray[20]: curr_0
-     array([ nan,  nan,  nan,  nan,  nan,  nan,  nan,  nan,  nan,  nan,  nan,
-             nan,  nan,  nan,  nan,  nan,  nan,  nan,  nan,  nan]),
-     'curr_1': DataArray[20]: curr_1
-     array([ nan,  nan,  nan,  nan,  nan,  nan,  nan,  nan,  nan,  nan,  nan,
-             nan,  nan,  nan,  nan,  nan,  nan,  nan,  nan,  nan]),
-     'volt': DataArray[20]: volt
-     array([ -5.,  nan,  nan,  nan,  nan,  nan,  nan,  nan,  nan,  nan,  nan,
-             nan,  nan,  nan,  nan,  nan,  nan,  nan,  nan,  nan])}
-
+    DataSet:
+       location = 'data/2017-09-28/#001_{name}_14-43-10'
+       <Type>   | <array_id>             | <array.name> | <array.shape>
+       Measured | keithley_smua_iv_sweep | iv_sweep     | (500,)
+    acquired at 2017-09-28 14:43:11
 
 
 .. code:: ipython3
 
-    # live-updating plot, that syncs the data and stops updating when it's finished
-    # plot = qc.MatPlot(data.amplitude)
-    plotQ1 = qc.QtPlot(data.volt, data.curr_0)
-    plotQ2 = qc.QtPlot(data.volt, data.curr_1)
+    # The DataSet may be plotted
+    plot = qc.MatPlot()
+    plot.add(data.arrays['keithley_smua_iv_sweep'])
 
 .. code:: ipython3
 
-    data2 = qc.Loop(vsd1[-5:5:0.1],0).each(
-                    qc.Loop(vsd2[-2:2:.2], 0)
-    ).run(location='test2d', overwrite=True)
-    
-    # use the subplot and add features of qc.MatPlot
-    # plot2 = qc.MatPlot(data2.amplitude_0, cmap=plt.cm.hot, figsize=(12, 4.5), subplots=(1, 2))
-    # plot2.add(data2.amplitude_3, cmap=plt.cm.hot, subplot=2)
-    
-    # the equivalent in QtPlot
-    plot2Q = qc.QtPlot(data2.curr_1, figsize=(1200, 500))
-    # plot2Q.add(data2.curr_1, subplot=2)
-
-
-.. parsed-literal::
-
-    DataSet: DataMode.PULL_FROM_SERVER, location='test2d'
-       curr_1: curr
-       volt: volt
-       curr_0: curr
-       volt_0: volt
-    started at 2016-04-20 15:22:46
-
-
-.. code:: ipython3
-
-    k1.setattr(('metadata','test'), 11)
-    k1.getattr('info')
-
-
-
-
-.. parsed-literal::
-
-    {'model': '2614B',
-     'serial_number': '4083825',
-     'software_revision': '3.2.1',
-     'vendor': 'Keithley Instruments Inc.'}
-
-
-
-.. code:: ipython3
-
-    k1.ask_direct('*IDN?')
-
-
-
-
-.. parsed-literal::
-
-    'Keithley Instruments Inc., Model 2614B, 4083825, 3.2.1'
-
-
-
-.. code:: ipython3
-
-    station.snapshot(update=True)
-
-
-
-
-.. parsed-literal::
-
-    {'instruments': {'Keithley1': {'functions': {},
-       'metadata': {'test': 11},
-       'parameters': {'curr': {'ts': '2016-04-20 15:31:51', 'value': -2.14577e-13},
-        'limiti': {'ts': '2016-04-20 15:31:51', 'value': 0.1},
-        'limitv': {'ts': '2016-04-20 15:31:51', 'value': 20.0},
-        'mode': {'ts': '2016-04-20 15:31:51', 'value': 'voltage'},
-        'output': {'ts': '2016-04-20 15:31:51', 'value': 'ON'},
-        'rangei': {'ts': '2016-04-20 15:31:51', 'value': 1e-07},
-        'rangev': {'ts': '2016-04-20 15:31:51', 'value': 20.0},
-        'volt': {'ts': '2016-04-20 15:31:51', 'value': 4.90016}}},
-      'Keithley2': {'functions': {},
-       'parameters': {'curr': {'ts': '2016-04-20 15:31:51', 'value': -1.07288e-12},
-        'limiti': {'ts': '2016-04-20 15:31:51', 'value': 0.1},
-        'limitv': {'ts': '2016-04-20 15:31:51', 'value': 20.0},
-        'mode': {'ts': '2016-04-20 15:31:51', 'value': 'voltage'},
-        'output': {'ts': '2016-04-20 15:31:51', 'value': 'ON'},
-        'rangei': {'ts': '2016-04-20 15:31:51', 'value': 1e-07},
-        'rangev': {'ts': '2016-04-20 15:31:51', 'value': 2.0},
-        'volt': {'ts': '2016-04-20 15:31:51', 'value': 1.80006}}}}}
-
-
-
-.. code:: ipython3
-
-    plot2Q.add(data2.curr_0, subplot=2)
-
-
-.. code:: ipython3
-
-    data3 = qc.Loop(vsd1[-15:15:1], 0).each(
-                    qc.Loop(vsd2[-5:5:1], 0),
-                    qc.Loop(vsd2[5:-5:1], 0),
-    ).run(location='test_multi_d', overwrite=True)
-    
-    # several plots updating simultaneously
-    # plot3 = qc.MatPlot(data3.curr_1_1, cmap=plt.cm.hot)
-    # plot3b = qc.MatPlot(data3.curr_1_0, cmap=plt.cm.hot, figsize=(12, 4.5), subplots=(1,2))
-    # plot3b.add(data3.curr_0_1, subplot=2)
-    plot3Q = qc.QtPlot(data3.curr_1)
-    plot3bQ = qc.QtPlot(data3.curr_1, figsize=(1200, 500))
-    plot3bQ.add(data3.curr_0, subplot=2)
-
-
-.. parsed-literal::
-
-    DataSet: DataMode.PULL_FROM_SERVER, location='test_multi_d'
-       curr_0_1: curr
-       volt_0: volt
-       curr_0_0: curr
-       volt_1: volt
-       curr_1_0: curr
-       curr_1_1: curr
-       volt: volt
-    started at 2016-04-20 14:09:16
-
-
-::
-
-
-    ---------------------------------------------------------------------------
-
-    AttributeError                            Traceback (most recent call last)
-
-    <ipython-input-18-7bcb44f808c5> in <module>()
-          8 # plot3b = qc.MatPlot(data3.curr_1_0, cmap=plt.cm.hot, figsize=(12, 4.5), subplots=(1,2))
-          9 # plot3b.add(data3.curr_0_1, subplot=2)
-    ---> 10 plot3Q = qc.QtPlot(data3.curr_1)
-         11 plot3bQ = qc.QtPlot(data3.curr_1, figsize=(1200, 500))
-         12 plot3bQ.add(data3.curr_0, subplot=2)
-
-
-    C:\Github\Qcodes\qcodes\utils\helpers.py in __getattr__(self, key)
-        187         raise AttributeError(
-        188             "'{}' object and its delegates have no attribute '{}'".format(
-    --> 189                 self.__class__.__name__, key))
-        190 
-        191     def __dir__(self):
-
-
-    AttributeError: 'DataSet' object and its delegates have no attribute 'curr_1'
-
-
-.. code:: ipython3
-
-    # An example of a parameter that returns several values of different dimension
-    # This produces the last two arrays from data3, but only takes the data once.
-    data4 = qc.Loop(c1[-15:15:1], 0.1).each(
-        AverageAndRaw(meter.amplitude, c2[-10:10:0.2], 0.001)
-    ).run(location='test_complex_param', overwrite=True)
-    
-    # plot4 = qc.MatPlot(data4.amplitude, cmap=plt.cm.hot, subplots=(1,2), figsize=(12, 4.5))
-    # plot4.add(data4.avg_amplitude, subplot=2)
-    plot4Q = qc.QtPlot(data4.amplitude, figsize=(1200, 500))
-    plot4Q.add(data4.avg_amplitude, subplot=2)
-
-
-.. parsed-literal::
-
-    DataSet: DataMode.PULL_FROM_SERVER, location='test_complex_param'
-       avg_amplitude: avg_amplitude
-       chan2: chan2
-       chan1: chan1
-       amplitude: amplitude
-    started at 2016-02-02 12:18:09
-
+    # Finally, tear down the instrument
+    keith.close()

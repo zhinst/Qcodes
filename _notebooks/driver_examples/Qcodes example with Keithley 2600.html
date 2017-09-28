@@ -103,14 +103,17 @@
 <li class="toctree-l1 current"><a class="reference internal" href="../../examples/index.html">Examples of using QCoDeS</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="../../examples/index.html#basic-examples">Basic examples</a></li>
 <li class="toctree-l2 current"><a class="reference internal" href="../../examples/index.html#drivers">Drivers</a><ul class="current">
-<li class="toctree-l3"><a class="reference internal" href="Keithley_example.html">Example script for Keithley driver</a></li>
 <li class="toctree-l3"><a class="reference internal" href="QCodes example with SR830.html">QCoDeS example with SR830</a></li>
 <li class="toctree-l3"><a class="reference internal" href="Qcodes example ATS_ONWORK.html">Qcodes example ATS_ONWORK</a></li>
 <li class="toctree-l3"><a class="reference internal" href="Qcodes example with AMI430.html">QCoDeS example with AMI430</a></li>
 <li class="toctree-l3"><a class="reference internal" href="Qcodes example with Agilent 34400A.html">Qcodes example with Agilent 34400A</a></li>
 <li class="toctree-l3"><a class="reference internal" href="Qcodes example with Decadac.html">Qcodes example with Decadac</a></li>
 <li class="toctree-l3"><a class="reference internal" href="Qcodes example with Ithaco.html">Qcodes example with Ithaco</a></li>
-<li class="toctree-l3 current"><a class="current reference internal" href="#">Qcodes example with Keithley 2600</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Qcodes example with Keithley 2600</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#basic-operation">Basic operation</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fast-iv-curves">Fast IV curves</a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="Qcodes example with Keysight 33500B.html">Qcodes example with Keysight 33500B</a></li>
 <li class="toctree-l3"><a class="reference internal" href="Qcodes example with Mercury IPS (Magnet).html">Qcodes example with Mercury IPS (Magnet)</a></li>
 <li class="toctree-l3"><a class="reference internal" href="Qcodes example with QDac.html">Qcodes example with QDac</a></li>
@@ -192,320 +195,136 @@
             
   <div class="section" id="qcodes-example-with-keithley-2600">
 <h1>Qcodes example with Keithley 2600<a class="headerlink" href="#qcodes-example-with-keithley-2600" title="Permalink to this headline">¶</a></h1>
-<div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="o">%</span><span class="n">matplotlib</span> <span class="n">nbagg</span>
-<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
-<span class="kn">import</span> <span class="nn">time</span>
-<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<p><strong>NOTE</strong> This example is for the new (as of September 2017) channelised
+driver. If you are considering using the old driver, please reconsider.
+There is no functionality of the old driver that is not contained in the
+new one, but it might have a (slightly) different name.</p>
+<div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">qcodes</span> <span class="k">as</span> <span class="nn">qc</span>
 
-<span class="kn">import</span> <span class="nn">qcodes</span> <span class="k">as</span> <span class="nn">qc</span>
-
-<span class="n">qc</span><span class="o">.</span><span class="n">halt_bg</span><span class="p">()</span>
-<span class="n">qc</span><span class="o">.</span><span class="n">set_mp_method</span><span class="p">(</span><span class="s1">&#39;spawn&#39;</span><span class="p">)</span>  <span class="c1"># force Windows behavior on mac</span>
-
-<span class="c1"># this makes a widget in the corner of the window to show and control</span>
-<span class="c1"># subprocesses and any output they would print to the terminal</span>
-<span class="n">qc</span><span class="o">.</span><span class="n">show_subprocess_widget</span><span class="p">()</span>
+<span class="kn">from</span> <span class="nn">qcodes.instrument_drivers.tektronix.Keithley_2600_channels</span> <span class="k">import</span> <span class="n">Keithley_2600</span>
 </pre></div>
 </div>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">IPython</span><span class="o">.</span><span class="n">core</span><span class="o">.</span><span class="n">display</span><span class="o">.</span><span class="n">Javascript</span> <span class="nb">object</span><span class="o">&gt;</span>
-</pre></div>
-</div>
-<style>.qcodes-output-view:not(.ui-draggable) {
-    bottom: 0;
-    right: 5px;
-}
-.qcodes-output-view {
-    position: fixed;
-    z-index: 999;
-    background-color: #fff;
-    box-shadow: 0 0 12px 1px rgba(87, 87, 87, 0.2);
-}
+<div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="c1"># Create a station to hold all the instruments</span>
 
-.qcodes-output-header  {
-    float: right;
-}
+<span class="n">station</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">Station</span><span class="p">()</span>
 
-.qcodes-output-view span {
-    padding: 2px 6px 3px 12px;
-}
+<span class="c1"># instantiate the Keithley and add it to the station</span>
 
-.qcodes-output-view .btn {
-    margin: 0 3px 0 0;
-}
+<span class="n">keith</span> <span class="o">=</span> <span class="n">Keithley_2600</span><span class="p">(</span><span class="s1">&#39;keithley&#39;</span><span class="p">,</span> <span class="s1">&#39;TCPIP0::192.168.15.116::inst0::INSTR&#39;</span><span class="p">)</span>
+<span class="n">station</span><span class="o">.</span><span class="n">add_component</span><span class="p">(</span><span class="n">keith</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">Connected</span> <span class="n">to</span><span class="p">:</span> <span class="n">Keithley</span> <span class="n">Instruments</span> <span class="n">Inc</span><span class="o">.</span> <span class="mi">2614</span><span class="n">B</span> <span class="p">(</span><span class="n">serial</span><span class="p">:</span><span class="mi">4084407</span><span class="p">,</span> <span class="n">firmware</span><span class="p">:</span><span class="mf">3.2</span><span class="o">.</span><span class="mi">1</span><span class="p">)</span> <span class="ow">in</span> <span class="mf">0.09</span><span class="n">s</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="s1">&#39;keithley&#39;</span>
+</pre></div>
+</div>
+<p>The Keithley 2600 has two channels, here called <code class="docutils literal"><span class="pre">smua</span></code> and <code class="docutils literal"><span class="pre">smub</span></code> in
+agreement with the instrument manual.</p>
+<p>The two channels are basically two separate instruments with different
+integration times (<code class="docutils literal"><span class="pre">nplc</span></code>), operation modes (<code class="docutils literal"><span class="pre">mode</span></code>) etc.</p>
+<div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="c1"># Get an overview of the settings</span>
+<span class="c1">#</span>
+<span class="c1"># You will notice that the two channels have identical parameters but</span>
+<span class="c1"># potentially different values for them</span>
+<span class="c1">#</span>
+<span class="n">keith</span><span class="o">.</span><span class="n">print_readable_snapshot</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">keithley</span><span class="p">:</span>
+    <span class="n">parameter</span>      <span class="n">value</span>
+<span class="o">--------------------------------------------------------------------------------</span>
+<span class="n">IDN</span>             <span class="p">:</span>   <span class="p">{</span><span class="s1">&#39;vendor&#39;</span><span class="p">:</span> <span class="s1">&#39;Keithley Instruments Inc.&#39;</span><span class="p">,</span> <span class="s1">&#39;model&#39;</span><span class="p">:</span> <span class="s1">&#39;2614B&#39;</span><span class="p">,</span> <span class="s1">&#39;...</span>
+<span class="n">display_settext</span> <span class="p">:</span>   <span class="kc">None</span>
+<span class="n">timeout</span>         <span class="p">:</span>   <span class="mi">5</span> <span class="p">(</span><span class="n">s</span><span class="p">)</span>
+<span class="n">keithley_smua</span><span class="p">:</span>
+    <span class="n">parameter</span>     <span class="n">value</span>
+<span class="o">--------------------------------------------------------------------------------</span>
+<span class="n">curr</span>           <span class="p">:</span>    <span class="mf">3.0994e-07</span> <span class="p">(</span><span class="n">A</span><span class="p">)</span>
+<span class="n">fastsweep</span>      <span class="p">:</span>    <span class="kc">None</span>
+<span class="n">limiti</span>         <span class="p">:</span>    <span class="mf">0.1</span> <span class="p">(</span><span class="n">A</span><span class="p">)</span>
+<span class="n">limitv</span>         <span class="p">:</span>    <span class="mi">20</span> <span class="p">(</span><span class="n">V</span><span class="p">)</span>
+<span class="n">measurerange_i</span> <span class="p">:</span>    <span class="mf">0.1</span> <span class="p">(</span><span class="n">A</span><span class="p">)</span>
+<span class="n">measurerange_v</span> <span class="p">:</span>    <span class="mf">2.00000e+01</span> <span class="p">(</span><span class="n">V</span><span class="p">)</span>
+<span class="n">mode</span>           <span class="p">:</span>    <span class="n">voltage</span>
+<span class="n">nplc</span>           <span class="p">:</span>    <span class="mf">0.05</span>
+<span class="n">output</span>         <span class="p">:</span>    <span class="n">on</span>
+<span class="n">sourcerange_i</span>  <span class="p">:</span>    <span class="mf">1e-07</span> <span class="p">(</span><span class="n">A</span><span class="p">)</span>
+<span class="n">sourcerange_v</span>  <span class="p">:</span>    <span class="mi">20</span> <span class="p">(</span><span class="n">V</span><span class="p">)</span>
+<span class="n">volt</span>           <span class="p">:</span>    <span class="mf">1.9999</span> <span class="p">(</span><span class="n">V</span><span class="p">)</span>
+<span class="n">keithley_smub</span><span class="p">:</span>
+    <span class="n">parameter</span>     <span class="n">value</span>
+<span class="o">--------------------------------------------------------------------------------</span>
+<span class="n">curr</span>           <span class="p">:</span>    <span class="o">-</span><span class="mf">3.6955e-13</span> <span class="p">(</span><span class="n">A</span><span class="p">)</span>
+<span class="n">fastsweep</span>      <span class="p">:</span>    <span class="kc">None</span>
+<span class="n">limiti</span>         <span class="p">:</span>    <span class="mf">0.1</span> <span class="p">(</span><span class="n">A</span><span class="p">)</span>
+<span class="n">limitv</span>         <span class="p">:</span>    <span class="mi">20</span> <span class="p">(</span><span class="n">V</span><span class="p">)</span>
+<span class="n">measurerange_i</span> <span class="p">:</span>    <span class="mf">1e-07</span> <span class="p">(</span><span class="n">A</span><span class="p">)</span>
+<span class="n">measurerange_v</span> <span class="p">:</span>    <span class="mf">2.00000e-01</span> <span class="p">(</span><span class="n">V</span><span class="p">)</span>
+<span class="n">mode</span>           <span class="p">:</span>    <span class="n">voltage</span>
+<span class="n">nplc</span>           <span class="p">:</span>    <span class="mi">1</span>
+<span class="n">output</span>         <span class="p">:</span>    <span class="n">off</span>
+<span class="n">sourcerange_i</span>  <span class="p">:</span>    <span class="mf">1e-07</span> <span class="p">(</span><span class="n">A</span><span class="p">)</span>
+<span class="n">sourcerange_v</span>  <span class="p">:</span>    <span class="mf">0.2</span> <span class="p">(</span><span class="n">V</span><span class="p">)</span>
+<span class="n">volt</span>           <span class="p">:</span>    <span class="mf">1.1206e-06</span> <span class="p">(</span><span class="n">V</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="section" id="basic-operation">
+<h2>Basic operation<a class="headerlink" href="#basic-operation" title="Permalink to this headline">¶</a></h2>
+<p>Each channel operates in either <code class="docutils literal"><span class="pre">voltage</span></code> or <code class="docutils literal"><span class="pre">current</span></code> mode. The
+mode controls the <em>source</em> behaviour of the instrument, i.e. <code class="docutils literal"><span class="pre">voltage</span></code>
+mode corresponds to an amp-meter (voltage source, current meter) and
+vice versa.</p>
+<div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="c1"># Let&#39;s set up a single-shot current measurement</span>
+<span class="c1"># on channel a</span>
 
-.qcodes-output-view[qcodes-state=docked] .qcodes-docked,
-.qcodes-output-view[qcodes-state=floated] .qcodes-floated,
-.qcodes-output-view[qcodes-state=minimized] .qcodes-minimized,
-.qcodes-output-view[qcodes-state=minimized] .qcodes-content {
-    display: none;
-}
+<span class="n">keith</span><span class="o">.</span><span class="n">smua</span><span class="o">.</span><span class="n">mode</span><span class="p">(</span><span class="s1">&#39;voltage&#39;</span><span class="p">)</span>
+<span class="n">keith</span><span class="o">.</span><span class="n">smua</span><span class="o">.</span><span class="n">nplc</span><span class="p">(</span><span class="mf">0.05</span><span class="p">)</span>  <span class="c1"># 0.05 Power Line Cycles per measurement. At 50 Hz, this corresponds to 1 ms</span>
+<span class="n">keith</span><span class="o">.</span><span class="n">smua</span><span class="o">.</span><span class="n">sourcerange_v</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span>
+<span class="n">keith</span><span class="o">.</span><span class="n">smua</span><span class="o">.</span><span class="n">measurerange_i</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
+<span class="c1">#</span>
+<span class="n">keith</span><span class="o">.</span><span class="n">smua</span><span class="o">.</span><span class="n">volt</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># set the source to output 1 V</span>
+<span class="n">keith</span><span class="o">.</span><span class="n">smua</span><span class="o">.</span><span class="n">output</span><span class="p">(</span><span class="s1">&#39;on&#39;</span><span class="p">)</span>  <span class="c1"># turn output on</span>
+<span class="n">curr</span> <span class="o">=</span> <span class="n">keith</span><span class="o">.</span><span class="n">smua</span><span class="o">.</span><span class="n">curr</span><span class="p">()</span>
+<span class="n">keith</span><span class="o">.</span><span class="n">smua</span><span class="o">.</span><span class="n">output</span><span class="p">(</span><span class="s1">&#39;off&#39;</span><span class="p">)</span>
 
-.qcodes-output-view .disabled {
-    opacity: 0.4;
-}
-
-.qcodes-abort-loop {
-    background-color: #844;
-    color: #fff;
-}
-
-.qcodes-output-view pre {
-    clear: both;
-    margin: 0;
-    border: 0;
-    border-top: 1px solid #ccc;
-    background-color: #ffe;
-    min-height: 50px;
-    max-height: 400px;
-    min-width: 400px;
-    max-width: 1000px;
-}</style><div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">No</span> <span class="n">loop</span> <span class="n">running</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Measured one current value: </span><span class="si">{}</span><span class="s1"> A&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">curr</span><span class="p">))</span>
 </pre></div>
 </div>
-<div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">qcodes.instrument_drivers.tektronix.Keithley_2600</span> <span class="k">as</span> <span class="nn">keith</span>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">Measured</span> <span class="n">one</span> <span class="n">current</span> <span class="n">value</span><span class="p">:</span> <span class="o">-</span><span class="mf">1.54972e-06</span> <span class="n">A</span>
 </pre></div>
 </div>
-<div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="c1"># spawn doesn&#39;t like function or class definitions in the interpreter</span>
-<span class="c1"># session - had to move them to a file.</span>
-
-<span class="c1"># now create this &quot;experiment&quot;</span>
-<span class="n">k1</span> <span class="o">=</span> <span class="n">keith</span><span class="o">.</span><span class="n">Keithley_2600</span><span class="p">(</span><span class="s1">&#39;Keithley1&#39;</span><span class="p">,</span> <span class="s1">&#39;GPIB0::15::INSTR&#39;</span><span class="p">,</span><span class="n">channel</span><span class="o">=</span><span class="s1">&#39;a&#39;</span><span class="p">)</span><span class="c1">#,server_name=None)</span>
-<span class="n">k2</span> <span class="o">=</span> <span class="n">keith</span><span class="o">.</span><span class="n">Keithley_2600</span><span class="p">(</span><span class="s1">&#39;Keithley2&#39;</span><span class="p">,</span> <span class="s1">&#39;GPIB0::15::INSTR&#39;</span><span class="p">,</span><span class="n">channel</span><span class="o">=</span><span class="s1">&#39;b&#39;</span><span class="p">)</span><span class="c1">#,server_name=None)</span>
-
-<span class="n">station</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">Station</span><span class="p">(</span><span class="n">k1</span><span class="p">,</span><span class="n">k2</span><span class="p">)</span>
-
-<span class="c1"># could measure any number of things by adding arguments to this</span>
-<span class="c1"># function call, but here we&#39;re just measuring one, the meter amplitude</span>
-<span class="n">station</span><span class="o">.</span><span class="n">set_measurement</span><span class="p">(</span><span class="n">k1</span><span class="o">.</span><span class="n">curr</span><span class="p">,</span><span class="n">k2</span><span class="o">.</span><span class="n">curr</span><span class="p">)</span>
-
-<span class="c1"># it&#39;s nice to have the key parameters be part of the global namespace</span>
-<span class="c1"># that way they&#39;re objects that we can easily set, get, and slice</span>
-<span class="c1"># this could be simplified to a station method that gathers all parameters</span>
-<span class="c1"># and adds them all as (disambiguated) globals, printing what it did</span>
-<span class="c1"># something like:</span>
-<span class="c1">#   station.gather_parameters(globals())</span>
-
-<span class="n">vsd1</span><span class="p">,</span> <span class="n">vsd2</span><span class="p">,</span> <span class="n">curr1</span><span class="p">,</span> <span class="n">curr2</span> <span class="o">=</span> <span class="n">k1</span><span class="o">.</span><span class="n">volt</span><span class="p">,</span> <span class="n">k2</span><span class="o">.</span><span class="n">volt</span><span class="p">,</span> <span class="n">k1</span><span class="o">.</span><span class="n">curr</span><span class="p">,</span> <span class="n">k2</span><span class="o">.</span><span class="n">curr</span>
-
-<span class="c1"># once we have implemented a monitor, defining a station will start a</span>
-<span class="c1"># DataServer process, and you would see it in the subprocess widget,</span>
-<span class="c1"># or via active_children() as here:</span>
-<span class="c1"># qc.active_children()</span>
+</div>
+<div class="section" id="fast-iv-curves">
+<h2>Fast IV curves<a class="headerlink" href="#fast-iv-curves" title="Permalink to this headline">¶</a></h2>
+<p>Onboard the Keithley 2600 sits a small computer that can interpret
+<code class="docutils literal"><span class="pre">Lua</span></code> scripts. This can be used to make fast IV-curves and is
+supported by the QCoDeS driver.</p>
+<div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="c1"># Let&#39;s make a fast IV curve by sweeping the voltage from 1 V to 2 V in 500 steps</span>
+<span class="c1"># (when making this notebook, nothing was connected to the instrument, so we just measure noise)</span>
 </pre></div>
 </div>
-<div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="n">station</span><span class="o">.</span><span class="n">snapshot</span><span class="p">()</span>
+<div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="c1"># This function performs the fast sweep and returns a QCoDeS DataSet</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">keith</span><span class="o">.</span><span class="n">smua</span><span class="o">.</span><span class="n">doFastSweep</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">500</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;IV&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s1">&#39;instruments&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;Keithley1&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;functions&#39;</span><span class="p">:</span> <span class="p">{},</span>
-   <span class="s1">&#39;metadata&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;info&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;model&#39;</span><span class="p">:</span> <span class="s1">&#39;2614B&#39;</span><span class="p">,</span>
-     <span class="s1">&#39;serial_number&#39;</span><span class="p">:</span> <span class="s1">&#39;4083825&#39;</span><span class="p">,</span>
-     <span class="s1">&#39;software_revision&#39;</span><span class="p">:</span> <span class="s1">&#39;3.2.1&#39;</span><span class="p">,</span>
-     <span class="s1">&#39;vendor&#39;</span><span class="p">:</span> <span class="s1">&#39;Keithley Instruments Inc.&#39;</span><span class="p">}},</span>
-   <span class="s1">&#39;parameters&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;curr&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
-    <span class="s1">&#39;limiti&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
-    <span class="s1">&#39;limitv&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
-    <span class="s1">&#39;mode&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
-    <span class="s1">&#39;output&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
-    <span class="s1">&#39;rangei&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
-    <span class="s1">&#39;rangev&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
-    <span class="s1">&#39;volt&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}}},</span>
-  <span class="s1">&#39;Keithley2&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;functions&#39;</span><span class="p">:</span> <span class="p">{},</span>
-   <span class="s1">&#39;metadata&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;info&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;model&#39;</span><span class="p">:</span> <span class="s1">&#39;2614B&#39;</span><span class="p">,</span>
-     <span class="s1">&#39;serial_number&#39;</span><span class="p">:</span> <span class="s1">&#39;4083825&#39;</span><span class="p">,</span>
-     <span class="s1">&#39;software_revision&#39;</span><span class="p">:</span> <span class="s1">&#39;3.2.1&#39;</span><span class="p">,</span>
-     <span class="s1">&#39;vendor&#39;</span><span class="p">:</span> <span class="s1">&#39;Keithley Instruments Inc.&#39;</span><span class="p">}},</span>
-   <span class="s1">&#39;parameters&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;curr&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
-    <span class="s1">&#39;limiti&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
-    <span class="s1">&#39;limitv&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
-    <span class="s1">&#39;mode&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
-    <span class="s1">&#39;output&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
-    <span class="s1">&#39;rangei&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
-    <span class="s1">&#39;rangev&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
-    <span class="s1">&#39;volt&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}}}}}</span>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">DataSet</span><span class="p">:</span>
+   <span class="n">location</span> <span class="o">=</span> <span class="s1">&#39;data/2017-09-28/#001_</span><span class="si">{name}</span><span class="s1">_14-43-10&#39;</span>
+   <span class="o">&lt;</span><span class="n">Type</span><span class="o">&gt;</span>   <span class="o">|</span> <span class="o">&lt;</span><span class="n">array_id</span><span class="o">&gt;</span>             <span class="o">|</span> <span class="o">&lt;</span><span class="n">array</span><span class="o">.</span><span class="n">name</span><span class="o">&gt;</span> <span class="o">|</span> <span class="o">&lt;</span><span class="n">array</span><span class="o">.</span><span class="n">shape</span><span class="o">&gt;</span>
+   <span class="n">Measured</span> <span class="o">|</span> <span class="n">keithley_smua_iv_sweep</span> <span class="o">|</span> <span class="n">iv_sweep</span>     <span class="o">|</span> <span class="p">(</span><span class="mi">500</span><span class="p">,)</span>
+<span class="n">acquired</span> <span class="n">at</span> <span class="mi">2017</span><span class="o">-</span><span class="mi">09</span><span class="o">-</span><span class="mi">28</span> <span class="mi">14</span><span class="p">:</span><span class="mi">43</span><span class="p">:</span><span class="mi">11</span>
 </pre></div>
 </div>
-<div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="c1"># we can get the measured quantities right now</span>
-<span class="n">station</span><span class="o">.</span><span class="n">measure</span><span class="p">()</span>
+<div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="c1"># The DataSet may be plotted</span>
+<span class="n">plot</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">MatPlot</span><span class="p">()</span>
+<span class="n">plot</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">arrays</span><span class="p">[</span><span class="s1">&#39;keithley_smua_iv_sweep&#39;</span><span class="p">])</span>
 </pre></div>
 </div>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="p">[</span><span class="mf">2.98023e-13</span><span class="p">,</span> <span class="o">-</span><span class="mf">9.41753e-13</span><span class="p">]</span>
+<div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="c1"># Finally, tear down the instrument</span>
+<span class="n">keith</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 </pre></div>
 </div>
-<div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="c1"># start a Loop (which by default runs in a seprarate process)</span>
-<span class="c1"># the sweep values are defined by slicing the parameter object</span>
-<span class="c1"># but more complicated sweeps (eg nonlinear, or adaptive) can</span>
-<span class="c1"># easily be used instead</span>
-
-<span class="c1"># Notice that I&#39;m using an explicit location and `overwrite=True` here so that</span>
-<span class="c1"># running this notebook over and over won&#39;t result in extra files.</span>
-<span class="c1"># But if you leave these out, you get a new timestamped DataSet each time.</span>
-<span class="n">data</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">Loop</span><span class="p">(</span><span class="n">vsd1</span><span class="p">[</span><span class="o">-</span><span class="mi">5</span><span class="p">:</span><span class="mi">5</span><span class="p">:</span><span class="mf">0.5</span><span class="p">],</span> <span class="mf">0.03</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="s1">&#39;testsweep&#39;</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
-<span class="c1"># now there should be two extra processes running, DataServer and a sweep</span>
-<span class="c1"># I&#39;ll omit the active_children call now because you can see them in the</span>
-<span class="c1"># subprocess widget</span>
-</pre></div>
-</div>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">DataSet</span><span class="p">:</span> <span class="n">DataMode</span><span class="o">.</span><span class="n">PULL_FROM_SERVER</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="s1">&#39;testsweep&#39;</span>
-   <span class="n">curr_0</span><span class="p">:</span> <span class="n">curr</span>
-   <span class="n">curr_1</span><span class="p">:</span> <span class="n">curr</span>
-   <span class="n">volt</span><span class="p">:</span> <span class="n">volt</span>
-<span class="n">started</span> <span class="n">at</span> <span class="mi">2016</span><span class="o">-</span><span class="mi">04</span><span class="o">-</span><span class="mi">20</span> <span class="mi">15</span><span class="p">:</span><span class="mi">37</span><span class="p">:</span><span class="mi">23</span>
-</pre></div>
-</div>
-<div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="c1"># manually bring the data into the main process and display it as numbers</span>
-<span class="n">data</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
-<span class="n">data</span><span class="o">.</span><span class="n">arrays</span>
-</pre></div>
-</div>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s1">&#39;curr_0&#39;</span><span class="p">:</span> <span class="n">DataArray</span><span class="p">[</span><span class="mi">20</span><span class="p">]:</span> <span class="n">curr_0</span>
- <span class="n">array</span><span class="p">([</span> <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>
-         <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">]),</span>
- <span class="s1">&#39;curr_1&#39;</span><span class="p">:</span> <span class="n">DataArray</span><span class="p">[</span><span class="mi">20</span><span class="p">]:</span> <span class="n">curr_1</span>
- <span class="n">array</span><span class="p">([</span> <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>
-         <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">]),</span>
- <span class="s1">&#39;volt&#39;</span><span class="p">:</span> <span class="n">DataArray</span><span class="p">[</span><span class="mi">20</span><span class="p">]:</span> <span class="n">volt</span>
- <span class="n">array</span><span class="p">([</span> <span class="o">-</span><span class="mf">5.</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>
-         <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">,</span>  <span class="n">nan</span><span class="p">])}</span>
-</pre></div>
-</div>
-<div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="c1"># live-updating plot, that syncs the data and stops updating when it&#39;s finished</span>
-<span class="c1"># plot = qc.MatPlot(data.amplitude)</span>
-<span class="n">plotQ1</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">QtPlot</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">volt</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">curr_0</span><span class="p">)</span>
-<span class="n">plotQ2</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">QtPlot</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">volt</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">curr_1</span><span class="p">)</span>
-</pre></div>
-</div>
-<div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="n">data2</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">Loop</span><span class="p">(</span><span class="n">vsd1</span><span class="p">[</span><span class="o">-</span><span class="mi">5</span><span class="p">:</span><span class="mi">5</span><span class="p">:</span><span class="mf">0.1</span><span class="p">],</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">each</span><span class="p">(</span>
-                <span class="n">qc</span><span class="o">.</span><span class="n">Loop</span><span class="p">(</span><span class="n">vsd2</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:</span><span class="mi">2</span><span class="p">:</span><span class="o">.</span><span class="mi">2</span><span class="p">],</span> <span class="mi">0</span><span class="p">)</span>
-<span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="s1">&#39;test2d&#39;</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
-<span class="c1"># use the subplot and add features of qc.MatPlot</span>
-<span class="c1"># plot2 = qc.MatPlot(data2.amplitude_0, cmap=plt.cm.hot, figsize=(12, 4.5), subplots=(1, 2))</span>
-<span class="c1"># plot2.add(data2.amplitude_3, cmap=plt.cm.hot, subplot=2)</span>
-
-<span class="c1"># the equivalent in QtPlot</span>
-<span class="n">plot2Q</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">QtPlot</span><span class="p">(</span><span class="n">data2</span><span class="o">.</span><span class="n">curr_1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">1200</span><span class="p">,</span> <span class="mi">500</span><span class="p">))</span>
-<span class="c1"># plot2Q.add(data2.curr_1, subplot=2)</span>
-</pre></div>
-</div>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">DataSet</span><span class="p">:</span> <span class="n">DataMode</span><span class="o">.</span><span class="n">PULL_FROM_SERVER</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="s1">&#39;test2d&#39;</span>
-   <span class="n">curr_1</span><span class="p">:</span> <span class="n">curr</span>
-   <span class="n">volt</span><span class="p">:</span> <span class="n">volt</span>
-   <span class="n">curr_0</span><span class="p">:</span> <span class="n">curr</span>
-   <span class="n">volt_0</span><span class="p">:</span> <span class="n">volt</span>
-<span class="n">started</span> <span class="n">at</span> <span class="mi">2016</span><span class="o">-</span><span class="mi">04</span><span class="o">-</span><span class="mi">20</span> <span class="mi">15</span><span class="p">:</span><span class="mi">22</span><span class="p">:</span><span class="mi">46</span>
-</pre></div>
-</div>
-<div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="n">k1</span><span class="o">.</span><span class="n">setattr</span><span class="p">((</span><span class="s1">&#39;metadata&#39;</span><span class="p">,</span><span class="s1">&#39;test&#39;</span><span class="p">),</span> <span class="mi">11</span><span class="p">)</span>
-<span class="n">k1</span><span class="o">.</span><span class="n">getattr</span><span class="p">(</span><span class="s1">&#39;info&#39;</span><span class="p">)</span>
-</pre></div>
-</div>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s1">&#39;model&#39;</span><span class="p">:</span> <span class="s1">&#39;2614B&#39;</span><span class="p">,</span>
- <span class="s1">&#39;serial_number&#39;</span><span class="p">:</span> <span class="s1">&#39;4083825&#39;</span><span class="p">,</span>
- <span class="s1">&#39;software_revision&#39;</span><span class="p">:</span> <span class="s1">&#39;3.2.1&#39;</span><span class="p">,</span>
- <span class="s1">&#39;vendor&#39;</span><span class="p">:</span> <span class="s1">&#39;Keithley Instruments Inc.&#39;</span><span class="p">}</span>
-</pre></div>
-</div>
-<div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="n">k1</span><span class="o">.</span><span class="n">ask_direct</span><span class="p">(</span><span class="s1">&#39;*IDN?&#39;</span><span class="p">)</span>
-</pre></div>
-</div>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="s1">&#39;Keithley Instruments Inc., Model 2614B, 4083825, 3.2.1&#39;</span>
-</pre></div>
-</div>
-<div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="n">station</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</pre></div>
-</div>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s1">&#39;instruments&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;Keithley1&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;functions&#39;</span><span class="p">:</span> <span class="p">{},</span>
-   <span class="s1">&#39;metadata&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;test&#39;</span><span class="p">:</span> <span class="mi">11</span><span class="p">},</span>
-   <span class="s1">&#39;parameters&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;curr&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="s1">&#39;2016-04-20 15:31:51&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mf">2.14577e-13</span><span class="p">},</span>
-    <span class="s1">&#39;limiti&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="s1">&#39;2016-04-20 15:31:51&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">},</span>
-    <span class="s1">&#39;limitv&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="s1">&#39;2016-04-20 15:31:51&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="mf">20.0</span><span class="p">},</span>
-    <span class="s1">&#39;mode&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="s1">&#39;2016-04-20 15:31:51&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="s1">&#39;voltage&#39;</span><span class="p">},</span>
-    <span class="s1">&#39;output&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="s1">&#39;2016-04-20 15:31:51&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="s1">&#39;ON&#39;</span><span class="p">},</span>
-    <span class="s1">&#39;rangei&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="s1">&#39;2016-04-20 15:31:51&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="mf">1e-07</span><span class="p">},</span>
-    <span class="s1">&#39;rangev&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="s1">&#39;2016-04-20 15:31:51&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="mf">20.0</span><span class="p">},</span>
-    <span class="s1">&#39;volt&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="s1">&#39;2016-04-20 15:31:51&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="mf">4.90016</span><span class="p">}}},</span>
-  <span class="s1">&#39;Keithley2&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;functions&#39;</span><span class="p">:</span> <span class="p">{},</span>
-   <span class="s1">&#39;parameters&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;curr&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="s1">&#39;2016-04-20 15:31:51&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mf">1.07288e-12</span><span class="p">},</span>
-    <span class="s1">&#39;limiti&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="s1">&#39;2016-04-20 15:31:51&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">},</span>
-    <span class="s1">&#39;limitv&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="s1">&#39;2016-04-20 15:31:51&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="mf">20.0</span><span class="p">},</span>
-    <span class="s1">&#39;mode&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="s1">&#39;2016-04-20 15:31:51&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="s1">&#39;voltage&#39;</span><span class="p">},</span>
-    <span class="s1">&#39;output&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="s1">&#39;2016-04-20 15:31:51&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="s1">&#39;ON&#39;</span><span class="p">},</span>
-    <span class="s1">&#39;rangei&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="s1">&#39;2016-04-20 15:31:51&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="mf">1e-07</span><span class="p">},</span>
-    <span class="s1">&#39;rangev&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="s1">&#39;2016-04-20 15:31:51&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="mf">2.0</span><span class="p">},</span>
-    <span class="s1">&#39;volt&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="s1">&#39;2016-04-20 15:31:51&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="mf">1.80006</span><span class="p">}}}}}</span>
-</pre></div>
-</div>
-<div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="n">plot2Q</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">data2</span><span class="o">.</span><span class="n">curr_0</span><span class="p">,</span> <span class="n">subplot</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-</pre></div>
-</div>
-<div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="n">data3</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">Loop</span><span class="p">(</span><span class="n">vsd1</span><span class="p">[</span><span class="o">-</span><span class="mi">15</span><span class="p">:</span><span class="mi">15</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">each</span><span class="p">(</span>
-                <span class="n">qc</span><span class="o">.</span><span class="n">Loop</span><span class="p">(</span><span class="n">vsd2</span><span class="p">[</span><span class="o">-</span><span class="mi">5</span><span class="p">:</span><span class="mi">5</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="mi">0</span><span class="p">),</span>
-                <span class="n">qc</span><span class="o">.</span><span class="n">Loop</span><span class="p">(</span><span class="n">vsd2</span><span class="p">[</span><span class="mi">5</span><span class="p">:</span><span class="o">-</span><span class="mi">5</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="mi">0</span><span class="p">),</span>
-<span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="s1">&#39;test_multi_d&#39;</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
-<span class="c1"># several plots updating simultaneously</span>
-<span class="c1"># plot3 = qc.MatPlot(data3.curr_1_1, cmap=plt.cm.hot)</span>
-<span class="c1"># plot3b = qc.MatPlot(data3.curr_1_0, cmap=plt.cm.hot, figsize=(12, 4.5), subplots=(1,2))</span>
-<span class="c1"># plot3b.add(data3.curr_0_1, subplot=2)</span>
-<span class="n">plot3Q</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">QtPlot</span><span class="p">(</span><span class="n">data3</span><span class="o">.</span><span class="n">curr_1</span><span class="p">)</span>
-<span class="n">plot3bQ</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">QtPlot</span><span class="p">(</span><span class="n">data3</span><span class="o">.</span><span class="n">curr_1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">1200</span><span class="p">,</span> <span class="mi">500</span><span class="p">))</span>
-<span class="n">plot3bQ</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">data3</span><span class="o">.</span><span class="n">curr_0</span><span class="p">,</span> <span class="n">subplot</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-</pre></div>
-</div>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">DataSet</span><span class="p">:</span> <span class="n">DataMode</span><span class="o">.</span><span class="n">PULL_FROM_SERVER</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="s1">&#39;test_multi_d&#39;</span>
-   <span class="n">curr_0_1</span><span class="p">:</span> <span class="n">curr</span>
-   <span class="n">volt_0</span><span class="p">:</span> <span class="n">volt</span>
-   <span class="n">curr_0_0</span><span class="p">:</span> <span class="n">curr</span>
-   <span class="n">volt_1</span><span class="p">:</span> <span class="n">volt</span>
-   <span class="n">curr_1_0</span><span class="p">:</span> <span class="n">curr</span>
-   <span class="n">curr_1_1</span><span class="p">:</span> <span class="n">curr</span>
-   <span class="n">volt</span><span class="p">:</span> <span class="n">volt</span>
-<span class="n">started</span> <span class="n">at</span> <span class="mi">2016</span><span class="o">-</span><span class="mi">04</span><span class="o">-</span><span class="mi">20</span> <span class="mi">14</span><span class="p">:</span><span class="mi">09</span><span class="p">:</span><span class="mi">16</span>
-</pre></div>
-</div>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">---------------------------------------------------------------------------</span>
-
-<span class="ne">AttributeError</span>                            <span class="n">Traceback</span> <span class="p">(</span><span class="n">most</span> <span class="n">recent</span> <span class="n">call</span> <span class="n">last</span><span class="p">)</span>
-
-<span class="o">&lt;</span><span class="n">ipython</span><span class="o">-</span><span class="nb">input</span><span class="o">-</span><span class="mi">18</span><span class="o">-</span><span class="mi">7</span><span class="n">bcb44f808c5</span><span class="o">&gt;</span> <span class="ow">in</span> <span class="o">&lt;</span><span class="n">module</span><span class="o">&gt;</span><span class="p">()</span>
-      <span class="mi">8</span> <span class="c1"># plot3b = qc.MatPlot(data3.curr_1_0, cmap=plt.cm.hot, figsize=(12, 4.5), subplots=(1,2))</span>
-      <span class="mi">9</span> <span class="c1"># plot3b.add(data3.curr_0_1, subplot=2)</span>
-<span class="o">---&gt;</span> <span class="mi">10</span> <span class="n">plot3Q</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">QtPlot</span><span class="p">(</span><span class="n">data3</span><span class="o">.</span><span class="n">curr_1</span><span class="p">)</span>
-     <span class="mi">11</span> <span class="n">plot3bQ</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">QtPlot</span><span class="p">(</span><span class="n">data3</span><span class="o">.</span><span class="n">curr_1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">1200</span><span class="p">,</span> <span class="mi">500</span><span class="p">))</span>
-     <span class="mi">12</span> <span class="n">plot3bQ</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">data3</span><span class="o">.</span><span class="n">curr_0</span><span class="p">,</span> <span class="n">subplot</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-
-
-<span class="n">C</span><span class="p">:</span>\<span class="n">Github</span>\<span class="n">Qcodes</span>\<span class="n">qcodes</span>\<span class="n">utils</span>\<span class="n">helpers</span><span class="o">.</span><span class="n">py</span> <span class="ow">in</span> <span class="fm">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
-    <span class="mi">187</span>         <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span>
-    <span class="mi">188</span>             <span class="s2">&quot;&#39;</span><span class="si">{}</span><span class="s2">&#39; object and its delegates have no attribute &#39;</span><span class="si">{}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-<span class="o">--&gt;</span> <span class="mi">189</span>                 <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">key</span><span class="p">))</span>
-    <span class="mi">190</span>
-    <span class="mi">191</span>     <span class="k">def</span> <span class="nf">__dir__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-
-
-<span class="ne">AttributeError</span><span class="p">:</span> <span class="s1">&#39;DataSet&#39;</span> <span class="nb">object</span> <span class="ow">and</span> <span class="n">its</span> <span class="n">delegates</span> <span class="n">have</span> <span class="n">no</span> <span class="n">attribute</span> <span class="s1">&#39;curr_1&#39;</span>
-</pre></div>
-</div>
-<div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="c1"># An example of a parameter that returns several values of different dimension</span>
-<span class="c1"># This produces the last two arrays from data3, but only takes the data once.</span>
-<span class="n">data4</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">Loop</span><span class="p">(</span><span class="n">c1</span><span class="p">[</span><span class="o">-</span><span class="mi">15</span><span class="p">:</span><span class="mi">15</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">each</span><span class="p">(</span>
-    <span class="n">AverageAndRaw</span><span class="p">(</span><span class="n">meter</span><span class="o">.</span><span class="n">amplitude</span><span class="p">,</span> <span class="n">c2</span><span class="p">[</span><span class="o">-</span><span class="mi">10</span><span class="p">:</span><span class="mi">10</span><span class="p">:</span><span class="mf">0.2</span><span class="p">],</span> <span class="mf">0.001</span><span class="p">)</span>
-<span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">location</span><span class="o">=</span><span class="s1">&#39;test_complex_param&#39;</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
-<span class="c1"># plot4 = qc.MatPlot(data4.amplitude, cmap=plt.cm.hot, subplots=(1,2), figsize=(12, 4.5))</span>
-<span class="c1"># plot4.add(data4.avg_amplitude, subplot=2)</span>
-<span class="n">plot4Q</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">QtPlot</span><span class="p">(</span><span class="n">data4</span><span class="o">.</span><span class="n">amplitude</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">1200</span><span class="p">,</span> <span class="mi">500</span><span class="p">))</span>
-<span class="n">plot4Q</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">data4</span><span class="o">.</span><span class="n">avg_amplitude</span><span class="p">,</span> <span class="n">subplot</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-</pre></div>
-</div>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">DataSet</span><span class="p">:</span> <span class="n">DataMode</span><span class="o">.</span><span class="n">PULL_FROM_SERVER</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="s1">&#39;test_complex_param&#39;</span>
-   <span class="n">avg_amplitude</span><span class="p">:</span> <span class="n">avg_amplitude</span>
-   <span class="n">chan2</span><span class="p">:</span> <span class="n">chan2</span>
-   <span class="n">chan1</span><span class="p">:</span> <span class="n">chan1</span>
-   <span class="n">amplitude</span><span class="p">:</span> <span class="n">amplitude</span>
-<span class="n">started</span> <span class="n">at</span> <span class="mi">2016</span><span class="o">-</span><span class="mi">02</span><span class="o">-</span><span class="mi">02</span> <span class="mi">12</span><span class="p">:</span><span class="mi">18</span><span class="p">:</span><span class="mi">09</span>
-</pre></div>
 </div>
 </div>
 
