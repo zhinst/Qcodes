@@ -173,6 +173,12 @@
 <span class="n">_NO_SNAPSHOT</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;Action without snapshot&#39;</span><span class="p">}</span>
 
 
+<span class="c1"># exception when threading is attempted used to simultaneously</span>
+<span class="c1"># query the same instrument for several values</span>
+<span class="k">class</span> <span class="nc">UnsafeThreadingException</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
 <span class="k">def</span> <span class="nf">_actions_snapshot</span><span class="p">(</span><span class="n">actions</span><span class="p">,</span> <span class="n">update</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Make a list of snapshots from a list of actions.&quot;&quot;&quot;</span>
     <span class="n">snapshot</span> <span class="o">=</span> <span class="p">[]</span>
@@ -278,8 +284,12 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">getters</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">param_ids</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">composite</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">paramcheck</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># list to check if parameters are unique</span>
         <span class="k">for</span> <span class="n">param</span><span class="p">,</span> <span class="n">action_indices</span> <span class="ow">in</span> <span class="n">params_indices</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">getters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">get</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">_instrument</span><span class="p">:</span>
+                <span class="n">paramcheck</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">param</span><span class="p">,</span> <span class="n">param</span><span class="o">.</span><span class="n">_instrument</span><span class="p">))</span>
 
             <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="s1">&#39;names&#39;</span><span class="p">):</span>
                 <span class="n">part_ids</span> <span class="o">=</span> <span class="p">[]</span>
@@ -292,6 +302,17 @@
                 <span class="n">param_id</span> <span class="o">=</span> <span class="n">data_set</span><span class="o">.</span><span class="n">action_id_map</span><span class="p">[</span><span class="n">action_indices</span><span class="p">]</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">param_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">param_id</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">composite</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_threads</span><span class="p">:</span>
+            <span class="n">insts</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">paramcheck</span><span class="p">]</span>
+            <span class="k">if</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">insts</span><span class="p">))</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">insts</span><span class="p">)):</span>
+                <span class="n">duplicates</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">paramcheck</span> <span class="k">if</span> <span class="n">insts</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">]</span>
+                <span class="k">raise</span> <span class="n">UnsafeThreadingException</span><span class="p">(</span><span class="s1">&#39;Can not use threading to &#39;</span>
+                                               <span class="s1">&#39;read &#39;</span>
+                                               <span class="s1">&#39;several things from the same &#39;</span>
+                                               <span class="s1">&#39;instrument. Specifically, you &#39;</span>
+                                               <span class="s1">&#39;asked for&#39;</span>
+                                               <span class="s1">&#39; </span><span class="si">{}</span><span class="s1">.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">duplicates</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">loop_indices</span><span class="p">,</span> <span class="o">**</span><span class="n">ignore_kwargs</span><span class="p">):</span>
         <span class="n">out_dict</span> <span class="o">=</span> <span class="p">{}</span>
@@ -331,7 +352,7 @@
 
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Loop action that breaks out of the loop if a condition is truthy.</span>
-<span class="sd">    </span>
+
 <span class="sd">    Args:</span>
 <span class="sd">        condition (callable): a callable taking no arguments.</span>
 <span class="sd">            Can be a simple function that returns truthy when it&#39;s time to quit</span>
