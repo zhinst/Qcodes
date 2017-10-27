@@ -167,10 +167,14 @@
 <span class="kn">import</span> <span class="nn">re</span>
 <span class="kn">import</span> <span class="nn">math</span>
 <span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">logging</span>
 
 <span class="kn">from</span> <span class="nn">qcodes.utils.helpers</span> <span class="k">import</span> <span class="n">deep_update</span><span class="p">,</span> <span class="n">NumpyJSONEncoder</span>
 <span class="kn">from</span> <span class="nn">.data_array</span> <span class="k">import</span> <span class="n">DataArray</span>
 <span class="kn">from</span> <span class="nn">.format</span> <span class="k">import</span> <span class="n">Formatter</span>
+
+
+<span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="GNUPlotFormat"><a class="viewcode-back" href="../../../api/generated/qcodes.GNUPlotFormat.html#qcodes.GNUPlotFormat">[docs]</a><span class="k">class</span> <span class="nc">GNUPlotFormat</span><span class="p">(</span><span class="n">Formatter</span><span class="p">):</span>
@@ -404,7 +408,8 @@
             <span class="n">parts</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;&quot;\s+&quot;&#39;</span><span class="p">,</span> <span class="n">labelstr</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
             <span class="k">return</span> <span class="p">[</span><span class="n">l</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&quot;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\\\\</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">parts</span><span class="p">]</span>
 
-    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_set</span><span class="p">,</span> <span class="n">io_manager</span><span class="p">,</span> <span class="n">location</span><span class="p">,</span> <span class="n">force_write</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">write_metadata</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_set</span><span class="p">,</span> <span class="n">io_manager</span><span class="p">,</span> <span class="n">location</span><span class="p">,</span> <span class="n">force_write</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+              <span class="n">write_metadata</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">only_complete</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Write updates in this DataSet to storage.</span>
 
@@ -414,6 +419,11 @@
 <span class="sd">            data_set (DataSet): the data we&#39;re storing</span>
 <span class="sd">            io_manager (io_manager): the base location to write to</span>
 <span class="sd">            location (str): the file location within io_manager</span>
+<span class="sd">            only_complete (bool): passed to match_save_range, answers the</span>
+<span class="sd">                following question: Should we write all available new data,</span>
+<span class="sd">                or only complete rows? Is used to make sure that everything</span>
+<span class="sd">                gets written when the DataSet is finalised, even if some</span>
+<span class="sd">                dataarrays are strange (like, full of nans)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">arrays</span> <span class="o">=</span> <span class="n">data_set</span><span class="o">.</span><span class="n">arrays</span>
 
@@ -422,16 +432,20 @@
         <span class="n">existing_files</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">io_manager</span><span class="o">.</span><span class="n">list</span><span class="p">(</span><span class="n">location</span><span class="p">))</span>
         <span class="n">written_files</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
 
-        <span class="c1"># Every group gets it&#39;s own datafile</span>
+        <span class="c1"># Every group gets its own datafile</span>
         <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">groups</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Attempting to write the following &#39;</span>
+                      <span class="s1">&#39;group: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">group</span><span class="p">))</span>
             <span class="n">fn</span> <span class="o">=</span> <span class="n">io_manager</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">location</span><span class="p">,</span> <span class="n">group</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">extension</span><span class="p">)</span>
 
             <span class="n">written_files</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
 
             <span class="n">file_exists</span> <span class="o">=</span> <span class="n">fn</span> <span class="ow">in</span> <span class="n">existing_files</span>
-            <span class="n">save_range</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">match_save_range</span><span class="p">(</span><span class="n">group</span><span class="p">,</span> <span class="n">file_exists</span><span class="p">)</span>
+            <span class="n">save_range</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">match_save_range</span><span class="p">(</span><span class="n">group</span><span class="p">,</span> <span class="n">file_exists</span><span class="p">,</span>
+                                               <span class="n">only_complete</span><span class="o">=</span><span class="n">only_complete</span><span class="p">)</span>
 
             <span class="k">if</span> <span class="n">save_range</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Cannot match save range, skipping this group.&#39;</span><span class="p">)</span>
                 <span class="k">continue</span>
 
             <span class="n">overwrite</span> <span class="o">=</span> <span class="n">save_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">force_write</span>
@@ -441,6 +455,7 @@
             <span class="k">with</span> <span class="n">io_manager</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">open_mode</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">overwrite</span><span class="p">:</span>
                     <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_make_header</span><span class="p">(</span><span class="n">group</span><span class="p">))</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Wrote header to file&#39;</span><span class="p">)</span>
 
                 <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">save_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">save_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
                     <span class="n">indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unravel_index</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">shape</span><span class="p">)</span>
@@ -456,7 +471,7 @@
 
                     <span class="n">one_point</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data_point</span><span class="p">(</span><span class="n">group</span><span class="p">,</span> <span class="n">indices</span><span class="p">)</span>
                     <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">separator</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">one_point</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">terminator</span><span class="p">)</span>
-
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Wrote to file&#39;</span><span class="p">)</span>
             <span class="c1"># now that we&#39;ve saved the data, mark it as such in the data.</span>
             <span class="c1"># we mark the data arrays and the inner setpoint array. Outer</span>
             <span class="c1"># setpoint arrays have different dimension (so would need a</span>
