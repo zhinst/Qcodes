@@ -167,6 +167,7 @@
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="k">import</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Union</span>
 <span class="k">try</span><span class="p">:</span>
     <span class="kn">import</span> <span class="nn">zhinst.utils</span>
 <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
@@ -713,15 +714,13 @@
 <span class="sd">        * Add zoom-FFT</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">device_ID</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">device_ID</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Create an instance of the instrument.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            name (str): The internal QCoDeS name of the instrument</span>
 <span class="sd">            device_ID (str): The device name as listed in the web server.</span>
-<span class="sd">            api_level (int): Compatibility mode of the API interface. Must be 5</span>
-<span class="sd">              for the UHF.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
@@ -875,6 +874,26 @@
                                <span class="n">val_mapping</span><span class="o">=</span><span class="n">dmtrigs</span><span class="p">,</span>
                                <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="o">*</span><span class="nb">list</span><span class="p">(</span><span class="n">dmtrigs</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
                                <span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;demod</span><span class="si">{}</span><span class="s1">_sample&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">demod</span><span class="p">),</span>
+                               <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Demod sample&#39;</span><span class="p">,</span>
+                               <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_getter</span><span class="p">,</span> <span class="s1">&#39;demods&#39;</span><span class="p">,</span>
+                                               <span class="n">demod</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;sample&#39;</span><span class="p">),</span>
+                               <span class="n">snapshot_value</span><span class="o">=</span><span class="kc">False</span>
+                               <span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">demod_param</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;R&#39;</span><span class="p">,</span> <span class="s1">&#39;phi&#39;</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">demod_param</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;R&#39;</span><span class="p">):</span>
+                    <span class="n">unit</span> <span class="o">=</span> <span class="s1">&#39;V&#39;</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">unit</span> <span class="o">=</span> <span class="s1">&#39;deg&#39;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;demod</span><span class="si">{}</span><span class="s1">_</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">demod</span><span class="p">,</span> <span class="n">demod_param</span><span class="p">),</span>
+                                   <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Demod </span><span class="si">{}</span><span class="s1"> </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">demod</span><span class="p">,</span> <span class="n">demod_param</span><span class="p">),</span>
+                                   <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_demod_sample</span><span class="p">,</span>
+                                                   <span class="n">demod</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">demod_param</span><span class="p">),</span>
+                                   <span class="n">snapshot_value</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                                   <span class="n">unit</span><span class="o">=</span><span class="n">unit</span>
+                                   <span class="p">)</span>
 
         <span class="c1">########################################</span>
         <span class="c1"># SIGNAL INPUTS</span>
@@ -1605,7 +1624,8 @@
         <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">daq</span><span class="o">.</span><span class="n">setDouble</span><span class="p">(</span><span class="n">setstr</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_getter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module</span><span class="p">,</span> <span class="n">number</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">setting</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_getter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">number</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+                <span class="n">mode</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">setting</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        General get function for generic parameters. Note that some parameters</span>
 <span class="sd">        use more specialised setter/getters.</span>
@@ -1618,7 +1638,7 @@
 <span class="sd">                we want to know the value of.</span>
 <span class="sd">            number (int): Module&#39;s index</span>
 <span class="sd">            mode (int): Indicating whether we are asking for an int or double.</span>
-<span class="sd">                0: Int, 1: double.</span>
+<span class="sd">                0: Int, 1: double, 2: Sample</span>
 <span class="sd">            setting (str): The module&#39;s setting to set.</span>
 <span class="sd">        returns:</span>
 <span class="sd">            inquered value</span>
@@ -1626,13 +1646,29 @@
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="n">querystr</span> <span class="o">=</span> <span class="s1">&#39;/</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">module</span><span class="p">,</span> <span class="n">number</span><span class="p">,</span> <span class="n">setting</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;getting </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">querystr</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">daq</span><span class="o">.</span><span class="n">getInt</span><span class="p">(</span><span class="n">querystr</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
             <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">daq</span><span class="o">.</span><span class="n">getDouble</span><span class="p">(</span><span class="n">querystr</span><span class="p">)</span>
-
+        <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">daq</span><span class="o">.</span><span class="n">getSample</span><span class="p">(</span><span class="n">querystr</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Invalid mode supplied&quot;</span><span class="p">)</span>
         <span class="c1"># Weird exception, samplingrate returns a string</span>
         <span class="k">return</span> <span class="n">value</span>
+
+    <span class="k">def</span> <span class="nf">_get_demod_sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">number</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">demod_param</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;getting demod </span><span class="si">%s</span><span class="s2"> param </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">number</span><span class="p">,</span> <span class="n">demod_param</span><span class="p">)</span>
+        <span class="n">mode</span> <span class="o">=</span> <span class="mi">2</span>
+        <span class="n">module</span> <span class="o">=</span> <span class="s1">&#39;demods&#39;</span>
+        <span class="n">setting</span> <span class="o">=</span> <span class="s1">&#39;sample&#39;</span>
+        <span class="k">if</span> <span class="n">demod_param</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;R&#39;</span><span class="p">,</span> <span class="s1">&#39;phi&#39;</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Invalid demodulator parameter&quot;</span><span class="p">)</span>
+        <span class="n">datadict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_getter</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">number</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">setting</span><span class="p">)</span>
+        <span class="n">datadict</span><span class="p">[</span><span class="s1">&#39;R&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">datadict</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">datadict</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">])</span>
+        <span class="n">datadict</span><span class="p">[</span><span class="s1">&#39;phi&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">angle</span><span class="p">(</span><span class="n">datadict</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">datadict</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">],</span> <span class="n">deg</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">datadict</span><span class="p">[</span><span class="n">demod_param</span><span class="p">]</span>
 
     <span class="k">def</span> <span class="nf">_sigout_setter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">number</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">setting</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -1952,7 +1988,7 @@
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Can not select attribute:&#39;</span><span class="o">+</span>
                              <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">. Only the following attributes are&#39;</span> <span class="o">+</span>
                              <span class="s1">&#39; available: &#39;</span> <span class="o">+</span>
-                             <span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">, &#39;</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">attributes</span><span class="p">))</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">attributes</span><span class="p">))</span>
+                             <span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">, &#39;</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">valid_attributes</span><span class="p">))</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">valid_attributes</span><span class="p">))</span>
 
         <span class="c1"># internally, we use strings very similar to the ones used by the</span>
         <span class="c1"># instrument, but with the attribute added, e.g.</span>
