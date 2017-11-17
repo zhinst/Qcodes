@@ -425,7 +425,8 @@
 <span class="sd">        has been armed. The action must be a callable taking zero</span>
 <span class="sd">        arguments</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_scopeactions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">action</span><span class="p">)</span></div>
+        <span class="k">if</span> <span class="n">action</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scopeactions</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_scopeactions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">action</span><span class="p">)</span></div>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">post_trigger_actions</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Callable</span><span class="p">]:</span>
@@ -436,7 +437,7 @@
 <span class="sd">        Prepare the scope for a measurement. Must immediately preceed a</span>
 <span class="sd">        measurement.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1">#</span>
+
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Preparing the scope&#39;</span><span class="p">)</span>
 
         <span class="c1"># A convenient reference</span>
@@ -636,15 +637,18 @@
                 <span class="c1"># scope.finish is always called even if the</span>
                 <span class="c1"># measurement is interrupted</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">daq</span><span class="o">.</span><span class="n">setInt</span><span class="p">(</span><span class="s1">&#39;/</span><span class="si">{}</span><span class="s1">/scopes/0/single&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">device</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">daq</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
 
-                <span class="n">scope</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">scope</span>  <span class="c1"># There are issues reusing the scope.</span>
+
+                <span class="n">scope</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">scope</span>
                 <span class="n">scope</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;scopeModule/clearhistory&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
 
                 <span class="c1"># Start the scope triggering/acquiring</span>
-                <span class="n">params</span><span class="p">[</span><span class="s1">&#39;scope_runstop&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;run&#39;</span><span class="p">)</span>  <span class="c1"># set /dev/scopes/0/enable to 1</span>
+                <span class="c1"># set /dev/scopes/0/enable to 1</span>
+                <span class="n">params</span><span class="p">[</span><span class="s1">&#39;scope_runstop&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;run&#39;</span><span class="p">)</span>
 
-                <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;[*] Starting ZI scope acquisition.&#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">daq</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
+
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Starting ZI scope acquisition.&#39;</span><span class="p">)</span>
                 <span class="c1"># Start something... hauling data from the scopeModule?</span>
                 <span class="n">scope</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
 
@@ -655,7 +659,10 @@
                 <span class="n">starttime</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
                 <span class="n">timedout</span> <span class="o">=</span> <span class="kc">False</span>
 
-                <span class="k">while</span> <span class="n">scope</span><span class="o">.</span><span class="n">progress</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">progress</span> <span class="o">=</span> <span class="n">scope</span><span class="o">.</span><span class="n">progress</span><span class="p">()</span>
+                <span class="k">while</span> <span class="n">progress</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Scope progress is </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">progress</span><span class="p">))</span>
+                    <span class="n">progress</span> <span class="o">=</span> <span class="n">scope</span><span class="o">.</span><span class="n">progress</span><span class="p">()</span>
                     <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>  <span class="c1"># This while+sleep is how ZI engineers do it</span>
                     <span class="k">if</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span><span class="o">-</span><span class="n">starttime</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">20</span><span class="o">*</span><span class="n">meas_time</span><span class="o">+</span><span class="mi">1</span><span class="p">:</span>
                         <span class="n">timedout</span> <span class="o">=</span> <span class="kc">True</span>
