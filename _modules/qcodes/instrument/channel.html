@@ -168,6 +168,7 @@
 
 <span class="kn">from</span> <span class="nn">.base</span> <span class="k">import</span> <span class="n">InstrumentBase</span><span class="p">,</span> <span class="n">Instrument</span>
 <span class="kn">from</span> <span class="nn">.parameter</span> <span class="k">import</span> <span class="n">MultiParameter</span><span class="p">,</span> <span class="n">ArrayParameter</span>
+<span class="kn">from</span> <span class="nn">..utils.validators</span> <span class="k">import</span> <span class="n">Validator</span>
 <span class="kn">from</span> <span class="nn">..utils.metadata</span> <span class="k">import</span> <span class="n">Metadatable</span>
 <span class="kn">from</span> <span class="nn">..utils.helpers</span> <span class="k">import</span> <span class="n">full_class</span>
 
@@ -272,7 +273,6 @@
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">names</span>
-
 
 <div class="viewcode-block" id="ChannelList"><a class="viewcode-back" href="../../../api/generated/qcodes.ChannelList.html#qcodes.ChannelList">[docs]</a><span class="k">class</span> <span class="nc">ChannelList</span><span class="p">(</span><span class="n">Metadatable</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -466,6 +466,15 @@
 
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">obj</span><span class="p">)</span>
 
+    <span class="k">def</span> <span class="nf">get_validator</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a validator that checks that the returned object is a channel</span>
+<span class="sd">        in this channel list</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_locked</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s2">&quot;Cannot create a validator for an unlocked channel list&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ChannelListValidator</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
     <span class="k">def</span> <span class="nf">lock</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Lock the channel list. Once this is done, the channel list is</span>
@@ -586,6 +595,47 @@
             <span class="n">names</span> <span class="o">+=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
             <span class="n">names</span> <span class="o">+=</span> <span class="p">[</span><span class="n">channel</span><span class="o">.</span><span class="n">short_name</span> <span class="k">for</span> <span class="n">channel</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channels</span><span class="p">]</span>
         <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">names</span><span class="p">))</span></div>
+
+
+<span class="k">class</span> <span class="nc">ChannelListValidator</span><span class="p">(</span><span class="n">Validator</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A validator that checks that the returned object is a member of the</span>
+<span class="sd">    channel list with which the validator was constructed.</span>
+
+<span class="sd">    This class will not normally be created directly, but created from a channel</span>
+<span class="sd">    list using the `ChannelList.get_validator` method.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        channel_list (ChannelList): the channel list that should be checked against.</span>
+<span class="sd">            The channel list must be locked and populated before it can be used to</span>
+<span class="sd">            construct a validator.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel_list</span><span class="p">:</span> <span class="n">ChannelList</span><span class="p">):</span>
+        <span class="c1"># Save the base parameter list</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">channel_list</span><span class="p">,</span> <span class="n">ChannelList</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;channel_list must be a ChannelList object containing the &quot;</span>
+                <span class="s2">&quot;channels that should be validated&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">channel_list</span><span class="o">.</span><span class="n">_locked</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s2">&quot;Channel list must be locked before it can be used &quot;</span>
+                <span class="s2">&quot;to create a validator&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_channel_list</span> <span class="o">=</span> <span class="n">channel_list</span>
+
+    <span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Checks to see that value is a member of the channel list referenced by this</span>
+<span class="sd">        validator</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            value (InstrumentChannel): the value to be checked against the reference</span>
+<span class="sd">                channel list.</span>
+
+<span class="sd">            context (string): the context of the call, used as part of the exception</span>
+<span class="sd">                raised.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_channel_list</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> is not part of the expected channel list; </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="nb">repr</span><span class="p">(</span><span class="n">value</span><span class="p">),</span> <span class="n">context</span><span class="p">))</span>
 </pre></div>
 
            </div>
