@@ -191,12 +191,20 @@
 <span class="sd">        based on the minimum/maximum values of a given channel.</span>
 <span class="sd">        Midrange is 32768.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">volt</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_val</span> <span class="ow">or</span> <span class="n">volt</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_val</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Cannot convert voltage </span><span class="si">{}</span><span class="s1"> V &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">volt</span><span class="p">)</span> <span class="o">+</span>
+                             <span class="s1">&#39;to a voltage code, value out of range &#39;</span>
+                             <span class="s1">&#39;(</span><span class="si">{}</span><span class="s1"> V - </span><span class="si">{}</span><span class="s1"> V).&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">min_val</span><span class="p">,</span>
+                                                     <span class="bp">self</span><span class="o">.</span><span class="n">max_val</span><span class="p">))</span>
+
         <span class="n">frac</span> <span class="o">=</span> <span class="p">(</span><span class="n">volt</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_val</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_val</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_val</span><span class="p">)</span>
         <span class="n">val</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">frac</span> <span class="o">*</span> <span class="mi">65536</span><span class="p">))</span>
-        <span class="k">if</span> <span class="n">val</span> <span class="o">&gt;=</span> <span class="mi">65536</span><span class="p">:</span>  <span class="c1"># Check limits. For example setting max_val will cause an overflow</span>
-            <span class="k">return</span> <span class="mi">65535</span>
-        <span class="k">if</span> <span class="n">val</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>  <span class="c1"># Ensure no negative values</span>
-            <span class="k">return</span> <span class="mi">0</span>
+        <span class="c1"># extra check to be absolutely sure that the instrument does nothing</span>
+        <span class="c1"># receive an out-of-bounds value</span>
+        <span class="k">if</span> <span class="n">val</span> <span class="o">&gt;</span> <span class="mi">65535</span> <span class="ow">or</span> <span class="n">val</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Voltage (</span><span class="si">{}</span><span class="s1"> V) resulted in the voltage code </span><span class="si">{}</span><span class="s1">&#39;</span>
+                             <span class="s1">&#39;, which is not within the allowed range.&#39;</span>
+                             <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">volt</span><span class="p">,</span> <span class="n">val</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">val</span>
 
     <span class="k">def</span> <span class="nf">_dac_code_to_v</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">code</span><span class="p">):</span>
@@ -422,8 +430,8 @@
 
     <span class="k">def</span> <span class="nf">_set_dac</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">code</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Set the voltage on the dac channel, ramping if the enable_rate parameter is set for this</span>
-<span class="sd">        channel.</span>
+<span class="sd">        Set the voltage on the dac channel, ramping if the enable_rate</span>
+<span class="sd">        parameter is set for this channel.</span>
 
 <span class="sd">        Params:</span>
 <span class="sd">            code (int): the DAC code to set the voltage to</span>
