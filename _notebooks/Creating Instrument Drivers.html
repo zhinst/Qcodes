@@ -37,7 +37,7 @@
         <link rel="search" title="Search" href="../search.html"/>
     <link rel="top" title="QCoDeS 0.1.7 documentation" href="../index.html"/>
         <link rel="up" title="Examples of using QCoDeS" href="../examples/index.html"/>
-        <link rel="next" title="Datasaving Examples" href="Datasaving examples.html"/>
+        <link rel="next" title="Creating Simulated PyVISA Instruments" href="Creating Simulated PyVISA Instruments.html"/>
         <link rel="prev" title="QCoDeS config" href="Configuring_QCoDeS.html"/> 
 
   
@@ -107,16 +107,18 @@
 <li class="toctree-l3"><a class="reference internal" href="Configuring_QCoDeS.html">QCoDeS config</a></li>
 <li class="toctree-l3 current"><a class="current reference internal" href="#">Creating QCoDeS instrument drivers</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#base-classes">Base Classes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#parameters-and-channels">Parameters and Channels</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#visainstrument-simple-example">VisaInstrument: Simple example</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#visainstrument-a-more-involved-example">VisaInstrument: a more involved example</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#visainstruments-simulating-the-instrument">VisaInstruments: Simulating the instrument</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#dll-based-instruments">DLL-based instruments</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#manual-instruments">Manual instruments</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#custom-parameter-classes">Custom Parameter classes</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#dynamically-adding-and-removing-parameters">Dynamically adding and removing parameters</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#functions">Functions</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#organization">Organization</a></li>
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="Creating Simulated PyVISA Instruments.html">Creating Simulated PyVISA Instruments</a></li>
 <li class="toctree-l3"><a class="reference internal" href="Datasaving examples.html">Datasaving Examples</a></li>
 <li class="toctree-l3"><a class="reference internal" href="Measure without a Loop.html">Measure without a Loop</a></li>
 <li class="toctree-l3"><a class="reference internal" href="Metadata.html">Metadata</a></li>
@@ -206,6 +208,7 @@
 <span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="p">(</span><span class="n">Instrument</span><span class="p">,</span> <span class="n">VisaInstrument</span><span class="p">,</span>
                     <span class="n">ManualParameter</span><span class="p">,</span> <span class="n">MultiParameter</span><span class="p">,</span>
                     <span class="n">validators</span> <span class="k">as</span> <span class="n">vals</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">qcodes.instrument.channel</span> <span class="k">import</span> <span class="n">InstrumentChannel</span>
 </pre></div>
 </div>
 <div class="section" id="base-classes">
@@ -219,6 +222,59 @@ Otherwise works nearly identically to <code class="docutils literal"><span class
 <code class="docutils literal"><span class="pre">IPInstrument</span></code>, use this if you do not communicate over a text
 channel, for example: - PCI cards with their own DLLs - Instruments with
 only manual controls.</p>
+<p>If possible, please use a <code class="docutils literal"><span class="pre">VisaInstrument</span></code>, as this allows for the
+creation of a simulated instrument. (See the
+<code class="docutils literal"><span class="pre">Creating</span> <span class="pre">Simulated</span> <span class="pre">PyVISA</span> <span class="pre">Instruments</span></code> notebook)</p>
+</div>
+<div class="section" id="parameters-and-channels">
+<h2>Parameters and Channels<a class="headerlink" href="#parameters-and-channels" title="Permalink to this headline">¶</a></h2>
+<p>Broadly speaking, a QCoDeS instrument driver is nothing but an object
+that holds a connection handle to the physical instrument and has some
+sub-objects that represent the state of the physical instrument. These
+sub-objects are the <code class="docutils literal"><span class="pre">Parameters</span></code>. Writing a driver basically boils
+down to adding a ton of <code class="docutils literal"><span class="pre">Parameters</span></code>.</p>
+<div class="section" id="what-s-a-parameter">
+<h3>What’s a Parameter?<a class="headerlink" href="#what-s-a-parameter" title="Permalink to this headline">¶</a></h3>
+<p>A parameter represents a single value of a single feature of an
+instrument, e.g. the frequency of a function generator, the mode of a
+multimeter (resistance, current, or voltage), or the input impedance of
+an oscilloscope channel. Each <code class="docutils literal"><span class="pre">Parameter</span></code> can have the following
+attributes:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">name</span></code>, the name used internally by QCoDeS, e.g. ‘input_impedance’</li>
+<li><code class="docutils literal"><span class="pre">label</span></code>, the label to use for plotting this parameter</li>
+<li><code class="docutils literal"><span class="pre">unit</span></code>, the physical unit. ALWAYS use SI units if a unit is
+applicable</li>
+<li><code class="docutils literal"><span class="pre">set_cmd</span></code>, the command to set the parameter. Either a SCPI string
+with a single ‘{}’, or a function taking one argument (see examples
+below)</li>
+<li><code class="docutils literal"><span class="pre">get_cmd</span></code>, the command to get the parameter. Follows the same
+scheme as <code class="docutils literal"><span class="pre">set_cmd</span></code></li>
+<li><code class="docutils literal"><span class="pre">vals</span></code>, a validator (from <code class="docutils literal"><span class="pre">qcodes.utils.validators</span></code>) to reject
+invalid values before they are sent to the instrument. Since there is
+no standard for how an instrument responds to an out-of-bound value
+(e.g. a 10 kHz function generator receiving 12e9 for its frequency),
+meaning that the user can expect anything from silent failure to the
+instrument breaking or suddenly outputting random noise, it is MUCH
+better to catch invalid values in software. Therefore, please provide
+a validator if at all possible.</li>
+<li><code class="docutils literal"><span class="pre">val_mapping</span></code>, a dictionary mapping human-readable values like
+‘High Impedance’ to the instrument’s internal representation like
+‘372’. Not always needed. If supplied, a validator is automatically
+constructed.</li>
+<li><code class="docutils literal"><span class="pre">get_parser</span></code>, a parser of the raw return value. Since all VISA
+instruments return strings, but users usually want numbers, <code class="docutils literal"><span class="pre">int</span></code>
+and <code class="docutils literal"><span class="pre">float</span></code> are popular <code class="docutils literal"><span class="pre">get_parsers</span></code></li>
+</ul>
+<p>Golden rule: if a <code class="docutils literal"><span class="pre">Parameter</span></code> is settable, it must always accept its
+own output as input.</p>
+</div>
+<div class="section" id="what-s-a-channel-then">
+<h3>What’s a Channel, then?<a class="headerlink" href="#what-s-a-channel-then" title="Permalink to this headline">¶</a></h3>
+<p>A <code class="docutils literal"><span class="pre">Channel</span></code> is a submodule holding <code class="docutils literal"><span class="pre">Parameter</span></code>s. It sometimes
+makes sense to group <code class="docutils literal"><span class="pre">Parameter</span></code>s, for instance when an oscilloscope
+has four identical input channels. (see Keithley example below)</p>
+</div>
 </div>
 <div class="section" id="visainstrument-simple-example">
 <h2>VisaInstrument: Simple example<a class="headerlink" href="#visainstrument-simple-example" title="Permalink to this headline">¶</a></h2>
@@ -232,15 +288,14 @@ additions to describe what’s happening.</p>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="c1"># all instrument constructors should accept **kwargs and pass them on to</span>
-    <span class="c1"># super().__init__. This is important for the deprecated multiprocessing</span>
-    <span class="c1"># architecture, so may change in the near future.</span>
+    <span class="c1"># super().__init__</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">address</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="c1"># supplying the terminator means you don&#39;t need to remove it from every response</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">address</span><span class="p">,</span> <span class="n">terminator</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\r</span><span class="s1">&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;attenuation&#39;</span><span class="p">,</span> <span class="n">units</span><span class="o">=</span><span class="s1">&#39;dB&#39;</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;attenuation&#39;</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;dB&#39;</span><span class="p">,</span>
                            <span class="c1"># the value you set will be inserted in this command with</span>
-                           <span class="c1"># regular python string substitution. The instrument wants</span>
+                           <span class="c1"># regular python string substitution. This instrument wants</span>
                            <span class="c1"># an integer zero-padded to 2 digits. For robustness, don&#39;t</span>
                            <span class="c1"># assume you&#39;ll get an integer input though - try to allow</span>
                            <span class="c1"># floats (as opposed to {:0=2d})</span>
@@ -270,85 +325,130 @@ additions to describe what’s happening.</p>
 </div>
 <div class="section" id="visainstrument-a-more-involved-example">
 <h2>VisaInstrument: a more involved example<a class="headerlink" href="#visainstrument-a-more-involved-example" title="Permalink to this headline">¶</a></h2>
-<p>the K2600 breaks one physical instrument into two software instruments,
-one for each channel. It: - has a custom IDN parser - transforms the ask
-and write commands to simplify them and insert the channel. -
-demonstrates <code class="docutils literal"><span class="pre">val_mapping</span></code> for bidirectional encoding of enumerated
-parameters</p>
-<p>I’ve removed some parameters for brevity.</p>
-<p>Note the nice docstring that describes the status of the code!</p>
-<div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Keithley_2600</span><span class="p">(</span><span class="n">VisaInstrument</span><span class="p">):</span>
+<p>The Keithley 2600 sourcemeter driver uses two channels. The actual
+driver is quite long, so here we show an abridged version that has:</p>
+<ul class="simple">
+<li>A class defining a <code class="docutils literal"><span class="pre">Channel</span></code>. All the <code class="docutils literal"><span class="pre">Parameter</span></code>s of the
+<code class="docutils literal"><span class="pre">Channel</span></code> go here.</li>
+<li>A nifty way to look up the model number, allowing it to be a driver
+for many different Keithley models</li>
+</ul>
+<div class="code ipython3 highlight-default"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">KeithleyChannel</span><span class="p">(</span><span class="n">InstrumentChannel</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    channel: use channel &#39;a&#39; or &#39;b&#39;</span>
-
-<span class="sd">    This is the qcodes driver for the Keithley_2600 Source-Meter series,</span>
-<span class="sd">    tested with Keithley_2614B</span>
-
-<span class="sd">    Status: beta-version.</span>
-<span class="sd">        TODO:</span>
-<span class="sd">        - Add all parameters that are in the manual</span>
-<span class="sd">        - range and limit should be set according to mode</span>
-<span class="sd">        - add ramping and such stuff</span>
-
+<span class="sd">    Class to hold the two Keithley channels, i.e.</span>
+<span class="sd">    SMUA and SMUB.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">address</span><span class="p">,</span> <span class="n">channel</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">address</span><span class="p">,</span> <span class="n">terminator</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_channel</span> <span class="o">=</span> <span class="n">channel</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;volt&#39;</span><span class="p">,</span> <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;measure.v()&#39;</span><span class="p">,</span>
-                           <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;source.levelv=</span><span class="si">{:.8f}</span><span class="s1">&#39;</span><span class="p">,</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="p">:</span> <span class="n">Instrument</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">channel</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            parent: The Instrument instance to which the channel is</span>
+<span class="sd">                to be attached.</span>
+<span class="sd">            name: The &#39;colloquial&#39; name of the channel</span>
+<span class="sd">            channel: The name used by the Keithley, i.e. either</span>
+<span class="sd">                &#39;smua&#39; or &#39;smub&#39;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">channel</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;smua&#39;</span><span class="p">,</span> <span class="s1">&#39;smub&#39;</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;channel must be either &quot;smub&quot; or &quot;smua&quot;&#39;</span><span class="p">)</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parent</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parent</span><span class="o">.</span><span class="n">model</span>
+        <span class="n">vranges</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parent</span><span class="o">.</span><span class="n">_vranges</span>
+        <span class="n">iranges</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parent</span><span class="o">.</span><span class="n">_iranges</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;volt&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.measure.v()&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">),</span>
+                           <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.source.levelv=</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span>
+                                                                <span class="s1">&#39;</span><span class="si">{:.12f}</span><span class="s1">&#39;</span><span class="p">),</span>
+                           <span class="c1"># note that the set_cmd is either the following format string</span>
+                           <span class="c1">#&#39;smua.source.levelv={:.12f}&#39; or &#39;smub.source.levelv={:.12f}&#39;</span>
+                           <span class="c1"># depending on the value of `channel`</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Voltage&#39;</span><span class="p">,</span>
-                           <span class="n">units</span><span class="o">=</span><span class="s1">&#39;V&#39;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;curr&#39;</span><span class="p">,</span> <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;measure.i()&#39;</span><span class="p">,</span>
-                           <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;source.leveli=</span><span class="si">{:.8f}</span><span class="s1">&#39;</span><span class="p">,</span>
+                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;V&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;curr&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.measure.i()&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">),</span>
+                           <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.source.leveli=</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span>
+                                                                <span class="s1">&#39;</span><span class="si">{:.12f}</span><span class="s1">&#39;</span><span class="p">),</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Current&#39;</span><span class="p">,</span>
-                           <span class="n">units</span><span class="o">=</span><span class="s1">&#39;A&#39;</span><span class="p">)</span>
+                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;A&#39;</span><span class="p">)</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;mode&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;source.func&#39;</span><span class="p">,</span>
-                           <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;source.func=</span><span class="si">{:d}</span><span class="s1">&#39;</span><span class="p">,</span>
-                           <span class="c1"># the K2600 interprets &#39;0&#39; as current and &#39;1&#39; as voltage</span>
-                           <span class="c1"># but we want to type: k2600a.mode(&#39;current&#39;), not .mode(0)</span>
-                           <span class="c1"># val_mapping describes, all in one dictionary:</span>
-                           <span class="c1"># - the valid set values (&#39;current&#39; and &#39;voltage&#39;)</span>
-                           <span class="c1"># - the encoding to instrument codes (current-&gt;0, voltage-&gt;1)</span>
-                           <span class="c1"># - the decoding back to parameter values (0-&gt;current, 1-&gt;voltage)</span>
-                           <span class="c1"># `ask` returns a string, but because integer encodings are so</span>
-                           <span class="c1"># common we automatically check if the string is an integer</span>
-                           <span class="c1"># when you use val_mapping</span>
-                           <span class="n">val_mapping</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;current&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;voltage&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">})</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.source.func&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">),</span>
+                           <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.source.func=</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span> <span class="s1">&#39;</span><span class="si">{:d}</span><span class="s1">&#39;</span><span class="p">),</span>
+                           <span class="n">val_mapping</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;current&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;voltage&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
+                           <span class="n">docstring</span><span class="o">=</span><span class="s1">&#39;Selects the output source.&#39;</span><span class="p">)</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;output&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;source.output&#39;</span><span class="p">,</span>
-                           <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;source.output=</span><span class="si">{:d}</span><span class="s1">&#39;</span><span class="p">,</span>
-                           <span class="c1"># output on/off has another val_mapping</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.source.output&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">),</span>
+                           <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.source.output=</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span>
+                                                                <span class="s1">&#39;</span><span class="si">{:d}</span><span class="s1">&#39;</span><span class="p">),</span>
                            <span class="n">val_mapping</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;on&#39;</span><span class="p">:</span>  <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;off&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">})</span>
 
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;nplc&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Number of power line cycles&#39;</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.measure.nplc=</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span>
+                                                               <span class="s1">&#39;</span><span class="si">{:.4f}</span><span class="s1">&#39;</span><span class="p">),</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.measure.nplc&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">),</span>
+                           <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">(</span><span class="mf">0.001</span><span class="p">,</span> <span class="mi">25</span><span class="p">))</span>
+
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">channel</span> <span class="o">=</span> <span class="n">channel</span>
+
+
+<span class="k">class</span> <span class="nc">Keithley_2600</span><span class="p">(</span><span class="n">VisaInstrument</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This is the qcodes driver for the Keithley_2600 Source-Meter series,</span>
+<span class="sd">    tested with Keithley_2614B</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">address</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            name: Name to use internally in QCoDeS</span>
+<span class="sd">            address: VISA ressource address</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">address</span><span class="p">,</span> <span class="n">terminator</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;localnode.model&#39;</span><span class="p">)</span>
+
+        <span class="n">knownmodels</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;2601B&#39;</span><span class="p">,</span> <span class="s1">&#39;2602B&#39;</span><span class="p">,</span> <span class="s1">&#39;2604B&#39;</span><span class="p">,</span> <span class="s1">&#39;2611B&#39;</span><span class="p">,</span> <span class="s1">&#39;2612B&#39;</span><span class="p">,</span>
+                       <span class="s1">&#39;2614B&#39;</span><span class="p">,</span> <span class="s1">&#39;2635B&#39;</span><span class="p">,</span> <span class="s1">&#39;2636B&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">model</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">knownmodels</span><span class="p">:</span>
+            <span class="n">kmstring</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">, &#39;</span><span class="o">*</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">knownmodels</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">knownmodels</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">kmstring</span> <span class="o">+=</span> <span class="s1">&#39;and </span><span class="si">{}</span><span class="s1">.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">knownmodels</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Unknown model. Known model are: &#39;</span> <span class="o">+</span> <span class="n">kmstring</span><span class="p">)</span>
+
+        <span class="c1"># Add the channel to the instrument</span>
+        <span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">]:</span>
+            <span class="n">ch_name</span> <span class="o">=</span> <span class="s1">&#39;smu</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ch</span><span class="p">)</span>
+            <span class="n">channel</span> <span class="o">=</span> <span class="n">KeithleyChannel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ch_name</span><span class="p">,</span> <span class="n">ch_name</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_submodule</span><span class="p">(</span><span class="n">ch_name</span><span class="p">,</span> <span class="n">channel</span><span class="p">)</span>
+
+        <span class="c1"># display parameter</span>
+        <span class="c1"># Parameters NOT specific to a channel still belong on the Instrument object</span>
+        <span class="c1"># In this case, the Parameter controls the text on the display</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;display_settext&#39;</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_display_settext</span><span class="p">,</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Strings</span><span class="p">())</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">connect_message</span><span class="p">()</span>
-
-    <span class="k">def</span> <span class="nf">get_idn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">IDN</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask_raw</span><span class="p">(</span><span class="s1">&#39;*IDN?&#39;</span><span class="p">)</span>
-        <span class="n">vendor</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">serial</span><span class="p">,</span> <span class="n">firmware</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="o">.</span><span class="n">strip</span><span class="p">,</span> <span class="n">IDN</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">))</span>
-        <span class="n">model</span> <span class="o">=</span> <span class="n">model</span><span class="p">[</span><span class="mi">6</span><span class="p">:]</span>
-
-        <span class="n">IDN</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;vendor&#39;</span><span class="p">:</span> <span class="n">vendor</span><span class="p">,</span> <span class="s1">&#39;model&#39;</span><span class="p">:</span> <span class="n">model</span><span class="p">,</span>
-               <span class="s1">&#39;serial&#39;</span><span class="p">:</span> <span class="n">serial</span><span class="p">,</span> <span class="s1">&#39;firmware&#39;</span><span class="p">:</span> <span class="n">firmware</span><span class="p">}</span>
-        <span class="k">return</span> <span class="n">IDN</span>
-
-    <span class="c1"># Reset method. Since this is a simple command to write, this could also have been:</span>
-    <span class="c1"># self.add_function(&#39;reset&#39;, call_cmd=&#39;reset()&#39;)</span>
-    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;reset()&#39;</span><span class="p">)</span>
-
-    <span class="c1"># transformation of ask and write commands. From the Instrument.ask docstring:</span>
-    <span class="c1"># Subclasses that transform ``cmd`` should override ``ask``, and in</span>
-    <span class="c1"># it call ``super().ask(new_cmd)``. Subclasses that define a new</span>
-    <span class="c1"># hardware communication should instead override ``ask_raw``.</span>
-    <span class="k">def</span> <span class="nf">ask</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">):</span>
-        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;print(smu</span><span class="si">{:s}</span><span class="s1">.</span><span class="si">{:s}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_channel</span><span class="p">,</span> <span class="n">cmd</span><span class="p">))</span>
-
-    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;smu</span><span class="si">{:s}</span><span class="s1">.</span><span class="si">{:s}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_channel</span><span class="p">,</span> <span class="n">cmd</span><span class="p">))</span>
 </pre></div>
 </div>
+</div>
+<div class="section" id="visainstruments-simulating-the-instrument">
+<h2>VisaInstruments: Simulating the instrument<a class="headerlink" href="#visainstruments-simulating-the-instrument" title="Permalink to this headline">¶</a></h2>
+<p>As mentioned above, drivers subclassing <code class="docutils literal"><span class="pre">VisaInstrument</span></code> have the nice
+property that they may be connected to a simulated version of the
+physical instrument. See the <code class="docutils literal"><span class="pre">Creating</span> <span class="pre">Simulated</span> <span class="pre">PyVISA</span> <span class="pre">Instruments</span></code>
+notebook for more information. If you are writing a <code class="docutils literal"><span class="pre">VisaInstrument</span></code>
+driver, please consider spending 20 minutes to also add a simulated
+instrument and a test.</p>
 </div>
 <div class="section" id="dll-based-instruments">
 <h2>DLL-based instruments<a class="headerlink" href="#dll-based-instruments" title="Permalink to this headline">¶</a></h2>
@@ -504,13 +604,13 @@ current.</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>you create a <code class="docutils literal"><span class="pre">StandardParameter</span></code>. But with the <code class="docutils literal"><span class="pre">parameter_class</span></code>
-kwarg you can invoke any class you want:</p>
+<p>you create a <code class="docutils literal"><span class="pre">Parameter</span></code>. But with the <code class="docutils literal"><span class="pre">parameter_class</span></code> kwarg you
+can invoke any class you want:</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">parameter_class</span><span class="o">=</span><span class="n">OtherClass</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 </pre></div>
 </div>
 <ul class="simple">
-<li><code class="docutils literal"><span class="pre">StandardParameter</span></code> handles most common instrument settings and
+<li><code class="docutils literal"><span class="pre">Parameter</span></code> handles most common instrument settings and
 measurements.</li>
 <li>Accepts get and/or set commands as either strings for the
 instrument’s <code class="docutils literal"><span class="pre">ask</span></code> and <code class="docutils literal"><span class="pre">write</span></code> methods, or functions/methods.</li>
@@ -540,15 +640,6 @@ different parameters to be available.</p>
 </pre></div>
 </div>
 </div>
-<div class="section" id="functions">
-<h2>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h2>
-<p>a <code class="docutils literal"><span class="pre">Function</span></code> is some action that the instrument can do, but doesn’t
-correspond to a particular state variable or acquired data. For example,
-reset, trigger, or beep. Complex cases are best handled by adding your
-own methods to the instrument, but simple cases (particularly simple
-commands like <code class="docutils literal"><span class="pre">*RST</span></code>) can use <code class="docutils literal"><span class="pre">add_function</span></code>, which acts like a
-simplified <code class="docutils literal"><span class="pre">add_parameter</span></code>.</p>
-</div>
 <div class="section" id="organization">
 <h2>Organization<a class="headerlink" href="#organization" title="Permalink to this headline">¶</a></h2>
 <p>Your drivers do not need to be part of QCoDeS in order to use them with
@@ -565,7 +656,7 @@ unambiguous. For example: - example:
 <code class="docutils literal"><span class="pre">instrument_drivers.stanford_research.SR560.SR560</span></code></p>
 <p>And note that due to mergers, some drivers may not be in the folder you
 expect: - example:
-<code class="docutils literal"><span class="pre">instrument_drivers.tektronix.Keithley_2600.Keithley_2600</span></code></p>
+<code class="docutils literal"><span class="pre">instrument_drivers.tektronix.Keithley_2600.Keithley_2600_Channels</span></code></p>
 </div>
 </div>
 
@@ -579,7 +670,7 @@ expect: - example:
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="Datasaving examples.html" class="btn btn-neutral float-right" title="Datasaving Examples" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="Creating Simulated PyVISA Instruments.html" class="btn btn-neutral float-right" title="Creating Simulated PyVISA Instruments" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
         <a href="Configuring_QCoDeS.html" class="btn btn-neutral" title="QCoDeS config" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>

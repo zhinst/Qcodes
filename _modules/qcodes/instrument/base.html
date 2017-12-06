@@ -168,7 +168,7 @@
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">warnings</span>
 <span class="kn">import</span> <span class="nn">weakref</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Sequence</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">List</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
@@ -178,16 +178,17 @@
 <span class="kn">from</span> <span class="nn">.parameter</span> <span class="k">import</span> <span class="n">Parameter</span>
 <span class="kn">from</span> <span class="nn">.function</span> <span class="k">import</span> <span class="n">Function</span>
 
+<span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
 
 <span class="k">class</span> <span class="nc">InstrumentBase</span><span class="p">(</span><span class="n">Metadatable</span><span class="p">,</span> <span class="n">DelegateAttributes</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Base class for all QCodes instruments and instrument channels</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        name (str): an identifier for this instrument, particularly for</span>
+<span class="sd">        name: an identifier for this instrument, particularly for</span>
 <span class="sd">            attaching it to a Station.</span>
-
-<span class="sd">        metadata (Optional[Dict]): additional static metadata to add to this</span>
+<span class="sd">        metadata: additional static metadata to add to this</span>
 <span class="sd">            instrument&#39;s JSON snapshot.</span>
 
 
@@ -205,38 +206,17 @@
 <span class="sd">            Usually populated via ``add_submodule``</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">testing</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">metadata</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_testing</span> <span class="o">=</span> <span class="n">testing</span>
-
-        <span class="k">if</span> <span class="n">testing</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="s2">&quot;mocker_class&quot;</span><span class="p">):</span>
-                <span class="n">mocker_class</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">mocker_class</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">mocker</span> <span class="o">=</span> <span class="n">mocker_class</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Testing turned on but no mocker class defined&quot;</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">functions</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">submodules</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">is_testing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Return True if we are testing&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_testing</span>
-
-    <span class="k">def</span> <span class="nf">get_mock_messages</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        For testing purposes we might want to get log messages from the mocker.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            mocker_messages: list, str</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_testing</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Cannot get mock messages if not in testing mode&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">mocker</span><span class="o">.</span><span class="n">get_log_messages</span><span class="p">()</span>
-
-    <span class="k">def</span> <span class="nf">add_parameter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">parameter_class</span><span class="o">=</span><span class="n">Parameter</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">add_parameter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                      <span class="n">parameter_class</span><span class="p">:</span> <span class="nb">type</span><span class="o">=</span><span class="n">Parameter</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Bind one Parameter to this instrument.</span>
 
@@ -247,11 +227,11 @@
 <span class="sd">        anything the user can set and/or get</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            name (str): How the parameter will be stored within</span>
+<span class="sd">            name: How the parameter will be stored within</span>
 <span class="sd">                ``instrument.parameters`` and also how you address it using the</span>
 <span class="sd">                shortcut methods: ``instrument.set(param_name, value)`` etc.</span>
 
-<span class="sd">            parameter_class (Optional[type]): You can construct the parameter</span>
+<span class="sd">            parameter_class: You can construct the parameter</span>
 <span class="sd">                out of any class. Default ``StandardParameter``.</span>
 
 <span class="sd">            **kwargs: constructor arguments for ``parameter_class``.</span>
@@ -265,7 +245,7 @@
         <span class="n">param</span> <span class="o">=</span> <span class="n">parameter_class</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">instrument</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span>
 
-    <span class="k">def</span> <span class="nf">add_function</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">add_function</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Bind one Function to this instrument.</span>
 
@@ -294,29 +274,31 @@
         <span class="n">func</span> <span class="o">=</span> <span class="n">Function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">instrument</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">func</span>
 
-    <span class="k">def</span> <span class="nf">add_submodule</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">submodule</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">add_submodule</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">submodule</span><span class="p">:</span> <span class="n">Metadatable</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Bind one submodule to this instrument.</span>
 
 <span class="sd">        Instrument subclasses can call this repeatedly in their ``__init__``</span>
 <span class="sd">        method for every submodule of the instrument.</span>
 
-<span class="sd">        Submodules can effectively be considered as instruments within the main</span>
-<span class="sd">        instrument, and should at minimum be snapshottable. For example, they can</span>
-<span class="sd">        be used to either store logical groupings of parameters, which may or may</span>
-<span class="sd">        not be repeated, or channel lists.</span>
+<span class="sd">        Submodules can effectively be considered as instruments within</span>
+<span class="sd">        the main instrument, and should at minimum be</span>
+<span class="sd">        snapshottable. For example, they can be used to either store</span>
+<span class="sd">        logical groupings of parameters, which may or may not be</span>
+<span class="sd">        repeated, or channel lists.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            name (str): how the submodule will be stored within ``instrument.submodules``</span>
-<span class="sd">            and also how it can be addressed.</span>
+<span class="sd">            name: how the submodule will be stored within</span>
+<span class="sd">                ``instrument.submodules`` and also how it can be</span>
+<span class="sd">            addressed.</span>
 
-<span class="sd">            submodule (Metadatable): The submodule to be stored.</span>
+<span class="sd">            submodule: The submodule to be stored.</span>
 
 <span class="sd">        Raises:</span>
 <span class="sd">            KeyError: if this instrument already contains a submodule with this</span>
 <span class="sd">                name.</span>
-<span class="sd">            TypeError: if the submodule that we are trying to add is not an instance</span>
-<span class="sd">                of an Metadatable object.</span>
+<span class="sd">            TypeError: if the submodule that we are trying to add is</span>
+<span class="sd">                not an instance of an Metadatable object.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">submodules</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s1">&#39;Duplicate submodule name </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
@@ -325,12 +307,12 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">submodules</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">submodule</span>
 
     <span class="k">def</span> <span class="nf">snapshot_base</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                      <span class="n">params_to_skip_update</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+                      <span class="n">params_to_skip_update</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        State of the instrument as a JSON-compatible dict.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            update (bool): If True, update the state by querying the</span>
+<span class="sd">            update: If True, update the state by querying the</span>
 <span class="sd">                instrument. If False, just use the latest values in memory.</span>
 <span class="sd">            params_to_skip_update: List of parameter names that will be skipped</span>
 <span class="sd">                in update even if update is True. This is useful if you have</span>
@@ -342,8 +324,10 @@
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="n">snap</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s2">&quot;functions&quot;</span><span class="p">:</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="n">func</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="n">update</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">func</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">items</span><span class="p">()},</span>
-            <span class="s2">&quot;submodules&quot;</span><span class="p">:</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="n">subm</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="n">update</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">subm</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">submodules</span><span class="o">.</span><span class="n">items</span><span class="p">()},</span>
+            <span class="s2">&quot;functions&quot;</span><span class="p">:</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="n">func</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="n">update</span><span class="p">)</span>
+                          <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">func</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="o">.</span><span class="n">items</span><span class="p">()},</span>
+            <span class="s2">&quot;submodules&quot;</span><span class="p">:</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="n">subm</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="n">update</span><span class="p">)</span>
+                           <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">subm</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">submodules</span><span class="o">.</span><span class="n">items</span><span class="p">()},</span>
             <span class="s2">&quot;__class__&quot;</span><span class="p">:</span> <span class="n">full_class</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
         <span class="p">}</span>
 
@@ -355,25 +339,28 @@
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">snap</span><span class="p">[</span><span class="s1">&#39;parameters&#39;</span><span class="p">][</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="n">update</span><span class="p">)</span>
             <span class="k">except</span><span class="p">:</span>
-                <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Snapshot: Could not update parameter: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Snapshot: Could not update parameter:&quot;</span>
+                          <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
                 <span class="n">snap</span><span class="p">[</span><span class="s1">&#39;parameters&#39;</span><span class="p">][</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_meta_attrs</span><span class="p">):</span>
             <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">):</span>
                 <span class="n">snap</span><span class="p">[</span><span class="n">attr</span><span class="p">]</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">snap</span>
 
-    <span class="k">def</span> <span class="nf">print_readable_snapshot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">max_chars</span><span class="o">=</span><span class="mi">80</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">print_readable_snapshot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                                <span class="n">max_chars</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="mi">80</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Prints a readable version of the snapshot.</span>
 <span class="sd">        The readable snapshot includes the name, value and unit of each</span>
 <span class="sd">        parameter.</span>
-<span class="sd">        A convenience function to quickly get an overview of the status of an instrument.</span>
+<span class="sd">        A convenience function to quickly get an overview of the</span>
+<span class="sd">        status of an instrument.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            update (bool)  : If True, update the state by querying the</span>
+<span class="sd">            update: If True, update the state by querying the</span>
 <span class="sd">                instrument. If False, just use the latest values in memory.</span>
 <span class="sd">                This argument gets passed to the snapshot function.</span>
-<span class="sd">            max_chars (int) : the maximum number of characters per line. The</span>
+<span class="sd">            max_chars: the maximum number of characters per line. The</span>
 <span class="sd">                readable snapshot will be cropped if this value is exceeded.</span>
 <span class="sd">                Defaults to 80 to be consistent with default terminal width.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -431,64 +418,66 @@
     <span class="c1">#</span>
     <span class="n">delegate_attr_dicts</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;parameters&#39;</span><span class="p">,</span> <span class="s1">&#39;functions&#39;</span><span class="p">,</span> <span class="s1">&#39;submodules&#39;</span><span class="p">]</span>
 
-    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;Delegate instrument[&#39;name&#39;] to parameter or function &#39;name&#39;.&quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
         <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
 
-    <span class="k">def</span> <span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_name</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Shortcut for setting a parameter from its name and new value.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            param_name (str): The name of a parameter of this instrument.</span>
-<span class="sd">            value (any): The new value to set.</span>
+<span class="sd">            param_name: The name of a parameter of this instrument.</span>
+<span class="sd">            value: The new value to set.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">param_name</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_name</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Shortcut for getting a parameter from its name.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            param_name (str): The name of a parameter of this instrument.</span>
+<span class="sd">            param_name: The name of a parameter of this instrument.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            any: The current value of the parameter.</span>
+<span class="sd">            The current value of the parameter.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">param_name</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
 
-    <span class="k">def</span> <span class="nf">call</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func_name</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">call</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Shortcut for calling a function from its name.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            func_name (str): The name of a function of this instrument.</span>
+<span class="sd">            func_name: The name of a function of this instrument.</span>
 <span class="sd">            *args: any arguments to the function.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            any: The return value of the function.</span>
+<span class="sd">            The return value of the function.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="p">[</span><span class="n">func_name</span><span class="p">]</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">__getstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Prevent pickling instruments, and give a nice error message.&quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
-            <span class="s1">&#39;Pickling </span><span class="si">%s</span><span class="s1">. qcodes Instruments should not be pickled. Likely this means you &#39;</span>
+            <span class="s1">&#39;Pickling </span><span class="si">{}</span><span class="s1">. qcodes Instruments should not.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span> <span class="o">+</span>
+            <span class="s1">&#39; be pickled. Likely this means you &#39;</span>
             <span class="s1">&#39;were trying to use a local instrument (defined with &#39;</span>
             <span class="s1">&#39;server_name=None) in a background Loop. Local instruments can &#39;</span>
-            <span class="s1">&#39;only be used in Loops with background=False.&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+            <span class="s1">&#39;only be used in Loops with background=False.&#39;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">validate_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">validate_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot; Validate the values of all gettable parameters</span>
 
 <span class="sd">        The validation is done for all parameters that have both a get and</span>
 <span class="sd">        set method.</span>
 
 <span class="sd">        Arguments:</span>
-<span class="sd">            verbose (bool): If True, then information about the parameters that are being check is printed.</span>
+<span class="sd">            verbose: If True, then information about the</span>
+<span class="sd">                parameters that are being check is printed.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
@@ -505,10 +494,9 @@
 <span class="sd">    Base class for all QCodes instruments.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        name (str): an identifier for this instrument, particularly for</span>
+<span class="sd">        name: an identifier for this instrument, particularly for</span>
 <span class="sd">            attaching it to a Station.</span>
-
-<span class="sd">        metadata (Optional[Dict]): additional static metadata to add to this</span>
+<span class="sd">        metadata: additional static metadata to add to this</span>
 <span class="sd">            instrument&#39;s JSON snapshot.</span>
 
 
@@ -531,12 +519,13 @@
 
     <span class="n">_all_instruments</span> <span class="o">=</span> <span class="p">{}</span>
 
-<div class="viewcode-block" id="Instrument.__init__"><a class="viewcode-back" href="../../../api/generated/qcodes.Instrument.html#qcodes.Instrument.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">testing</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="Instrument.__init__"><a class="viewcode-back" href="../../../api/generated/qcodes.Instrument.html#qcodes.Instrument.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">metadata</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_t0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;server_name&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
             <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;server_name argument not supported any more&quot;</span><span class="p">,</span>
                           <span class="n">stacklevel</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">testing</span><span class="o">=</span><span class="n">testing</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;IDN&#39;</span><span class="p">,</span> <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">get_idn</span><span class="p">,</span>
                            <span class="n">vals</span><span class="o">=</span><span class="n">Anything</span><span class="p">())</span>
@@ -545,7 +534,7 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">record_instance</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
 
-    <span class="k">def</span> <span class="nf">get_idn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">get_idn</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Parse a standard VISA &#39;\*IDN?&#39; response into an ID dict.</span>
 
@@ -576,7 +565,8 @@
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">idparts</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">4</span><span class="p">:</span>
                 <span class="n">idparts</span> <span class="o">+=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">4</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">idparts</span><span class="p">))</span>
         <span class="k">except</span><span class="p">:</span>
-            <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Error getting or interpreting *IDN?: &#39;</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="n">idstr</span><span class="p">))</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Error getting or interpreting *IDN?: &#39;</span>
+                      <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="n">idstr</span><span class="p">))</span>
             <span class="n">idparts</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
 
         <span class="c1"># some strings include the word &#39;model&#39; at the front of model</span>
@@ -585,14 +575,15 @@
 
         <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">((</span><span class="s1">&#39;vendor&#39;</span><span class="p">,</span> <span class="s1">&#39;model&#39;</span><span class="p">,</span> <span class="s1">&#39;serial&#39;</span><span class="p">,</span> <span class="s1">&#39;firmware&#39;</span><span class="p">),</span> <span class="n">idparts</span><span class="p">))</span>
 
-    <span class="k">def</span> <span class="nf">connect_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idn_param</span><span class="o">=</span><span class="s1">&#39;IDN&#39;</span><span class="p">,</span> <span class="n">begin_time</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">connect_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idn_param</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;IDN&#39;</span><span class="p">,</span>
+                        <span class="n">begin_time</span><span class="p">:</span> <span class="nb">float</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Print a standard message on initial connection to an instrument.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            idn_param (str): name of parameter that returns ID dict.</span>
+<span class="sd">            idn_param: name of parameter that returns ID dict.</span>
 <span class="sd">                Default &#39;IDN&#39;.</span>
-<span class="sd">            begin_time (number): time.time() when init started.</span>
+<span class="sd">            begin_time: time.time() when init started.</span>
 <span class="sd">                Default is self._t0, set at start of Instrument.__init__.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># start with an empty dict, just in case an instrument doesn&#39;t</span>
@@ -621,7 +612,7 @@
         <span class="k">except</span><span class="p">:</span>
             <span class="k">pass</span>
 
-    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Irreversibly stop this instrument and free its resources.</span>
 
@@ -635,7 +626,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">remove_instance</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 
     <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">close_all</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">close_all</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Try to close all instruments registered in</span>
 <span class="sd">        `_all_instruments` This is handy for use with atexit to</span>
@@ -653,7 +644,7 @@
                 <span class="k">pass</span>
 
     <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">record_instance</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">instance</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">record_instance</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">instance</span><span class="p">:</span> <span class="s1">&#39;Instrument&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Record (a weak ref to) an instance in a class&#39;s instance list.</span>
 
@@ -661,7 +652,7 @@
 <span class="sd">        that there are no other instruments with the same name.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            instance (Instrument): Instance to record</span>
+<span class="sd">            instance: Instance to record</span>
 
 <span class="sd">        Raises:</span>
 <span class="sd">            KeyError: if another instance with the same name is already present</span>
@@ -684,7 +675,7 @@
         <span class="bp">cls</span><span class="o">.</span><span class="n">_instances</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">wr</span><span class="p">)</span>
 
     <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">instances</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">instances</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="s1">&#39;Instrument&#39;</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get all currently defined instances of this instrument class.</span>
 
@@ -692,7 +683,7 @@
 <span class="sd">        and it&#39;s also used by the test system to find objects to test against.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            List[Instrument]]</span>
+<span class="sd">            A list of instances</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="s1">&#39;_type&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">cls</span><span class="p">:</span>
             <span class="c1"># only instances of a superclass - we want instances of this</span>
@@ -701,12 +692,12 @@
         <span class="k">return</span> <span class="p">[</span><span class="n">wr</span><span class="p">()</span> <span class="k">for</span> <span class="n">wr</span> <span class="ow">in</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="s1">&#39;_instances&#39;</span><span class="p">,</span> <span class="p">[])</span> <span class="k">if</span> <span class="n">wr</span><span class="p">()]</span>
 
     <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">remove_instance</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">instance</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">remove_instance</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">instance</span><span class="p">:</span> <span class="s1">&#39;Instrument&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Remove a particular instance from the record.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            instance (Union[Instrument])</span>
+<span class="sd">            The instance to remove</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">wr</span> <span class="o">=</span> <span class="n">weakref</span><span class="o">.</span><span class="n">ref</span><span class="p">(</span><span class="n">instance</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">wr</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_instances</span><span class="p">:</span>
@@ -720,14 +711,14 @@
                 <span class="k">del</span> <span class="n">all_ins</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
 
     <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">find_instrument</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">instrument_class</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">find_instrument</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                        <span class="n">instrument_class</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">type</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Instrument&#39;</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Find an existing instrument by name.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            name (str)</span>
-<span class="sd">            instrument_class (Optional[class]): The type of instrument</span>
-<span class="sd">                you are looking for.</span>
+<span class="sd">            name: name of the instrument</span>
+<span class="sd">            instrument_class: The type of instrument you are looking for.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Union[Instrument]</span>
@@ -756,7 +747,7 @@
     <span class="c1"># `write` and `ask` are standard wrappers to help with error reporting   #</span>
     <span class="c1">#</span>
 
-    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Write a command string with NO response to the hardware.</span>
 
@@ -765,22 +756,20 @@
 <span class="sd">        hardware communication should instead override ``write_raw``.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            cmd (str): the string to send to the instrument</span>
+<span class="sd">            cmd: the string to send to the instrument</span>
 
 <span class="sd">        Raises:</span>
 <span class="sd">            Exception: wraps any underlying exception with extra context,</span>
 <span class="sd">                including the command and the instrument.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_testing</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">mocker</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">write_raw</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">write_raw</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-            <span class="n">e</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">args</span> <span class="o">+</span> <span class="p">(</span><span class="s1">&#39;writing &#39;</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; to &#39;</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">),)</span>
+            <span class="n">inst</span> <span class="o">=</span> <span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="n">e</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">args</span> <span class="o">+</span> <span class="p">(</span><span class="s1">&#39;writing &#39;</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; to &#39;</span> <span class="o">+</span> <span class="n">inst</span><span class="p">,)</span>
             <span class="k">raise</span> <span class="n">e</span>
 
-    <span class="k">def</span> <span class="nf">write_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">write_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Low level method to write a command string to the hardware.</span>
 
@@ -789,13 +778,13 @@
 <span class="sd">        override ``write``.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            cmd (str): the string to send to the instrument</span>
+<span class="sd">            cmd: the string to send to the instrument</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
             <span class="s1">&#39;Instrument </span><span class="si">{}</span><span class="s1"> has not defined a write method&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
                 <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
 
-    <span class="k">def</span> <span class="nf">ask</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">ask</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Write a command string to the hardware and return a response.</span>
 
@@ -804,7 +793,7 @@
 <span class="sd">        hardware communication should instead override ``ask_raw``.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            cmd (str): the string to send to the instrument</span>
+<span class="sd">            cmd: the string to send to the instrument</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            response (str, normally)</span>
@@ -814,18 +803,16 @@
 <span class="sd">                including the command and the instrument.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_testing</span><span class="p">:</span>
-                <span class="n">answer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mocker</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">answer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask_raw</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="n">answer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask_raw</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
 
             <span class="k">return</span> <span class="n">answer</span>
 
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-            <span class="n">e</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">args</span> <span class="o">+</span> <span class="p">(</span><span class="s1">&#39;asking &#39;</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; to &#39;</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">),)</span>
+            <span class="n">inst</span> <span class="o">=</span> <span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="n">e</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">args</span> <span class="o">+</span> <span class="p">(</span><span class="s1">&#39;asking &#39;</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; to &#39;</span> <span class="o">+</span> <span class="n">inst</span><span class="p">,)</span>
             <span class="k">raise</span> <span class="n">e</span>
 
-    <span class="k">def</span> <span class="nf">ask_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">ask_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Low level method to write to the hardware and return a response.</span>
 
@@ -834,7 +821,7 @@
 <span class="sd">        override ``ask``.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            cmd (str): the string to send to the instrument</span>
+<span class="sd">            cmd: the string to send to the instrument</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
             <span class="s1">&#39;Instrument </span><span class="si">{}</span><span class="s1"> has not defined an ask method&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
