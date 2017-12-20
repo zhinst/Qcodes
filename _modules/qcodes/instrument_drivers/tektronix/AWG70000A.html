@@ -170,6 +170,7 @@
 <span class="kn">import</span> <span class="nn">io</span>
 <span class="kn">import</span> <span class="nn">zipfile</span> <span class="k">as</span> <span class="nn">zf</span>
 <span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="k">import</span> <span class="n">partial</span>
 
 <span class="kn">from</span> <span class="nn">dateutil.tz</span> <span class="k">import</span> <span class="n">time</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Sequence</span>
@@ -268,9 +269,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;fgen_frequency&#39;</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Channel </span><span class="si">{}</span><span class="s1"> </span><span class="si">{}</span><span class="s1"> frequency&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span> <span class="n">fg</span><span class="p">),</span>
                            <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;FGEN:CHANnel</span><span class="si">{}</span><span class="s1">:FREQuency?&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">),</span>
-                           <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;FGEN:CHANnel</span><span class="si">{}</span><span class="s1">:FREQuency {{}}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">),</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_fgfreq</span><span class="p">,</span> <span class="n">channel</span><span class="p">),</span>
                            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;Hz&#39;</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">50000000</span><span class="p">),</span>
                            <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;fgen_dclevel&#39;</span><span class="p">,</span>
@@ -386,6 +386,26 @@
 <span class="s2">                                      markers, 9 bit resolution</span>
 <span class="s2">                                      allows for one, and 10 bit</span>
 <span class="s2">                                      does NOT allow for markers&quot;&quot;&quot;</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_set_fgfreq</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">frequency</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set the function generator frequency</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">functype</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fgen_type</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">functype</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;SINE&#39;</span><span class="p">,</span> <span class="s1">&#39;SQUARE&#39;</span><span class="p">]:</span>
+            <span class="n">max_freq</span> <span class="o">=</span> <span class="mf">12.5e9</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">max_freq</span> <span class="o">=</span> <span class="mf">6.25e9</span>
+
+        <span class="c1"># validate</span>
+        <span class="k">if</span> <span class="n">frequency</span> <span class="o">&lt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">frequency</span> <span class="o">&gt;</span> <span class="n">max_freq</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Can not set channel </span><span class="si">{}</span><span class="s1"> frequency to </span><span class="si">{}</span><span class="s1"> Hz.&#39;</span>
+                             <span class="s1">&#39; Maximum frequency for function type </span><span class="si">{}</span><span class="s1"> is </span><span class="si">{}</span><span class="s1"> &#39;</span>
+                             <span class="s1">&#39;Hz, minimum is 1 Hz&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span> <span class="n">frequency</span><span class="p">,</span>
+                                                          <span class="n">functype</span><span class="p">,</span> <span class="n">max_freq</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_parent</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;FGEN:CHANnel</span><span class="si">{}</span><span class="s1">:FREQuency </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span>
+                                                                    <span class="n">frequency</span><span class="p">))</span>
 
 <div class="viewcode-block" id="AWGChannel.setWaveform"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.AWG70000A.AWGChannel.setWaveform">[docs]</a>    <span class="k">def</span> <span class="nf">setWaveform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
