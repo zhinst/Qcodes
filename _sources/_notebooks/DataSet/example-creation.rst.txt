@@ -1,0 +1,259 @@
+
+.. code:: ipython3
+
+    %matplotlib notebook
+    import matplotlib.pyplot as plt
+    import qcodes as qc
+    from qcodes import ParamSpec, new_data_set, new_experiment
+
+Experiment container and dasets
+===============================
+
+Once qcodes is imported we check if the databse exists if not we create
+one and make sure the schema matches.
+
+.. code:: ipython3
+
+    qc.config.core.db_location
+
+
+
+
+.. parsed-literal::
+
+    './experiments.db'
+
+
+
+everything is configurable.
+
+One .db file contains MANY experiments and MANY datasets.
+
+Experiments
+-----------
+
+We start wihtout experiments if the .db file is empty. A data set can't
+exist without an experiment!
+
+.. code:: ipython3
+
+    dataSet = new_data_set("sweep gate")
+
+We may decide that if there are no experiment we create a default one.
+
+But for now, let's create an experiment.
+
+.. code:: ipython3
+
+    exp = new_experiment("majorana-qbuit", sample_name="flying brdige")
+    exp
+
+
+
+
+.. parsed-literal::
+
+    majorana-qbuit#flying brdige#3@./experiments.db
+    -----------------------------------------------
+
+
+
+Now we can create a dataset. Note two things:
+
+::
+
+    - if we don't specfiy a exp_id, but we have an experiment in the experiment container the dataset will go into that one.
+    - dataset can be created from the experiment object
+
+.. code:: ipython3
+
+    dataSet = new_data_set("sweep gate")
+    exp
+
+
+
+
+.. parsed-literal::
+
+    majorana-qbuit#flying brdige#3@./experiments.db
+    -----------------------------------------------
+    30-sweep gate-1-None-0
+
+
+
+.. code:: ipython3
+
+    data_set = exp.new_data_set("sweep gate")
+
+These datasets are grim wihtout parameters
+
+.. code:: ipython3
+
+    parameter_a = ParamSpec("a", "numeric")
+    # metadata with key="value", and number=1
+    parameter_b = ParamSpec("b", "numeric", key="value", number=1)
+    # cann add new parameter: an array
+    parameter_c = ParamSpec("c", "array")
+
+.. code:: ipython3
+
+    dataSet.add_parameters([parameter_a, parameter_b, parameter_c])
+
+.. code:: ipython3
+
+    dataSet
+
+
+
+
+.. parsed-literal::
+
+    sweep gate #30@./experiments.db
+    -------------------------------
+    a - numeric
+    b - numeric
+    c - array
+
+
+
+.. code:: ipython3
+
+    dataSet.add_result({"a":1})
+
+
+
+
+.. parsed-literal::
+
+    1
+
+
+
+.. code:: ipython3
+
+    dataSet.get_data("a")
+
+
+
+
+.. parsed-literal::
+
+    [[1]]
+
+
+
+.. code:: ipython3
+
+    exp
+
+
+
+
+.. parsed-literal::
+
+    majorana-qbuit#flying brdige#3@./experiments.db
+    -----------------------------------------------
+    30-sweep gate-1-a,b,c-1
+    31-sweep gate-2-None-0
+
+
+
+x-y loop example
+================
+
+.. code:: ipython3
+
+    dataSet = new_data_set("test", specs=[ParamSpec("x", "numeric"), ParamSpec("y", "numeric")], metadata={"so":"meta"})
+
+.. code:: ipython3
+
+    dataSet.exp_id
+
+
+
+
+.. parsed-literal::
+
+    3
+
+
+
+.. code:: ipython3
+
+    dataSet.add_metadata("more", "meta")
+
+.. code:: ipython3
+
+    for x in range(100):
+        y = 3*x + 10
+        dataSet.add_result({"x":x, "y":y})
+
+.. code:: ipython3
+
+    fig, ax = plt.subplots(1,1)
+    ax.plot(dataSet.get_data("x") , dataSet.get_data("y"))
+    ax.plot(dataSet.get_data("x", start=10) , dataSet.get_data("y", start=10))
+    ax.plot(dataSet.get_data("x", start=20, end=30) , dataSet.get_data("y", start=20, end=30))
+
+
+
+.. parsed-literal::
+
+    <IPython.core.display.Javascript object>
+
+
+
+.. raw:: html
+
+    <div id='45e18611-b97b-45ec-8c9f-4f89f80d5d96'></div>
+
+
+
+
+.. parsed-literal::
+
+    [<matplotlib.lines.Line2D at 0x14f2b1120588>]
+
+
+
+x-y (array) loop example
+========================
+
+.. code:: ipython3
+
+    import numpy as np
+
+.. code:: ipython3
+
+    dataSet = new_data_set("test", specs=[ParamSpec("x", "numeric"), ParamSpec("y", "array")])
+
+.. code:: ipython3
+
+    for x in range(100):
+        dataSet.add_result({"x":x, "y":np.random.random_sample(10)})
+
+.. code:: ipython3
+
+    fig, ax = plt.subplots(1,1)
+    ax.imshow(np.concatenate(dataSet.get_data("y")))
+
+
+
+.. parsed-literal::
+
+    <IPython.core.display.Javascript object>
+
+
+
+.. raw:: html
+
+    <div id='8dee4572-2429-4609-ad83-1e588a1cdd18'></div>
+
+
+
+
+.. parsed-literal::
+
+    <matplotlib.image.AxesImage at 0x14f2503eb208>
+
+
