@@ -176,7 +176,7 @@
 <span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Sequence</span>
 
 <span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="n">Instrument</span><span class="p">,</span> <span class="n">VisaInstrument</span><span class="p">,</span> <span class="n">validators</span> <span class="k">as</span> <span class="n">vals</span>
-<span class="kn">from</span> <span class="nn">qcodes.instrument.channel</span> <span class="k">import</span> <span class="n">InstrumentChannel</span>
+<span class="kn">from</span> <span class="nn">qcodes.instrument.channel</span> <span class="k">import</span> <span class="n">InstrumentChannel</span><span class="p">,</span> <span class="n">ChannelList</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="k">import</span> <span class="n">Validator</span>
 
 <span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
@@ -200,6 +200,8 @@
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">awg</span><span class="o">.</span><span class="n">model</span> <span class="o">==</span> <span class="s1">&#39;70002A&#39;</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_internal_validator</span> <span class="o">=</span> <span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">(</span><span class="mf">1.49e3</span><span class="p">,</span> <span class="mf">25e9</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_freq_multiplier</span> <span class="o">=</span> <span class="mi">2</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">awg</span><span class="o">.</span><span class="n">model</span> <span class="o">==</span> <span class="s1">&#39;5208&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_internal_validator</span> <span class="o">=</span> <span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">(</span><span class="mf">1.49e3</span><span class="p">,</span> <span class="mf">2.5e9</span><span class="p">)</span>
         <span class="c1"># no other models are possible, since the __init__ of</span>
         <span class="c1"># the AWG70000A raises an error if anything else is given</span>
 
@@ -458,7 +460,7 @@
         <span class="c1"># The &#39;model&#39; value begins with &#39;AWG&#39;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">IDN</span><span class="p">()[</span><span class="s1">&#39;model&#39;</span><span class="p">][</span><span class="mi">3</span><span class="p">:]</span>
 
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;70001A&#39;</span><span class="p">,</span> <span class="s1">&#39;70002A&#39;</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;70001A&#39;</span><span class="p">,</span> <span class="s1">&#39;70002A&#39;</span><span class="p">,</span> <span class="s1">&#39;5208&#39;</span><span class="p">]:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Unknown model type: </span><span class="si">{}</span><span class="s1">. Are you using &#39;</span>
                              <span class="s1">&#39;the right driver for your instrument?&#39;</span>
                              <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">))</span>
@@ -503,10 +505,21 @@
                            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;Hz&#39;</span><span class="p">,</span>
                            <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">(</span><span class="mf">6.25e9</span><span class="p">,</span> <span class="mf">12.5e9</span><span class="p">))</span>
 
+        <span class="c1"># We deem 2 channels too few for a channel list</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_channels</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">chanlist</span> <span class="o">=</span> <span class="n">ChannelList</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;Channels&#39;</span><span class="p">,</span> <span class="n">AWGChannel</span><span class="p">,</span>
+                                   <span class="n">snapshotable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
         <span class="k">for</span> <span class="n">ch_num</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_channels</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
             <span class="n">ch_name</span> <span class="o">=</span> <span class="s1">&#39;ch</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ch_num</span><span class="p">)</span>
             <span class="n">channel</span> <span class="o">=</span> <span class="n">AWGChannel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ch_name</span><span class="p">,</span> <span class="n">ch_num</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">add_submodule</span><span class="p">(</span><span class="n">ch_name</span><span class="p">,</span> <span class="n">channel</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_channels</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="n">chanlist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">channel</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_channels</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">chanlist</span><span class="o">.</span><span class="n">lock</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_submodule</span><span class="p">(</span><span class="s1">&#39;channels&#39;</span><span class="p">,</span> <span class="n">chanlist</span><span class="p">)</span>
 
         <span class="c1"># Folder on the AWG where to files are uplaoded by default</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">wfmxFileFolder</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\\</span><span class="s2">Users</span><span class="se">\\</span><span class="s2">OEM</span><span class="se">\\</span><span class="s2">Documents&quot;</span>
