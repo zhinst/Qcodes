@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>qcodes.instrument.base &mdash; QCoDeS 0.1.9 documentation</title>
+  <title>qcodes.instrument.base &mdash; QCoDeS 0.1.11 documentation</title>
   
 
   
@@ -25,25 +25,17 @@
   
 
   
-  
     <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
-  
-
-  
-
-  
-        <link rel="index" title="Index"
-              href="../../../genindex.html"/>
-        <link rel="search" title="Search" href="../../../search.html"/>
-    <link rel="top" title="QCoDeS 0.1.9 documentation" href="../../../index.html"/>
-        <link rel="up" title="Module code" href="../../index.html"/> 
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
 
   
   <script src="../../../_static/js/modernizr.min.js"></script>
 
 </head>
 
-<body class="wy-body-for-nav" role="document">
+<body class="wy-body-for-nav">
 
    
   <div class="wy-grid-for-nav">
@@ -65,7 +57,7 @@
             
             
               <div class="version">
-                0.1.9
+                0.1.11
               </div>
             
           
@@ -111,7 +103,7 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
 
       
-      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+      <nav class="wy-nav-top" aria-label="top navigation">
         
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
           <a href="../../../index.html">QCoDeS</a>
@@ -119,9 +111,10 @@
       </nav>
 
 
-      
       <div class="wy-nav-content">
+        
         <div class="rst-content">
+        
           
 
 
@@ -151,8 +144,6 @@
     
       <li class="wy-breadcrumbs-aside">
         
-            
-        
       </li>
     
   </ul>
@@ -169,14 +160,15 @@
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">warnings</span>
 <span class="kn">import</span> <span class="nn">weakref</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">List</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">cast</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-
+<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">qcodes.instrumet.channel</span> <span class="k">import</span> <span class="n">ChannelList</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.helpers</span> <span class="k">import</span> <span class="n">DelegateAttributes</span><span class="p">,</span> <span class="n">strip_attrs</span><span class="p">,</span> <span class="n">full_class</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.metadata</span> <span class="k">import</span> <span class="n">Metadatable</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="k">import</span> <span class="n">Anything</span>
-<span class="kn">from</span> <span class="nn">.parameter</span> <span class="k">import</span> <span class="n">Parameter</span>
+<span class="kn">from</span> <span class="nn">.parameter</span> <span class="k">import</span> <span class="n">Parameter</span><span class="p">,</span> <span class="n">_BaseParameter</span>
 <span class="kn">from</span> <span class="nn">.function</span> <span class="k">import</span> <span class="n">Function</span>
 
 <span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
@@ -211,9 +203,9 @@
                  <span class="n">metadata</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">functions</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">submodules</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span> <span class="o">=</span> <span class="p">{}</span> <span class="c1"># type: Dict[str, _BaseParameter]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">functions</span> <span class="o">=</span> <span class="p">{}</span> <span class="c1"># type: Dict[str, Function]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">submodules</span> <span class="o">=</span> <span class="p">{}</span> <span class="c1"># type: Dict[str, Union[&#39;InstrumentBase&#39;, &#39;ChannelList&#39;]]</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">add_parameter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
@@ -275,7 +267,7 @@
         <span class="n">func</span> <span class="o">=</span> <span class="n">Function</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">instrument</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">functions</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">func</span>
 
-    <span class="k">def</span> <span class="nf">add_submodule</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">submodule</span><span class="p">:</span> <span class="n">Metadatable</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">add_submodule</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">submodule</span><span class="p">:</span>  <span class="n">Union</span><span class="p">[</span><span class="s1">&#39;InstrumentBase&#39;</span><span class="p">,</span> <span class="s1">&#39;ChannelList&#39;</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Bind one submodule to this instrument.</span>
 
@@ -526,7 +518,9 @@
 
     <span class="n">shared_kwargs</span> <span class="o">=</span> <span class="p">()</span>
 
-    <span class="n">_all_instruments</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">_all_instruments</span> <span class="o">=</span> <span class="p">{}</span> <span class="c1"># type: Dict[str, weakref.ref[Instrument]]</span>
+    <span class="n">_type</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">_instances</span> <span class="o">=</span> <span class="p">[]</span> <span class="c1"># type: List[weakref.ref]</span>
 
 <div class="viewcode-block" id="Instrument.__init__"><a class="viewcode-back" href="../../../api/generated/qcodes.Instrument.html#qcodes.Instrument.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                  <span class="n">metadata</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -543,7 +537,7 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">record_instance</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
 
-    <span class="k">def</span> <span class="nf">get_idn</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">get_idn</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Parse a standard VISA &#39;\*IDN?&#39; response into an ID dict.</span>
 
@@ -565,6 +559,7 @@
             <span class="n">idstr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;*IDN?&#39;</span><span class="p">)</span>
             <span class="c1"># form is supposed to be comma-separated, but we&#39;ve seen</span>
             <span class="c1"># other separators occasionally</span>
+            <span class="n">idparts</span> <span class="o">=</span> <span class="p">[]</span> <span class="c1"># type: List[Optional[str]]</span>
             <span class="k">for</span> <span class="n">separator</span> <span class="ow">in</span> <span class="s1">&#39;,;:&#39;</span><span class="p">:</span>
                 <span class="c1"># split into no more than 4 parts, so we don&#39;t lose info</span>
                 <span class="n">idparts</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">idstr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">separator</span><span class="p">,</span> <span class="mi">3</span><span class="p">)]</span>
@@ -746,14 +741,14 @@
         <span class="k">if</span> <span class="n">ins</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">del</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_all_instruments</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
             <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s1">&#39;Instrument </span><span class="si">{}</span><span class="s1"> has been removed&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
-
+        <span class="n">inst</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s1">&#39;Instrument&#39;</span><span class="p">,</span> <span class="n">ins</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">instrument_class</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ins</span><span class="p">,</span> <span class="n">instrument_class</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">inst</span><span class="p">,</span> <span class="n">instrument_class</span><span class="p">):</span>
                 <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
                     <span class="s1">&#39;Instrument </span><span class="si">{}</span><span class="s1"> is </span><span class="si">{}</span><span class="s1"> but </span><span class="si">{}</span><span class="s1"> was requested&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-                        <span class="n">name</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="n">ins</span><span class="p">),</span> <span class="n">instrument_class</span><span class="p">))</span>
+                        <span class="n">name</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="n">inst</span><span class="p">),</span> <span class="n">instrument_class</span><span class="p">))</span>
 
-        <span class="k">return</span> <span class="n">ins</span>
+        <span class="k">return</span> <span class="n">inst</span>
 
     <span class="c1"># `write_raw` and `ask_raw` are the interface to hardware                #</span>
     <span class="c1"># `write` and `ask` are standard wrappers to help with error reporting   #</span>
@@ -824,7 +819,7 @@
             <span class="n">e</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">args</span> <span class="o">+</span> <span class="p">(</span><span class="s1">&#39;asking &#39;</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; to &#39;</span> <span class="o">+</span> <span class="n">inst</span><span class="p">,)</span>
             <span class="k">raise</span> <span class="n">e</span>
 
-    <span class="k">def</span> <span class="nf">ask_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">ask_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Low level method to write to the hardware and return a response.</span>
 
@@ -841,9 +836,7 @@
 </pre></div>
 
            </div>
-           <div class="articleComments">
-            
-           </div>
+           
           </div>
           <footer>
   
@@ -855,7 +848,7 @@
 
     </p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
 
@@ -873,7 +866,8 @@
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../../../',
-            VERSION:'0.1.9',
+            VERSION:'0.1.11',
+            LANGUAGE:'None',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true,
@@ -892,14 +886,11 @@
     <script type="text/javascript" src="../../../_static/js/theme.js"></script>
   
 
-  
-  
   <script type="text/javascript">
       jQuery(function () {
-          SphinxRtdTheme.StickyNav.enable();
+          SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-   
+  </script> 
 
 </body>
 </html>

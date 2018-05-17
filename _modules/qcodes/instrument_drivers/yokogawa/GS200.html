@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>qcodes.instrument_drivers.yokogawa.GS200 &mdash; QCoDeS 0.1.9 documentation</title>
+  <title>qcodes.instrument_drivers.yokogawa.GS200 &mdash; QCoDeS 0.1.11 documentation</title>
   
 
   
@@ -25,25 +25,17 @@
   
 
   
-  
     <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
-  
-
-  
-
-  
-        <link rel="index" title="Index"
-              href="../../../../genindex.html"/>
-        <link rel="search" title="Search" href="../../../../search.html"/>
-    <link rel="top" title="QCoDeS 0.1.9 documentation" href="../../../../index.html"/>
-        <link rel="up" title="Module code" href="../../../index.html"/> 
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
 
   
   <script src="../../../../_static/js/modernizr.min.js"></script>
 
 </head>
 
-<body class="wy-body-for-nav" role="document">
+<body class="wy-body-for-nav">
 
    
   <div class="wy-grid-for-nav">
@@ -65,7 +57,7 @@
             
             
               <div class="version">
-                0.1.9
+                0.1.11
               </div>
             
           
@@ -111,7 +103,7 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
 
       
-      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+      <nav class="wy-nav-top" aria-label="top navigation">
         
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
           <a href="../../../../index.html">QCoDeS</a>
@@ -119,9 +111,10 @@
       </nav>
 
 
-      
       <div class="wy-nav-content">
+        
         <div class="rst-content">
+        
           
 
 
@@ -151,8 +144,6 @@
     
       <li class="wy-breadcrumbs-aside">
         
-            
-        
       </li>
     
   </ul>
@@ -165,7 +156,7 @@
             
   <h1>Source code for qcodes.instrument_drivers.yokogawa.GS200</h1><div class="highlight"><pre>
 <span></span><span class="kn">from</span> <span class="nn">functools</span> <span class="k">import</span> <span class="n">partial</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Optional</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
 
 <span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="n">VisaInstrument</span><span class="p">,</span> <span class="n">InstrumentChannel</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="k">import</span> <span class="n">Numbers</span><span class="p">,</span> <span class="n">Bool</span><span class="p">,</span> <span class="n">Enum</span><span class="p">,</span> <span class="n">Ints</span>
@@ -361,7 +352,7 @@
         <span class="c1"># We want to cache the range value so communication with the instrument only happens when the set the</span>
         <span class="c1"># range. Getting the range always returns the cached value. This value is adjusted when calling</span>
         <span class="c1"># self._set_range</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_cached_range_value</span> <span class="o">=</span> <span class="kc">None</span> <span class="c1"># type: Optional[float]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cached_range_value</span> <span class="o">=</span> <span class="kc">None</span> <span class="c1"># type: Optional[Union[float,int]]</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;voltage_range&#39;</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Voltage Source Range&#39;</span><span class="p">,</span>
@@ -548,6 +539,9 @@
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">auto_enabled</span><span class="p">:</span>
             <span class="n">self_range</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_range_value</span>
+            <span class="k">if</span> <span class="n">self_range</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Trying to set output but not in&quot;</span>
+                                   <span class="s2">&quot; auto mode and range is unknown.&quot;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">mode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_mode</span>
             <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;CURR&quot;</span><span class="p">:</span>
@@ -562,6 +556,9 @@
                 <span class="c1"># Update range</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">range</span><span class="p">()</span>
                 <span class="n">self_range</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_range_value</span>
+                <span class="k">if</span> <span class="n">self_range</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Trying to set output but not in&quot;</span>
+                                       <span class="s2">&quot; auto mode and range is unknown.&quot;</span><span class="p">)</span>
             <span class="c1"># If we are still out of range, raise a value error</span>
             <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">output_level</span><span class="p">)</span> <span class="o">&gt;</span> <span class="nb">abs</span><span class="p">(</span><span class="n">self_range</span><span class="p">):</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Desired output level not in range [-</span><span class="si">{self_range:.3}</span><span class="s2">, </span><span class="si">{self_range:.3}</span><span class="s2">]&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
@@ -677,9 +674,7 @@
 </pre></div>
 
            </div>
-           <div class="articleComments">
-            
-           </div>
+           
           </div>
           <footer>
   
@@ -691,7 +686,7 @@
 
     </p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
 
@@ -709,7 +704,8 @@
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../../../../',
-            VERSION:'0.1.9',
+            VERSION:'0.1.11',
+            LANGUAGE:'None',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true,
@@ -728,14 +724,11 @@
     <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
   
 
-  
-  
   <script type="text/javascript">
       jQuery(function () {
-          SphinxRtdTheme.StickyNav.enable();
+          SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-   
+  </script> 
 
 </body>
 </html>

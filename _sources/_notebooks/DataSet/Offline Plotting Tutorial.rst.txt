@@ -1,0 +1,425 @@
+
+Offline Plotting Tutorial
+=========================
+
+The new dataset comes with a tool for offline (i.e. not live as the data
+are coming in) plotting. This notebook explains how to use it and what
+it is capable of plotting.
+
+The tool in question is the function ``plot_by_id``.
+
+.. code:: ipython3
+
+    %matplotlib notebook
+    import numpy as np
+    
+    import qcodes as qc
+    
+    from typing import List, Dict, Tuple, Any
+    import matplotlib.pyplot as plt
+    import qcodes as qc
+    from qcodes import ParamSpec, new_data_set, new_experiment
+    from qcodes.dataset.plotting import plot_by_id
+
+First we make an experimental run, so that we have something to plot.
+
+.. code:: ipython3
+
+    # if you just deleted your database file, you'll need to init a new one
+    from qcodes.dataset.sqlite_base import connect, init_db
+    conn = connect(qc.config['core']['db_location'], debug=False)
+    init_db(conn)
+
+.. code:: ipython3
+
+    new_experiment('test_plot_by_id', 'nosample')
+
+
+
+
+.. parsed-literal::
+
+    test_plot_by_id#nosample#2@./exp_container_tutorial.db
+    ------------------------------------------------------
+
+
+
+.. code:: ipython3
+
+    # Make a handful of parameters to be used in the examples
+    
+    x = ParamSpec('x', 'numeric', label='Voltage', unit='V')
+    t = ParamSpec('t', 'numeric', label='Time', unit='s')
+    y = ParamSpec('y', 'numeric', label='Voltage', unit='V', depends_on=[x])
+    y2 = ParamSpec('y2', 'numeric', label='Current', unit='A', depends_on=[x])
+    z = ParamSpec('z', 'numeric', label='Majorana number', unit='Anyon', depends_on=[x, t])
+
+A single, simple 1D sweep
+-------------------------
+
+.. code:: ipython3
+
+    data_set = new_data_set('1D-sweep')
+    
+    data_set.add_parameter(x)
+    data_set.add_parameter(y)
+
+.. code:: ipython3
+
+    xvals = np.linspace(-3.4, 4.2, 250)
+    
+    for xnum in xvals:
+        noise = np.random.randn()*0.1  # multiplicative noise yeah yeah
+        data_set.add_result({'x': xnum, 'y': 2*(xnum+noise)**3 - 5*(xnum+noise)**2})
+    
+    data_set.mark_complete()
+
+Now let us plot that run. The function ``plot_by_id`` takes the
+``run_id`` of the run to plot as a positional argument. Furthermore, the
+user may specify the matplotlib axis object (or list of axis objects) to
+plot on.
+
+If no axes are specified, the function creates new axis object(s). The
+function returns a tuple of a list of the axes and a list of the
+colorbar axes (just ``None``\ s if there are no colorbars).
+
+.. code:: ipython3
+
+    axes, cbaxes = plot_by_id(data_set.run_id)
+
+
+
+.. parsed-literal::
+
+    <IPython.core.display.Javascript object>
+
+
+
+.. raw:: html
+
+    <div id='3fb59b92-ec12-45c8-95ce-1b534cb72d4b'></div>
+
+
+Using the returned axis, we can e.g. change the plot linewidth and
+color. We refer to the matplotlib documentation for details on
+matplotlib plot customization.
+
+.. code:: ipython3
+
+    my_ax = axes[0]
+    line = my_ax.lines[0]
+    line.set_color('#223344')
+    line.set_linewidth(3)
+
+Two interleaved 1D sweeps
+-------------------------
+
+Now we make a run where two parameters are measured as a function of the
+same parameter.
+
+.. code:: ipython3
+
+    data_set = new_data_set('interleaved-1Ds')
+
+.. code:: ipython3
+
+    data_set.add_parameter(x)
+    data_set.add_parameter(y)
+    data_set.add_parameter(y2)
+
+.. code:: ipython3
+
+    xvals = np.linspace(-5, 5, 250)
+    
+    for xnum in xvals:
+        data_set.add_result({'x': xnum, 'y': xnum**2})
+        data_set.add_result({'x': xnum, 'y2': -xnum**2})
+    data_set.mark_complete()
+
+In such a situation, ``plot_by_id`` by default creates a new axis for
+**each** dependent parameter. Sometimes this is not desirable; we'd
+rather have both plots on the same axis. In such a case, we might pass
+the same axis twice to ``plot_by_id``.
+
+.. code:: ipython3
+
+    axes, cbaxes = plot_by_id(data_set.run_id)
+
+
+
+.. parsed-literal::
+
+    <IPython.core.display.Javascript object>
+
+
+
+.. raw:: html
+
+    <div id='326e2fdb-bddd-4c6e-99b1-f48e49d898d5'></div>
+
+
+
+.. parsed-literal::
+
+    <IPython.core.display.Javascript object>
+
+
+
+.. raw:: html
+
+    <div id='67da8edd-95d0-4bf7-80d5-2edf2b6853e5'></div>
+
+
+Let's do that now
+
+.. code:: ipython3
+
+    fig, ax = plt.subplots(1)
+    axes, cbaxes = plot_by_id(data_set.run_id, axes=[ax, ax])
+
+
+
+.. parsed-literal::
+
+    <IPython.core.display.Javascript object>
+
+
+
+.. raw:: html
+
+    <div id='386c8cfe-f159-4541-b846-fc0466d4fb27'></div>
+
+
+Regular 2D rectangular sweep scan
+---------------------------------
+
+For 2D plots, a colorbar is usually present. As mentioned above,
+``plot_by_id`` returns this.
+
+.. code:: ipython3
+
+    data_set = new_data_set('regular-2D-scan')
+    data_set.add_parameter(x)
+    data_set.add_parameter(t)
+    data_set.add_parameter(z)
+
+.. code:: ipython3
+
+    xvals = np.linspace(-4, 5, 50)
+    tvals = np.linspace(-500, 1500, 25)
+    
+    for xv in xvals:
+        for tv in tvals:
+            # just some arbitrary semi good looking function
+            zv = np.sin(2*np.pi*xv)*np.cos(2*np.pi*0.001*tv) + 0.001*tv
+            data_set.add_result({'x': xv, 't': tv, 'z': zv})
+    
+    data_set.mark_complete()
+
+.. code:: ipython3
+
+    axes, cbaxes = plot_by_id(data_set.run_id)
+
+
+
+.. parsed-literal::
+
+    <IPython.core.display.Javascript object>
+
+
+
+.. raw:: html
+
+    <div id='ae64778c-4ae3-46a5-948c-cc9f68f1319b'></div>
+
+
+A somewhat normal situation is that the colorbar was somehow
+mislabelled. Using the returned colorbar axis, the label can be
+overwritten.
+
+.. code:: ipython3
+
+    cbax = cbaxes[0]
+    cbax.set_label('Correct science label')
+
+Warped 2D rectangular sweep scan
+--------------------------------
+
+A nice feature of the new dataset is that the grid may be warped; it
+makes no difference. Here we warp the x axis of the previous scan to
+increase the resolution in the right half plane.
+
+.. code:: ipython3
+
+    data_set = new_data_set('warped-2D-scan')
+    data_set.add_parameter(x)
+    data_set.add_parameter(t)
+    data_set.add_parameter(z)
+
+.. code:: ipython3
+
+    xvals = np.linspace(-4, 5, 50) + np.cos(2/9*np.pi*xvals+np.pi/4)
+    tvals = np.linspace(-500, 1500, 25)
+    
+    
+    for xv in xvals:
+        for tv in tvals:
+            # just some arbitrary semi good looking function
+            zv = np.sin(2*np.pi*xv)*np.cos(2*np.pi*0.001*tv) + 0.001*tv
+            data_set.add_result({'x': xv, 't': tv, 'z': zv})
+    
+    data_set.mark_complete()
+
+.. code:: ipython3
+
+    axes, cbaxes = plot_by_id(data_set.run_id)
+
+
+
+.. parsed-literal::
+
+    <IPython.core.display.Javascript object>
+
+
+
+.. raw:: html
+
+    <div id='bdbd8ce9-6b9d-4469-9932-6cb6ee1a205a'></div>
+
+
+Interrupted 2D scans (a hole in the cheese)
+-------------------------------------------
+
+In case a sweep in interrupted, the entire grid will not be filled out.
+This is also supported, in fact, any single rectangular hole is allowed
+
+.. code:: ipython3
+
+    data_set = new_data_set('warped-with-hole-2D-scan')
+    data_set.add_parameter(x)
+    data_set.add_parameter(t)
+    data_set.add_parameter(z)
+
+.. code:: ipython3
+
+    xvals = np.linspace(-4, 5, 50) + np.cos(2/9*np.pi*xvals+np.pi/4)
+    tvals = np.linspace(-500, 1500, 25)
+    
+    
+    # define two small forbidden range functions
+    def no_x(xv):
+        if xv > 0 and xv < 3:
+            return True
+        else:
+            return False
+        
+    def no_t(tv):
+        if tv > 0 and tv < 450:
+            return True
+        else:
+            return False
+    
+    for xv in xvals:
+        for tv in tvals:
+            if  no_x(xv) and no_t(tv):
+                continue
+            else:
+                # just some arbitrary semi good looking function
+                zv = np.sin(2*np.pi*xv)*np.cos(2*np.pi*0.001*tv) + 0.001*tv
+                data_set.add_result({'x': xv, 't': tv, 'z': zv})
+    
+    data_set.mark_complete()
+
+.. code:: ipython3
+
+    axes, cbaxes = plot_by_id(data_set.run_id)
+
+
+
+.. parsed-literal::
+
+    <IPython.core.display.Javascript object>
+
+
+
+.. raw:: html
+
+    <div id='4d30886f-ca64-4a79-9a64-b24e7a9f3617'></div>
+
+
+Fancy plotting
+--------------
+
+As a final example, let us combine several plots in one window.
+
+We first make a little grid of axes.
+
+.. code:: ipython3
+
+    fig, figaxes = plt.subplots(2, 2)
+
+
+
+.. parsed-literal::
+
+    <IPython.core.display.Javascript object>
+
+
+
+.. raw:: html
+
+    <div id='28e594e5-991d-4b7c-b6fb-eeb38c92d998'></div>
+
+
+Next, we make some runs (shamelessly copy-pasting from above).
+
+.. code:: ipython3
+
+    # First run
+    
+    data_set = new_data_set('1D-sweep')
+    
+    data_set.add_parameter(x)
+    data_set.add_parameter(y)
+    
+    xvals = np.linspace(-3.4, 4.2, 250)
+    
+    for xnum in xvals:
+        noise = np.random.randn()*0.1  # multiplicative noise yeah yeah
+        data_set.add_result({'x': xnum, 'y': 2*(xnum+noise)**3 - 5*(xnum+noise)**2})
+    
+    data_set.mark_complete()
+    rid1 = data_set.run_id
+    
+    # Second run
+    
+    data_set = new_data_set('2D-sweep')
+    data_set.add_parameter(x)
+    data_set.add_parameter(t)
+    data_set.add_parameter(z)
+    
+    xvals = np.linspace(-4, 5, 50)
+    tvals = np.linspace(-500, 1500, 25)
+    for xv in xvals:
+        for tv in tvals:
+            # just some arbitrary semi good looking function
+            zv = np.sin(2*np.pi*xv)*np.cos(2*np.pi*0.001*tv) + 0.001*tv
+            data_set.add_result({'x': xv, 't': tv, 'z': zv})
+    
+    data_set.mark_complete()
+    
+    rid2 = data_set.run_id
+
+And then we put them just where we please.
+
+.. code:: ipython3
+
+    axes, cbaxes = plot_by_id(rid1, figaxes[0, 0])
+
+.. code:: ipython3
+
+    axes, cbaxes = plot_by_id(rid2, figaxes[1, 1])
+
+.. code:: ipython3
+
+    fig.tight_layout()

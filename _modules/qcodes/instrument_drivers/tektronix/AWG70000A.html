@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>qcodes.instrument_drivers.tektronix.AWG70000A &mdash; QCoDeS 0.1.9 documentation</title>
+  <title>qcodes.instrument_drivers.tektronix.AWG70000A &mdash; QCoDeS 0.1.11 documentation</title>
   
 
   
@@ -25,25 +25,17 @@
   
 
   
-  
     <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
-  
-
-  
-
-  
-        <link rel="index" title="Index"
-              href="../../../../genindex.html"/>
-        <link rel="search" title="Search" href="../../../../search.html"/>
-    <link rel="top" title="QCoDeS 0.1.9 documentation" href="../../../../index.html"/>
-        <link rel="up" title="Module code" href="../../../index.html"/> 
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
 
   
   <script src="../../../../_static/js/modernizr.min.js"></script>
 
 </head>
 
-<body class="wy-body-for-nav" role="document">
+<body class="wy-body-for-nav">
 
    
   <div class="wy-grid-for-nav">
@@ -65,7 +57,7 @@
             
             
               <div class="version">
-                0.1.9
+                0.1.11
               </div>
             
           
@@ -111,7 +103,7 @@
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
 
       
-      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+      <nav class="wy-nav-top" aria-label="top navigation">
         
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
           <a href="../../../../index.html">QCoDeS</a>
@@ -119,9 +111,10 @@
       </nav>
 
 
-      
       <div class="wy-nav-content">
+        
         <div class="rst-content">
+        
           
 
 
@@ -151,8 +144,6 @@
     
       <li class="wy-breadcrumbs-aside">
         
-            
-        
       </li>
     
   </ul>
@@ -164,25 +155,30 @@
            <div itemprop="articleBody">
             
   <h1>Source code for qcodes.instrument_drivers.tektronix.AWG70000A</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">xml.etree.ElementTree</span> <span class="k">as</span> <span class="nn">ET</span>
-<span class="kn">import</span> <span class="nn">datetime</span> <span class="k">as</span> <span class="nn">dt</span>
-<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span></span><span class="kn">import</span> <span class="nn">datetime</span> <span class="k">as</span> <span class="nn">dt</span>
 <span class="kn">import</span> <span class="nn">struct</span>
 <span class="kn">import</span> <span class="nn">io</span>
 <span class="kn">import</span> <span class="nn">zipfile</span> <span class="k">as</span> <span class="nn">zf</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="k">import</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Optional</span>
+<span class="kn">import</span> <span class="nn">time</span>
 
-<span class="kn">from</span> <span class="nn">dateutil.tz</span> <span class="k">import</span> <span class="n">time</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Sequence</span>
+<span class="kn">import</span> <span class="nn">xml.etree.ElementTree</span> <span class="k">as</span> <span class="nn">ET</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
 <span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="n">Instrument</span><span class="p">,</span> <span class="n">VisaInstrument</span><span class="p">,</span> <span class="n">validators</span> <span class="k">as</span> <span class="n">vals</span>
 <span class="kn">from</span> <span class="nn">qcodes.instrument.channel</span> <span class="k">import</span> <span class="n">InstrumentChannel</span><span class="p">,</span> <span class="n">ChannelList</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="k">import</span> <span class="n">Validator</span>
+<span class="kn">from</span> <span class="nn">broadbean.sequence</span> <span class="k">import</span> <span class="n">fs_schema</span><span class="p">,</span> <span class="n">InvalidForgedSequenceError</span>
 
 <span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
-<span class="c1"># some settings differ between series</span>
+<span class="c1">##################################################</span>
+<span class="c1">#</span>
+<span class="c1"># MODEL DEPENDENT SETTINGS</span>
+<span class="c1">#</span>
+
 <span class="n">_fg_path_val_map</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;5208&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;DC High BW&#39;</span><span class="p">:</span> <span class="s2">&quot;DCHB&quot;</span><span class="p">,</span>
                              <span class="s1">&#39;DC High Voltage&#39;</span><span class="p">:</span> <span class="s2">&quot;DCHV&quot;</span><span class="p">,</span>
                              <span class="s1">&#39;AC Direct&#39;</span><span class="p">:</span> <span class="s2">&quot;ACD&quot;</span><span class="p">},</span>
@@ -192,6 +188,16 @@
                     <span class="s1">&#39;70002A&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;direct&#39;</span><span class="p">:</span> <span class="s1">&#39;DIR&#39;</span><span class="p">,</span>
                                <span class="s1">&#39;DCamplified&#39;</span><span class="p">:</span> <span class="s1">&#39;DCAM&#39;</span><span class="p">,</span>
                                <span class="s1">&#39;AC&#39;</span><span class="p">:</span> <span class="s1">&#39;AC&#39;</span><span class="p">}}</span>
+
+<span class="c1"># number of markers per channel</span>
+<span class="n">_num_of_markers_map</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;5208&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+                       <span class="s1">&#39;70001A&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+                       <span class="s1">&#39;70002A&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">}</span>
+
+<span class="c1"># channel resolution</span>
+<span class="n">_chan_resolutions</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;5208&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">12</span><span class="p">,</span> <span class="mi">13</span><span class="p">,</span> <span class="mi">14</span><span class="p">,</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">16</span><span class="p">],</span>
+                     <span class="s1">&#39;70001A&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">8</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">10</span><span class="p">],</span>
+                     <span class="s1">&#39;70002A&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">8</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">10</span><span class="p">]}</span>
 
 
 <div class="viewcode-block" id="SRValidator"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.AWG70000A.SRValidator">[docs]</a><span class="k">class</span> <span class="nc">SRValidator</span><span class="p">(</span><span class="n">Validator</span><span class="p">):</span>
@@ -247,6 +253,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">channel</span> <span class="o">=</span> <span class="n">channel</span>
 
         <span class="n">num_channels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">root_instrument</span><span class="o">.</span><span class="n">num_channels</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">root_instrument</span><span class="o">.</span><span class="n">model</span>
 
         <span class="n">fg</span> <span class="o">=</span> <span class="s1">&#39;function generator&#39;</span>
 
@@ -354,7 +361,7 @@
             <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">(</span><span class="mf">0.250</span><span class="p">,</span> <span class="mf">0.500</span><span class="p">))</span>
 
         <span class="c1"># markers</span>
-        <span class="k">for</span> <span class="n">mrk</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">mrk</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">_num_of_markers_map</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
                 <span class="s1">&#39;marker</span><span class="si">{}</span><span class="s1">_high&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mrk</span><span class="p">),</span>
@@ -390,7 +397,7 @@
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Channel </span><span class="si">{}</span><span class="s1"> bit resolution&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">),</span>
                            <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;SOURce</span><span class="si">{}</span><span class="s1">:DAC:RESolution?&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">),</span>
                            <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;SOURce</span><span class="si">{}</span><span class="s1">:DAC:RESolution {{}}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">),</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="o">*</span><span class="n">_chan_resolutions</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">]),</span>
                            <span class="n">get_parser</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
                            <span class="n">docstring</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
 <span class="s2">                                      8 bit resolution allows for two</span>
@@ -428,7 +435,7 @@
         <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">root_instrument</span><span class="o">.</span><span class="n">waveformList</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;No such waveform in the waveform list&#39;</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">root_instrument</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;SOURce</span><span class="si">{channel}</span><span class="s1">:CASSet:WAVeform &quot;</span><span class="si">{name}</span><span class="s1">&quot;&#39;</span><span class="p">)</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">root_instrument</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;SOURce</span><span class="si">{self.channel}</span><span class="s1">:CASSet:WAVeform &quot;</span><span class="si">{name}</span><span class="s1">&quot;&#39;</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="AWGChannel.setSequenceTrack"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.AWG70000A.AWGChannel.setSequenceTrack">[docs]</a>    <span class="k">def</span> <span class="nf">setSequenceTrack</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seqname</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">tracknr</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -586,10 +593,10 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Return the waveform list as a list of strings</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">resp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s2">&quot;WLISt:LIST?&quot;</span><span class="p">)</span>
-        <span class="n">resp</span> <span class="o">=</span> <span class="n">resp</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-        <span class="n">resp</span> <span class="o">=</span> <span class="n">resp</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
-        <span class="n">resp</span> <span class="o">=</span> <span class="n">resp</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+        <span class="n">respstr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s2">&quot;WLISt:LIST?&quot;</span><span class="p">)</span>
+        <span class="n">respstr</span> <span class="o">=</span> <span class="n">respstr</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="n">respstr</span> <span class="o">=</span> <span class="n">respstr</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+        <span class="n">resp</span> <span class="o">=</span> <span class="n">respstr</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">resp</span>
 
@@ -733,7 +740,7 @@
 <span class="sd">        are loaded into the sequence list.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            filename: The name of the sequence file</span>
+<span class="sd">            filename: The name of the sequence file INCLUDING the extension</span>
 <span class="sd">            path: Path to load from. If omitted, the default path</span>
 <span class="sd">                (self.seqxFileFolder) is used.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -901,6 +908,193 @@
 
         <span class="k">return</span> <span class="n">binary_out</span>
 
+<div class="viewcode-block" id="AWG70000A.make_SEQX_from_forged_sequence"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.AWG70000A.AWG70000A.make_SEQX_from_forged_sequence">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">make_SEQX_from_forged_sequence</span><span class="p">(</span>
+            <span class="n">seq</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Dict</span><span class="p">],</span>
+            <span class="n">amplitudes</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span>
+            <span class="n">seqname</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">channel_mapping</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+                                           <span class="nb">int</span><span class="p">]]</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Make a .seqx from a forged broadbean sequence.</span>
+<span class="sd">        Supports subsequences.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            seq: The output of broadbean&#39;s Sequence.forge()</span>
+<span class="sd">            amplitudes: A list of the AWG channels&#39; voltage amplitudes.</span>
+<span class="sd">                The first entry is ch1 etc.</span>
+<span class="sd">            channel_mapping: A mapping from what the channel is called</span>
+<span class="sd">                in the broadbean sequence to the integer describing the</span>
+<span class="sd">                physical channel it should be assigned to.</span>
+<span class="sd">            seqname: The name that the sequence will have in the AWG&#39;s</span>
+<span class="sd">                sequence list. Used for loading the sequence.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The binary .seqx file contents. Can be sent directly to the</span>
+<span class="sd">                instrument or saved on disk.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">fs_schema</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">seq</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">InvalidForgedSequenceError</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+
+        <span class="n">chan_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">pos1</span> <span class="ow">in</span> <span class="n">seq</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">pos2</span> <span class="ow">in</span> <span class="n">seq</span><span class="p">[</span><span class="n">pos1</span><span class="p">][</span><span class="s1">&#39;content&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="n">seq</span><span class="p">[</span><span class="n">pos1</span><span class="p">][</span><span class="s1">&#39;content&#39;</span><span class="p">][</span><span class="n">pos2</span><span class="p">][</span><span class="s1">&#39;data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="n">ch</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">chan_list</span><span class="p">:</span>
+                        <span class="n">chan_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ch</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">channel_mapping</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">channel_mapping</span> <span class="o">=</span> <span class="p">{</span><span class="n">ch</span><span class="p">:</span> <span class="n">ch_ind</span><span class="o">+</span><span class="mi">1</span>
+                               <span class="k">for</span> <span class="n">ch_ind</span><span class="p">,</span> <span class="n">ch</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">chan_list</span><span class="p">)}</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">chan_list</span><span class="p">))</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">amplitudes</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Incorrect number of amplitudes provided.&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">set</span><span class="p">(</span><span class="n">chan_list</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">set</span><span class="p">(</span><span class="n">channel_mapping</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Invalid channel_mapping. The sequence has &#39;</span>
+                             <span class="n">f</span><span class="s1">&#39;channels {set(chan_list)}, but the &#39;</span>
+                             <span class="s1">&#39;channel_mapping maps from the channels &#39;</span>
+                             <span class="n">f</span><span class="s1">&#39;{set(channel_mapping.keys())}&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">set</span><span class="p">(</span><span class="n">channel_mapping</span><span class="o">.</span><span class="n">values</span><span class="p">())</span> <span class="o">!=</span> <span class="nb">set</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="o">+</span><span class="nb">len</span><span class="p">(</span><span class="n">chan_list</span><span class="p">))):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Invalid channel_mapping. Must map onto &#39;</span>
+                             <span class="n">f</span><span class="s1">&#39;{list(range(1, 1+len(chan_list)))}&#39;</span><span class="p">)</span>
+
+        <span class="c1">##########</span>
+        <span class="c1"># STEP 1:</span>
+        <span class="c1"># Make all .wfmx files</span>
+
+        <span class="n">wfmx_files</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">bytes</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">wfmx_filenames</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">pos1</span> <span class="ow">in</span> <span class="n">seq</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">pos2</span> <span class="ow">in</span> <span class="n">seq</span><span class="p">[</span><span class="n">pos1</span><span class="p">][</span><span class="s1">&#39;content&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="k">for</span> <span class="n">ch</span><span class="p">,</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">seq</span><span class="p">[</span><span class="n">pos1</span><span class="p">][</span><span class="s1">&#39;content&#39;</span><span class="p">][</span><span class="n">pos2</span><span class="p">][</span><span class="s1">&#39;data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="c1"># TODO: Add support for more than two markers</span>
+                    <span class="n">wfm</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;wfm&#39;</span><span class="p">]</span>
+                    <span class="c1"># TODO: can we add support for single markers?</span>
+                    <span class="k">if</span> <span class="s1">&#39;m1&#39;</span> <span class="ow">or</span> <span class="s1">&#39;m2&#39;</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                        <span class="n">m1</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;m1&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">wfm</span><span class="p">)))</span>
+                        <span class="n">m2</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;m2&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">wfm</span><span class="p">)))</span>
+                        <span class="n">wfm_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">((</span><span class="n">wfm</span><span class="p">,</span> <span class="n">m1</span><span class="p">,</span> <span class="n">m2</span><span class="p">))</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">wfm_data</span> <span class="o">=</span> <span class="n">wfm</span>
+                    <span class="n">awgchan</span> <span class="o">=</span> <span class="n">channel_mapping</span><span class="p">[</span><span class="n">ch</span><span class="p">]</span>
+                    <span class="n">wfmx</span> <span class="o">=</span> <span class="n">AWG70000A</span><span class="o">.</span><span class="n">makeWFMXFile</span><span class="p">(</span><span class="n">wfm_data</span><span class="p">,</span>
+                                                  <span class="n">amplitudes</span><span class="p">[</span><span class="n">awgchan</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+                    <span class="n">wfmx_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">wfmx</span><span class="p">)</span>
+                    <span class="n">wfmx_filenames</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;wfm_</span><span class="si">{pos1}</span><span class="s1">_</span><span class="si">{pos2}</span><span class="s1">_</span><span class="si">{awgchan}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="c1">##########</span>
+        <span class="c1"># STEP 2:</span>
+        <span class="c1"># Make all subsequence .sml files</span>
+
+        <span class="n">subseqsml_files</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">subseqsml_filenames</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">pos1</span> <span class="ow">in</span> <span class="n">seq</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">seq</span><span class="p">[</span><span class="n">pos1</span><span class="p">][</span><span class="s1">&#39;type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;subsequence&#39;</span><span class="p">:</span>
+
+                <span class="n">ss_wfm_names</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+
+                <span class="c1"># we need to &quot;flatten&quot; all the individual dicts of element</span>
+                <span class="c1"># sequence options into one dict of lists of sequencing options</span>
+                <span class="c1"># and we must also provide default values if nothing</span>
+                <span class="c1"># is specified</span>
+                <span class="n">seqings</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">pos2</span> <span class="ow">in</span> <span class="p">(</span><span class="n">seq</span><span class="p">[</span><span class="n">pos1</span><span class="p">][</span><span class="s1">&#39;content&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                    <span class="n">pos_seqs</span> <span class="o">=</span> <span class="n">seq</span><span class="p">[</span><span class="n">pos1</span><span class="p">][</span><span class="s1">&#39;content&#39;</span><span class="p">][</span><span class="n">pos2</span><span class="p">][</span><span class="s1">&#39;sequencing&#39;</span><span class="p">]</span>
+                    <span class="n">pos_seqs</span><span class="p">[</span><span class="s1">&#39;twait&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pos_seqs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;twait&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                    <span class="n">pos_seqs</span><span class="p">[</span><span class="s1">&#39;nrep&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pos_seqs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;nrep&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                    <span class="n">pos_seqs</span><span class="p">[</span><span class="s1">&#39;jump_input&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pos_seqs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;jump_input&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                    <span class="n">pos_seqs</span><span class="p">[</span><span class="s1">&#39;jump_target&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pos_seqs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;jump_target&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                    <span class="n">pos_seqs</span><span class="p">[</span><span class="s1">&#39;goto&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pos_seqs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;goto&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                    <span class="n">seqings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pos_seqs</span><span class="p">)</span>
+
+                    <span class="n">ss_wfm_names</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">n</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">wfmx_filenames</span>
+                                      <span class="k">if</span> <span class="n">f</span><span class="s1">&#39;wfm_</span><span class="si">{pos1}</span><span class="s1">_</span><span class="si">{pos2}</span><span class="s1">&#39;</span> <span class="ow">in</span> <span class="n">n</span><span class="p">])</span>
+
+                <span class="n">seqing</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="p">[</span><span class="n">d</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">seqings</span><span class="p">]</span>
+                          <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">seqings</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()}</span>
+
+                <span class="n">subseqname</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;subsequence_</span><span class="si">{pos1}</span><span class="s1">&#39;</span>
+
+                <span class="n">subseqsml</span> <span class="o">=</span> <span class="n">AWG70000A</span><span class="o">.</span><span class="n">_makeSMLFile</span><span class="p">(</span><span class="n">trig_waits</span><span class="o">=</span><span class="n">seqing</span><span class="p">[</span><span class="s1">&#39;twait&#39;</span><span class="p">],</span>
+                                                   <span class="n">nreps</span><span class="o">=</span><span class="n">seqing</span><span class="p">[</span><span class="s1">&#39;nrep&#39;</span><span class="p">],</span>
+                                                   <span class="n">event_jumps</span><span class="o">=</span><span class="n">seqing</span><span class="p">[</span><span class="s1">&#39;jump_input&#39;</span><span class="p">],</span>
+                                                   <span class="n">event_jump_to</span><span class="o">=</span><span class="n">seqing</span><span class="p">[</span><span class="s1">&#39;jump_target&#39;</span><span class="p">],</span>
+                                                   <span class="n">go_to</span><span class="o">=</span><span class="n">seqing</span><span class="p">[</span><span class="s1">&#39;goto&#39;</span><span class="p">],</span>
+                                                   <span class="n">elem_names</span><span class="o">=</span><span class="n">ss_wfm_names</span><span class="p">,</span>
+                                                   <span class="n">seqname</span><span class="o">=</span><span class="n">subseqname</span><span class="p">)</span>
+
+                <span class="n">subseqsml_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">subseqsml</span><span class="p">)</span>
+                <span class="n">subseqsml_filenames</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;</span><span class="si">{subseqname}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="c1">##########</span>
+        <span class="c1"># STEP 3:</span>
+        <span class="c1"># Make the main .sml file</span>
+
+        <span class="n">asset_names</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">seqings</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">subseq_positions</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">pos1</span> <span class="ow">in</span> <span class="n">seq</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">pos_seqs</span> <span class="o">=</span> <span class="n">seq</span><span class="p">[</span><span class="n">pos1</span><span class="p">][</span><span class="s1">&#39;sequencing&#39;</span><span class="p">]</span>
+
+            <span class="n">pos_seqs</span><span class="p">[</span><span class="s1">&#39;twait&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pos_seqs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;twait&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">pos_seqs</span><span class="p">[</span><span class="s1">&#39;nrep&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pos_seqs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;nrep&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">pos_seqs</span><span class="p">[</span><span class="s1">&#39;jump_input&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pos_seqs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;jump_input&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">pos_seqs</span><span class="p">[</span><span class="s1">&#39;jump_target&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pos_seqs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;jump_target&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">pos_seqs</span><span class="p">[</span><span class="s1">&#39;goto&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pos_seqs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;goto&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">seqings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pos_seqs</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">seq</span><span class="p">[</span><span class="n">pos1</span><span class="p">][</span><span class="s1">&#39;type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;subsequence&#39;</span><span class="p">:</span>
+                <span class="n">subseq_positions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pos1</span><span class="p">)</span>
+                <span class="n">asset_names</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">sn</span> <span class="k">for</span> <span class="n">sn</span> <span class="ow">in</span> <span class="n">subseqsml_filenames</span>
+                                    <span class="k">if</span> <span class="n">f</span><span class="s1">&#39;_</span><span class="si">{pos1}</span><span class="s1">&#39;</span> <span class="ow">in</span> <span class="n">sn</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">asset_names</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">wn</span> <span class="k">for</span> <span class="n">wn</span> <span class="ow">in</span> <span class="n">wfmx_filenames</span>
+                                    <span class="k">if</span> <span class="n">f</span><span class="s1">&#39;wfm_</span><span class="si">{pos1}</span><span class="s1">&#39;</span> <span class="ow">in</span> <span class="n">wn</span><span class="p">])</span>
+        <span class="n">seqing</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="p">[</span><span class="n">d</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">seqings</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">seqings</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()}</span>
+
+        <span class="n">mainseqname</span> <span class="o">=</span> <span class="n">seqname</span>
+        <span class="n">mainseqsml</span> <span class="o">=</span> <span class="n">AWG70000A</span><span class="o">.</span><span class="n">_makeSMLFile</span><span class="p">(</span><span class="n">trig_waits</span><span class="o">=</span><span class="n">seqing</span><span class="p">[</span><span class="s1">&#39;twait&#39;</span><span class="p">],</span>
+                                            <span class="n">nreps</span><span class="o">=</span><span class="n">seqing</span><span class="p">[</span><span class="s1">&#39;nrep&#39;</span><span class="p">],</span>
+                                            <span class="n">event_jumps</span><span class="o">=</span><span class="n">seqing</span><span class="p">[</span><span class="s1">&#39;jump_input&#39;</span><span class="p">],</span>
+                                            <span class="n">event_jump_to</span><span class="o">=</span><span class="n">seqing</span><span class="p">[</span><span class="s1">&#39;jump_target&#39;</span><span class="p">],</span>
+                                            <span class="n">go_to</span><span class="o">=</span><span class="n">seqing</span><span class="p">[</span><span class="s1">&#39;goto&#39;</span><span class="p">],</span>
+                                            <span class="n">elem_names</span><span class="o">=</span><span class="n">asset_names</span><span class="p">,</span>
+                                            <span class="n">seqname</span><span class="o">=</span><span class="n">mainseqname</span><span class="p">,</span>
+                                            <span class="n">subseq_positions</span><span class="o">=</span><span class="n">subseq_positions</span><span class="p">)</span>
+
+        <span class="c1">##########</span>
+        <span class="c1"># STEP 4:</span>
+        <span class="c1"># Build the .seqx file</span>
+
+        <span class="n">user_file</span> <span class="o">=</span> <span class="sa">b</span><span class="s1">&#39;&#39;</span>
+        <span class="n">setup_file</span> <span class="o">=</span> <span class="n">AWG70000A</span><span class="o">.</span><span class="n">_makeSetupFile</span><span class="p">(</span><span class="n">mainseqname</span><span class="p">)</span>
+
+        <span class="n">buffer</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">BytesIO</span><span class="p">()</span>
+
+        <span class="n">zipfile</span> <span class="o">=</span> <span class="n">zf</span><span class="o">.</span><span class="n">ZipFile</span><span class="p">(</span><span class="n">buffer</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;a&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">ssn</span><span class="p">,</span> <span class="n">ssf</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">subseqsml_filenames</span><span class="p">,</span> <span class="n">subseqsml_files</span><span class="p">):</span>
+            <span class="n">zipfile</span><span class="o">.</span><span class="n">writestr</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Sequences/</span><span class="si">{ssn}</span><span class="s1">.sml&#39;</span><span class="p">,</span> <span class="n">ssf</span><span class="p">)</span>
+        <span class="n">zipfile</span><span class="o">.</span><span class="n">writestr</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Sequences/</span><span class="si">{mainseqname}</span><span class="s1">.sml&#39;</span><span class="p">,</span> <span class="n">mainseqsml</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">wfile</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">wfmx_filenames</span><span class="p">,</span> <span class="n">wfmx_files</span><span class="p">):</span>
+            <span class="n">zipfile</span><span class="o">.</span><span class="n">writestr</span><span class="p">(</span><span class="s1">&#39;Waveforms/</span><span class="si">{}</span><span class="s1">.wfmx&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">),</span> <span class="n">wfile</span><span class="p">)</span>
+
+        <span class="n">zipfile</span><span class="o">.</span><span class="n">writestr</span><span class="p">(</span><span class="s1">&#39;setup.xml&#39;</span><span class="p">,</span> <span class="n">setup_file</span><span class="p">)</span>
+        <span class="n">zipfile</span><span class="o">.</span><span class="n">writestr</span><span class="p">(</span><span class="s1">&#39;userNotes.txt&#39;</span><span class="p">,</span> <span class="n">user_file</span><span class="p">)</span>
+        <span class="n">zipfile</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="n">buffer</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">seqx</span> <span class="o">=</span> <span class="n">buffer</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
+        <span class="n">buffer</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">seqx</span></div>
+
 <div class="viewcode-block" id="AWG70000A.makeSEQXFile"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.AWG70000A.AWG70000A.makeSEQXFile">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">makeSEQXFile</span><span class="p">(</span><span class="n">trig_waits</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
                      <span class="n">nreps</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
@@ -964,7 +1158,7 @@
                      <span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">chans</span><span class="o">+</span><span class="mi">1</span><span class="p">)]</span>
 
         <span class="c1"># generate wfmx files for the waveforms</span>
-        <span class="n">flat_wfmxs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">flat_wfmxs</span> <span class="o">=</span> <span class="p">[]</span> <span class="c1"># type: List[bytes]</span>
         <span class="k">for</span> <span class="n">amplitude</span><span class="p">,</span> <span class="n">wfm_lst</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">amplitudes</span><span class="p">,</span> <span class="n">wfms</span><span class="p">):</span>
             <span class="n">flat_wfmxs</span> <span class="o">+=</span> <span class="p">[</span><span class="n">AWG70000A</span><span class="o">.</span><span class="n">makeWFMXFile</span><span class="p">(</span><span class="n">wfm</span><span class="p">,</span> <span class="n">amplitude</span><span class="p">)</span>
                            <span class="k">for</span> <span class="n">wfm</span> <span class="ow">in</span> <span class="n">wfm_lst</span><span class="p">]</span>
@@ -1033,8 +1227,9 @@
                      <span class="n">event_jumps</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
                      <span class="n">event_jump_to</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
                      <span class="n">go_to</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
-                     <span class="n">wfm_names</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
-                     <span class="n">seqname</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+                     <span class="n">elem_names</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
+                     <span class="n">seqname</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                     <span class="n">subseq_positions</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span><span class="o">=</span><span class="p">[])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Make an xml file describing a sequence.</span>
 
@@ -1049,14 +1244,20 @@
 <span class="sd">            event_jump_to: Jump target in case of event. 1-indexed,</span>
 <span class="sd">                0 means next. Must be specified for all elements.</span>
 <span class="sd">            go_to: Which element to play next. 1-indexed, 0 means next.</span>
-<span class="sd">            wfm_names: The waveforms to use. Should be packed like</span>
-<span class="sd">                [[wfmch1pos1, wfmch1pos2, ...], [wfmch2pos1, ...], ...]</span>
+<span class="sd">            elem_names: The waveforms/subsequences to use. Should be packed</span>
+<span class="sd">                like:</span>
+<span class="sd">                [[wfmpos1ch1, wfmpos1ch2, ...],</span>
+<span class="sd">                 [subseqpos2],</span>
+<span class="sd">                 [wfmpos3ch1, wfmpos3ch2, ...], ...]</span>
 <span class="sd">            seqname: The name of the sequence. This name will appear in</span>
 <span class="sd">                the sequence list of the instrument.</span>
+<span class="sd">            subseq_positions: The positions (step numbers) occupied by</span>
+<span class="sd">                subsequences</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            A str containing the file contents, to be saved as an .sml file</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+
         <span class="n">offsetdigits</span> <span class="o">=</span> <span class="mi">9</span>
 
         <span class="n">waitinputs</span> <span class="o">=</span> <span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="s1">&#39;None&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">:</span> <span class="s1">&#39;TrigA&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">:</span> <span class="s1">&#39;TrigB&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">:</span> <span class="s1">&#39;Internal&#39;</span><span class="p">}</span>
@@ -1070,19 +1271,12 @@
         <span class="k">if</span> <span class="n">lstlens</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Received empty sequence option lengths!&#39;</span><span class="p">)</span>
 
-        <span class="c1"># hackish check of wmfs dimensions</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">wfm_names</span><span class="p">))</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Wrong shape of wfm_names input argument.&#39;</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="n">lstlens</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">wfm_names</span><span class="p">)[</span><span class="mi">1</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">lstlens</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">elem_names</span><span class="p">)[</span><span class="mi">0</span><span class="p">]:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Mismatch between number of waveforms and&#39;</span>
                              <span class="s1">&#39; number of sequencing steps.&#39;</span><span class="p">)</span>
 
         <span class="n">N</span> <span class="o">=</span> <span class="n">lstlens</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-        <span class="n">chans</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">wfm_names</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-
-        <span class="c1"># for easy indexing later</span>
-        <span class="n">wfm_names_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">wfm_names</span><span class="p">)</span>
+        <span class="n">chans</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">elem_names</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
         <span class="c1"># form the timestamp string</span>
         <span class="n">timezone</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">timezone</span>
@@ -1169,12 +1363,15 @@
                 <span class="n">gotostep</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{:d}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">go_to</span><span class="p">[</span><span class="n">n</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
 
             <span class="n">assets</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">SubElement</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="s1">&#39;Assets&#39;</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">wfm</span> <span class="ow">in</span> <span class="n">wfm_names_arr</span><span class="p">[:,</span> <span class="n">n</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="k">for</span> <span class="n">assetname</span> <span class="ow">in</span> <span class="n">elem_names</span><span class="p">[</span><span class="n">n</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
                 <span class="n">asset</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">SubElement</span><span class="p">(</span><span class="n">assets</span><span class="p">,</span> <span class="s1">&#39;Asset&#39;</span><span class="p">)</span>
                 <span class="n">temp_elem</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">SubElement</span><span class="p">(</span><span class="n">asset</span><span class="p">,</span> <span class="s1">&#39;AssetName&#39;</span><span class="p">)</span>
-                <span class="n">temp_elem</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="n">wfm</span>
+                <span class="n">temp_elem</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="n">assetname</span>
                 <span class="n">temp_elem</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">SubElement</span><span class="p">(</span><span class="n">asset</span><span class="p">,</span> <span class="s1">&#39;AssetType&#39;</span><span class="p">)</span>
-                <span class="n">temp_elem</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="s1">&#39;Waveform&#39;</span>
+                <span class="k">if</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">subseq_positions</span><span class="p">:</span>
+                    <span class="n">temp_elem</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="s1">&#39;Sequence&#39;</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">temp_elem</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="s1">&#39;Waveform&#39;</span>
 
             <span class="n">flags</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">SubElement</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="s1">&#39;Flags&#39;</span><span class="p">)</span>
             <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">chans</span><span class="p">):</span>
@@ -1188,6 +1385,9 @@
         <span class="n">temp_elem</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
         <span class="n">temp_elem</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">SubElement</span><span class="p">(</span><span class="n">datafile</span><span class="p">,</span> <span class="s1">&#39;Setup&#39;</span><span class="p">)</span>
 
+        <span class="c1"># the tostring() call takes roughly 75% of the total</span>
+        <span class="c1"># time spent in this function. Can we speed up things?</span>
+        <span class="c1"># perhaps we should use lxml?</span>
         <span class="n">xmlstr</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">tostring</span><span class="p">(</span><span class="n">datafile</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;unicode&#39;</span><span class="p">)</span>
         <span class="n">xmlstr</span> <span class="o">=</span> <span class="n">xmlstr</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;&gt;&lt;&#39;</span><span class="p">,</span> <span class="s1">&#39;&gt;</span><span class="se">\r\n</span><span class="s1">&lt;&#39;</span><span class="p">)</span>
 
@@ -1202,9 +1402,7 @@
 </pre></div>
 
            </div>
-           <div class="articleComments">
-            
-           </div>
+           
           </div>
           <footer>
   
@@ -1216,7 +1414,7 @@
 
     </p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
 
@@ -1234,7 +1432,8 @@
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'../../../../',
-            VERSION:'0.1.9',
+            VERSION:'0.1.11',
+            LANGUAGE:'None',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true,
@@ -1253,14 +1452,11 @@
     <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
   
 
-  
-  
   <script type="text/javascript">
       jQuery(function () {
-          SphinxRtdTheme.StickyNav.enable();
+          SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-   
+  </script> 
 
 </body>
 </html>
