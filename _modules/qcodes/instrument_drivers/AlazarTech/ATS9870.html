@@ -155,7 +155,8 @@
            <div itemprop="articleBody">
             
   <h1>Source code for qcodes.instrument_drivers.AlazarTech.ATS9870</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span> <span class="nn">.ATS</span> <span class="k">import</span> <span class="n">AlazarTech_ATS</span><span class="p">,</span> <span class="n">AlazarParameter</span>
+<span></span><span class="kn">from</span> <span class="nn">.ATS</span> <span class="k">import</span> <span class="n">AlazarTech_ATS</span>
+<span class="kn">from</span> <span class="nn">.utils</span> <span class="k">import</span> <span class="n">AlazarParameter</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils</span> <span class="k">import</span> <span class="n">validators</span>
 
 
@@ -328,21 +329,24 @@
 
         <span class="c1"># ----- Parameters for the acquire function -----</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;mode&#39;</span><span class="p">,</span>
-                           <span class="n">parameter_class</span><span class="o">=</span><span class="n">AlazarParameter</span><span class="p">,</span>
-                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Acquisiton mode&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Acquisition mode&#39;</span><span class="p">,</span>
                            <span class="n">unit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                           <span class="n">value</span><span class="o">=</span><span class="s1">&#39;NPT&#39;</span><span class="p">,</span>
-                           <span class="n">byte_to_value_dict</span><span class="o">=</span><span class="p">{</span><span class="mh">0x200</span><span class="p">:</span> <span class="s1">&#39;NPT&#39;</span><span class="p">,</span> <span class="mh">0x400</span><span class="p">:</span> <span class="s1">&#39;TS&#39;</span><span class="p">})</span>
+                           <span class="n">initial_value</span><span class="o">=</span><span class="s1">&#39;NPT&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">val_mapping</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;NPT&#39;</span><span class="p">:</span> <span class="mh">0x200</span><span class="p">,</span> <span class="s1">&#39;TS&#39;</span><span class="p">:</span> <span class="mh">0x400</span><span class="p">})</span>
 
         <span class="c1"># samples_per_record must be a multiple of of some number (64 in the</span>
         <span class="c1"># case of ATS9870) and and has some minimum (256 in the case of ATS9870)</span>
         <span class="c1"># These values can be found in the ATS-SDK programmar&#39;s guide</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;samples_per_record&#39;</span><span class="p">,</span>
-                           <span class="n">parameter_class</span><span class="o">=</span><span class="n">AlazarParameter</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Samples per Record&#39;</span><span class="p">,</span>
                            <span class="n">unit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                           <span class="n">value</span><span class="o">=</span><span class="mi">96000</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">validators</span><span class="o">.</span><span class="n">Multiples</span><span class="p">(</span><span class="n">divisor</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">min_value</span><span class="o">=</span><span class="mi">256</span><span class="p">))</span>
+                           <span class="n">initial_value</span><span class="o">=</span><span class="mi">96000</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">validators</span><span class="o">.</span><span class="n">Multiples</span><span class="p">(</span>
+                                <span class="n">divisor</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">min_value</span><span class="o">=</span><span class="mi">256</span><span class="p">))</span>
 
         <span class="c1"># TODO(damazter) (M) figure out if this also has to be a multiple of</span>
         <span class="c1"># something,</span>
@@ -356,83 +360,95 @@
         <span class="c1">#                      are writing, not limited by any actual ATS</span>
         <span class="c1">#                      feature.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;records_per_buffer&#39;</span><span class="p">,</span>
-                           <span class="n">parameter_class</span><span class="o">=</span><span class="n">AlazarParameter</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Records per Buffer&#39;</span><span class="p">,</span>
                            <span class="n">unit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                           <span class="n">value</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                           <span class="n">initial_value</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                            <span class="n">vals</span><span class="o">=</span><span class="n">validators</span><span class="o">.</span><span class="n">Ints</span><span class="p">(</span><span class="n">min_value</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;buffers_per_acquisition&#39;</span><span class="p">,</span>
-                           <span class="n">parameter_class</span><span class="o">=</span><span class="n">AlazarParameter</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Buffers per Acquisition&#39;</span><span class="p">,</span>
                            <span class="n">unit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                           <span class="n">value</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">initial_value</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
                            <span class="n">vals</span><span class="o">=</span><span class="n">validators</span><span class="o">.</span><span class="n">Ints</span><span class="p">(</span><span class="n">min_value</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;channel_selection&#39;</span><span class="p">,</span>
-                           <span class="n">parameter_class</span><span class="o">=</span><span class="n">AlazarParameter</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Channel Selection&#39;</span><span class="p">,</span>
                            <span class="n">unit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                           <span class="n">value</span><span class="o">=</span><span class="s1">&#39;AB&#39;</span><span class="p">,</span>
-                           <span class="n">byte_to_value_dict</span><span class="o">=</span><span class="p">{</span><span class="mi">1</span><span class="p">:</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">:</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">:</span> <span class="s1">&#39;AB&#39;</span><span class="p">})</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">initial_value</span><span class="o">=</span><span class="s1">&#39;AB&#39;</span><span class="p">,</span>
+                           <span class="n">val_mapping</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;A&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;AB&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">})</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;transfer_offset&#39;</span><span class="p">,</span>
-                           <span class="n">parameter_class</span><span class="o">=</span><span class="n">AlazarParameter</span><span class="p">,</span>
-                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Transer Offset&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Transfer Offset&#39;</span><span class="p">,</span>
                            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;Samples&#39;</span><span class="p">,</span>
-                           <span class="n">value</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">initial_value</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
                            <span class="n">vals</span><span class="o">=</span><span class="n">validators</span><span class="o">.</span><span class="n">Ints</span><span class="p">(</span><span class="n">min_value</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;external_startcapture&#39;</span><span class="p">,</span>
-                           <span class="n">parameter_class</span><span class="o">=</span><span class="n">AlazarParameter</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;External Startcapture&#39;</span><span class="p">,</span>
                            <span class="n">unit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                           <span class="n">value</span><span class="o">=</span><span class="s1">&#39;ENABLED&#39;</span><span class="p">,</span>
-                           <span class="n">byte_to_value_dict</span><span class="o">=</span><span class="p">{</span><span class="mh">0x0</span><span class="p">:</span> <span class="s1">&#39;DISABLED&#39;</span><span class="p">,</span>
-                                               <span class="mh">0x1</span><span class="p">:</span> <span class="s1">&#39;ENABLED&#39;</span><span class="p">})</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">initial_value</span><span class="o">=</span><span class="s1">&#39;ENABLED&#39;</span><span class="p">,</span>
+                           <span class="n">val_mapping</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;DISABLED&#39;</span><span class="p">:</span> <span class="mh">0X0</span><span class="p">,</span>
+                                        <span class="s1">&#39;ENABLED&#39;</span><span class="p">:</span> <span class="mh">0x1</span><span class="p">})</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;enable_record_headers&#39;</span><span class="p">,</span>
                            <span class="n">parameter_class</span><span class="o">=</span><span class="n">AlazarParameter</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Enable Record Headers&#39;</span><span class="p">,</span>
                            <span class="n">unit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                           <span class="n">value</span><span class="o">=</span><span class="s1">&#39;DISABLED&#39;</span><span class="p">,</span>
-                           <span class="n">byte_to_value_dict</span><span class="o">=</span><span class="p">{</span><span class="mh">0x0</span><span class="p">:</span> <span class="s1">&#39;DISABLED&#39;</span><span class="p">,</span>
-                                               <span class="mh">0x8</span><span class="p">:</span> <span class="s1">&#39;ENABLED&#39;</span><span class="p">})</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">initial_value</span><span class="o">=</span><span class="s1">&#39;DISABLED&#39;</span><span class="p">,</span>
+                           <span class="n">val_mapping</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;DISABLED&#39;</span><span class="p">:</span> <span class="mh">0x0</span><span class="p">,</span>
+                                        <span class="s1">&#39;ENABLED&#39;</span><span class="p">:</span> <span class="mh">0x8</span><span class="p">})</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;alloc_buffers&#39;</span><span class="p">,</span>
-                           <span class="n">parameter_class</span><span class="o">=</span><span class="n">AlazarParameter</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Alloc Buffers&#39;</span><span class="p">,</span>
                            <span class="n">unit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                           <span class="n">value</span><span class="o">=</span><span class="s1">&#39;DISABLED&#39;</span><span class="p">,</span>
-                           <span class="n">byte_to_value_dict</span><span class="o">=</span><span class="p">{</span><span class="mh">0x0</span><span class="p">:</span> <span class="s1">&#39;DISABLED&#39;</span><span class="p">,</span>
-                                               <span class="mh">0x20</span><span class="p">:</span> <span class="s1">&#39;ENABLED&#39;</span><span class="p">})</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">initial_value</span><span class="o">=</span><span class="s1">&#39;DISABLED&#39;</span><span class="p">,</span>
+                           <span class="n">val_mapping</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;DISABLED&#39;</span><span class="p">:</span> <span class="mh">0x0</span><span class="p">,</span>
+                                        <span class="s1">&#39;ENABLED&#39;</span><span class="p">:</span> <span class="mh">0x20</span><span class="p">})</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;fifo_only_streaming&#39;</span><span class="p">,</span>
-                           <span class="n">parameter_class</span><span class="o">=</span><span class="n">AlazarParameter</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Fifo Only Streaming&#39;</span><span class="p">,</span>
                            <span class="n">unit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                           <span class="n">value</span><span class="o">=</span><span class="s1">&#39;DISABLED&#39;</span><span class="p">,</span>
-                           <span class="n">byte_to_value_dict</span><span class="o">=</span><span class="p">{</span><span class="mh">0x0</span><span class="p">:</span> <span class="s1">&#39;DISABLED&#39;</span><span class="p">,</span>
-                                               <span class="mh">0x800</span><span class="p">:</span> <span class="s1">&#39;ENABLED&#39;</span><span class="p">})</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">initial_value</span><span class="o">=</span><span class="s1">&#39;DISABLED&#39;</span><span class="p">,</span>
+                           <span class="n">val_mapping</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;DISABLED&#39;</span><span class="p">:</span> <span class="mh">0x0</span><span class="p">,</span>
+                                        <span class="s1">&#39;ENABLED&#39;</span><span class="p">:</span> <span class="mh">0x800</span><span class="p">})</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;interleave_samples&#39;</span><span class="p">,</span>
-                           <span class="n">parameter_class</span><span class="o">=</span><span class="n">AlazarParameter</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Interleave Samples&#39;</span><span class="p">,</span>
                            <span class="n">unit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                           <span class="n">value</span><span class="o">=</span><span class="s1">&#39;DISABLED&#39;</span><span class="p">,</span>
-                           <span class="n">byte_to_value_dict</span><span class="o">=</span><span class="p">{</span><span class="mh">0x0</span><span class="p">:</span> <span class="s1">&#39;DISABLED&#39;</span><span class="p">,</span>
-                                               <span class="mh">0x1000</span><span class="p">:</span> <span class="s1">&#39;ENABLED&#39;</span><span class="p">})</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">initial_value</span><span class="o">=</span><span class="s1">&#39;DISABLED&#39;</span><span class="p">,</span>
+                           <span class="n">val_mapping</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;DISBALED&#39;</span><span class="p">:</span> <span class="mh">0x0</span><span class="p">,</span>
+                                        <span class="s1">&#39;ENABLED&#39;</span><span class="p">:</span> <span class="mh">0x1000</span><span class="p">})</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;get_processed_data&#39;</span><span class="p">,</span>
-                           <span class="n">parameter_class</span><span class="o">=</span><span class="n">AlazarParameter</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Get Processed Data&#39;</span><span class="p">,</span>
                            <span class="n">unit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                           <span class="n">value</span><span class="o">=</span><span class="s1">&#39;DISABLED&#39;</span><span class="p">,</span>
-                           <span class="n">byte_to_value_dict</span><span class="o">=</span><span class="p">{</span><span class="mh">0x0</span><span class="p">:</span> <span class="s1">&#39;DISABLED&#39;</span><span class="p">,</span>
-                                               <span class="mh">0x2000</span><span class="p">:</span> <span class="s1">&#39;ENABLED&#39;</span><span class="p">})</span>
-
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">initial_value</span><span class="o">=</span><span class="s1">&#39;DISABLED&#39;</span><span class="p">,</span>
+                           <span class="n">val_mapping</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;DISABLED&#39;</span><span class="p">:</span> <span class="mh">0x0</span><span class="p">,</span>
+                                        <span class="s1">&#39;ENABLED&#39;</span><span class="p">:</span> <span class="mh">0x2000</span><span class="p">})</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;allocated_buffers&#39;</span><span class="p">,</span>
-                           <span class="n">parameter_class</span><span class="o">=</span><span class="n">AlazarParameter</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Allocated Buffers&#39;</span><span class="p">,</span>
                            <span class="n">unit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                           <span class="n">value</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">initial_value</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
                            <span class="n">vals</span><span class="o">=</span><span class="n">validators</span><span class="o">.</span><span class="n">Ints</span><span class="p">(</span><span class="n">min_value</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;buffer_timeout&#39;</span><span class="p">,</span>
-                           <span class="n">parameter_class</span><span class="o">=</span><span class="n">AlazarParameter</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Buffer Timeout&#39;</span><span class="p">,</span>
                            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;ms&#39;</span><span class="p">,</span>
-                           <span class="n">value</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">initial_value</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
                            <span class="n">vals</span><span class="o">=</span><span class="n">validators</span><span class="o">.</span><span class="n">Ints</span><span class="p">(</span><span class="n">min_value</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
 
         <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_idn</span><span class="p">()[</span><span class="s1">&#39;model&#39;</span><span class="p">]</span>
