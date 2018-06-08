@@ -24,8 +24,7 @@
 
   
 
-  
-    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" /> 
@@ -162,6 +161,7 @@
 <span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">Mapping</span>
 <span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">Sequence</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="k">import</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="k">import</span> <span class="n">deepcopy</span>
 
 <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
 <span class="kn">from</span> <span class="nn">matplotlib</span> <span class="k">import</span> <span class="n">ticker</span>
@@ -291,7 +291,7 @@
 
 <span class="sd">        Args:</span>
 <span class="sd">            use_offset (bool, Optional): Whether or not ticks can have an offset</span>
-<span class="sd">            </span>
+
 <span class="sd">            kwargs: with the following exceptions (mostly the data!), these are</span>
 <span class="sd">                passed directly to the matplotlib plotting routine.</span>
 <span class="sd">                `subplot`: the 1-based axes number to append to (default 1)</span>
@@ -301,7 +301,7 @@
 <span class="sd">                without `z` we draw a scatter/lines plot (ax.plot):</span>
 <span class="sd">                    `x`, `y`, and `fmt` (if present) are passed as positional</span>
 <span class="sd">                    args</span>
-<span class="sd">        </span>
+
 <span class="sd">        Returns:</span>
 <span class="sd">            Plot handle for trace</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -399,7 +399,13 @@
                     <span class="n">plot_object</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
 
                 <span class="n">ax</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;subplot&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
-                <span class="n">plot_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_draw_pcolormesh</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="o">**</span><span class="n">config</span><span class="p">)</span>
+                <span class="n">kwargs</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+                <span class="c1"># figsize may be passed in as part of config.</span>
+                <span class="c1"># pcolormesh will raise an error if this is passed to it</span>
+                <span class="c1"># so strip it here.</span>
+                <span class="k">if</span> <span class="s1">&#39;figsize&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+                    <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;figsize&#39;</span><span class="p">)</span>
+                <span class="n">plot_object</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_draw_pcolormesh</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
                 <span class="n">trace</span><span class="p">[</span><span class="s1">&#39;plot_object&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">plot_object</span>
 
                 <span class="k">if</span> <span class="n">plot_object</span><span class="p">:</span>
@@ -434,7 +440,7 @@
                    <span class="n">zlabel</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                    <span class="n">xunit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                    <span class="n">yunit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                    <span class="n">zunit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                   <span class="n">zunit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                    <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="c1"># NOTE(alexj)stripping out subplot because which subplot we&#39;re in is</span>
         <span class="c1"># already described by ax, and it&#39;s not a kwarg to matplotlib&#39;s ax.plot.</span>
@@ -444,6 +450,62 @@
 
         <span class="n">line</span><span class="p">,</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">line</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_make_args_for_pcolormesh</span><span class="p">(</span><span class="n">args_masked</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Make args for pcolormesh.</span>
+<span class="sd">        pcolormesh accepts as args either</span>
+<span class="sd">        C - a (potentially) masked array</span>
+<span class="sd">        or</span>
+<span class="sd">        x, y, C where x and y are the colour box edge arrays and</span>
+<span class="sd">        are NOT allowed to be masked</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">x</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">y</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># If x and y are provided, modify the arrays such that they</span>
+            <span class="c1"># correspond to grid corners instead of grid centers.</span>
+            <span class="c1"># This is to ensure that pcolormesh centers correctly and</span>
+            <span class="c1"># does not ignore edge points.</span>
+            <span class="n">args</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">arr</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">args_masked</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]):</span>
+                <span class="c1"># If a two-dimensional array is provided, only consider the</span>
+                <span class="c1"># first row/column, depending on the axis</span>
+                <span class="k">if</span> <span class="n">arr</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">arr</span> <span class="o">=</span> <span class="n">arr</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">arr</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+                <span class="c1"># first extrapolate to fill any empty values Matplotlib 2.2 no</span>
+                <span class="c1"># longer support nans in x and y for pcolormesh.</span>
+                <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">is_masked</span><span class="p">(</span><span class="n">arr</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+                    <span class="n">step_size</span> <span class="o">=</span> <span class="mf">1.</span>
+                    <span class="c1"># Only the first element is not nan. We have to guess the</span>
+                    <span class="c1"># step size</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># the average stepsize is our best guess</span>
+                    <span class="n">step_size</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">average</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">arr</span><span class="p">))</span>
+
+                <span class="n">last_good_value</span> <span class="o">=</span> <span class="n">arr</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">arr</span><span class="o">.</span><span class="n">mask</span><span class="p">)][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">extrapolation_start</span> <span class="o">=</span> <span class="n">last_good_value</span><span class="o">+</span><span class="n">step_size</span>
+                <span class="n">n_invalid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">arr</span><span class="o">.</span><span class="n">mask</span><span class="p">)</span>
+                <span class="n">extrapolation_stop</span> <span class="o">=</span> <span class="n">extrapolation_start</span><span class="o">+</span><span class="n">step_size</span><span class="o">*</span><span class="p">(</span><span class="n">n_invalid</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+                <span class="c1"># numpy (1.14) has a deprecation warning related to shared</span>
+                <span class="c1"># masks. Let&#39;s silence this by making sure that this is</span>
+                <span class="c1"># not shared before modifying the mask</span>
+                <span class="n">arr</span><span class="o">.</span><span class="n">unshare_mask</span><span class="p">()</span>
+                <span class="n">arr</span><span class="p">[</span><span class="n">arr</span><span class="o">.</span><span class="n">mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">extrapolation_start</span><span class="p">,</span>
+                                            <span class="n">extrapolation_stop</span><span class="p">,</span>
+                                            <span class="n">num</span><span class="o">=</span><span class="n">n_invalid</span><span class="p">)</span>
+                <span class="c1"># Now shift array to get edge coordinates rather than</span>
+                <span class="c1"># centre coordinates</span>
+                <span class="n">arr_shift</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">arr</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="n">arr_shift</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-=</span> <span class="n">step_size</span><span class="o">/</span><span class="mi">2</span>
+                <span class="n">arr_shift</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">+=</span> <span class="n">step_size</span><span class="o">/</span><span class="mi">2</span>
+                <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">arr_shift</span><span class="p">)</span>
+            <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">args_masked</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Only the masked value of z is used as a mask</span>
+            <span class="n">args</span> <span class="o">=</span> <span class="n">args_masked</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">:]</span>
+
+        <span class="k">return</span> <span class="n">args</span>
 
     <span class="k">def</span> <span class="nf">_draw_pcolormesh</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subplot</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
                          <span class="n">xlabel</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -458,8 +520,9 @@
         <span class="c1"># described by ax, and it&#39;s not a kwarg to matplotlib&#39;s ax.plot. But I</span>
         <span class="c1"># didn&#39;t want to strip it out of kwargs earlier because it should stay</span>
         <span class="c1"># part of trace[&#39;config&#39;].</span>
+
         <span class="n">args_masked</span> <span class="o">=</span> <span class="p">[</span><span class="n">masked_invalid</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="p">[</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">]</span>
-                      <span class="k">if</span> <span class="n">arg</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+                       <span class="k">if</span> <span class="n">arg</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
 
         <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">getmask</span><span class="p">(</span><span class="n">arg</span><span class="p">))</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args_masked</span><span class="p">]):</span>
             <span class="c1"># if the z array is masked, don&#39;t draw at all</span>
@@ -467,48 +530,10 @@
             <span class="c1"># pcolormesh does not accept masked x and y axes, so we do not need</span>
             <span class="c1"># to check for them.</span>
             <span class="k">return</span> <span class="kc">False</span>
-
         <span class="k">if</span> <span class="s1">&#39;cmap&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
             <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;cmap&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">qcodes</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;gui&#39;</span><span class="p">][</span><span class="s1">&#39;defaultcolormap&#39;</span><span class="p">]</span>
-        <span class="k">if</span> <span class="n">x</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">y</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="c1"># If x and y are provided, modify the arrays such that they</span>
-            <span class="c1"># correspond to grid corners instead of grid centers.</span>
-            <span class="c1"># This is to ensure that pcolormesh centers correctly and</span>
-            <span class="c1"># does not ignore edge points.</span>
-            <span class="n">args</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">arr</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">args_masked</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]):</span>
-                <span class="c1"># If a two-dimensional array is provided, only consider the</span>
-                <span class="c1"># first row/column, depending on the axis</span>
-                <span class="k">if</span> <span class="n">arr</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-                    <span class="n">arr</span> <span class="o">=</span> <span class="n">arr</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">arr</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span>
 
-                <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">is_masked</span><span class="p">(</span><span class="n">arr</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
-                    <span class="c1"># Only the first element is not nan, in this case pad with</span>
-                    <span class="c1"># a value, and separate their values by 1</span>
-                    <span class="n">arr_pad</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;symmetric&#39;</span><span class="p">)</span>
-                    <span class="n">arr_pad</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="p">[</span><span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">]</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="c1"># Add padding on both sides equal to endpoints</span>
-                    <span class="n">arr_pad</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;symmetric&#39;</span><span class="p">)</span>
-                    <span class="c1"># Add differences to edgepoints (may be nan)</span>
-                    <span class="n">arr_pad</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="n">arr_pad</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">arr_pad</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
-                    <span class="n">arr_pad</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+=</span> <span class="n">arr_pad</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">arr_pad</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">]</span>
-
-                    <span class="n">diff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">arr_pad</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
-                    <span class="c1"># Insert value at beginning and end of diff to ensure same</span>
-                    <span class="c1"># length</span>
-                    <span class="n">diff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">diff</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">diff</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-
-                    <span class="n">arr_pad</span> <span class="o">+=</span> <span class="n">diff</span>
-                    <span class="c1"># Ignore final value</span>
-                    <span class="n">arr_pad</span> <span class="o">=</span> <span class="n">arr_pad</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-                    <span class="c1"># C is allowed to be masked in pcolormesh but x and y are</span>
-                    <span class="c1"># not so replace any empty data with nans</span>
-                <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">filled</span><span class="p">(</span><span class="n">arr_pad</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">))</span>
-            <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">args_masked</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># Only the masked value of z is used as a mask</span>
-            <span class="n">args</span> <span class="o">=</span> <span class="n">args_masked</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">:]</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_args_for_pcolormesh</span><span class="p">(</span><span class="n">args_masked</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
 
         <span class="n">pc</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">pcolormesh</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
@@ -554,7 +579,7 @@
     <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Save current plot to filename, by default</span>
-<span class="sd">        to the location corresponding to the default </span>
+<span class="sd">        to the location corresponding to the default</span>
 <span class="sd">        title.</span>
 
 <span class="sd">        Args:</span>
@@ -676,10 +701,7 @@
 
   
 
-  
-  
-    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
-  
+  <script type="text/javascript" src="../../../_static/js/theme.js"></script>
 
   <script type="text/javascript">
       jQuery(function () {
