@@ -234,6 +234,29 @@
 
 <span class="n">Number</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span>
 
+
+<span class="k">class</span> <span class="nc">_SetParamContext</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This class is returned by the set method of parameters</span>
+
+<span class="sd">    Example usage:</span>
+<span class="sd">    &gt;&gt;&gt; v = dac.voltage()</span>
+<span class="sd">    &gt;&gt;&gt; with dac.voltage(-1):</span>
+<span class="sd">        ...     # Do stuff with the DAC output set to -1 V.</span>
+<span class="sd">        ...</span>
+<span class="sd">    &gt;&gt;&gt; assert abs(dac.voltage() - v) &lt;= tolerance</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameter</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parameter</span> <span class="o">=</span> <span class="n">parameter</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_original_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parameter</span><span class="o">.</span><span class="n">_latest</span><span class="p">[</span><span class="s2">&quot;value&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">typ</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">traceback</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parameter</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_original_value</span><span class="p">)</span>
+
+
 <span class="k">class</span> <span class="nc">_BaseParameter</span><span class="p">(</span><span class="n">Metadatable</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Shared behavior for all parameters. Not intended to be used</span>
@@ -605,6 +628,7 @@
                     <span class="k">if</span> <span class="n">t_elapsed</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">post_delay</span><span class="p">:</span>
                         <span class="c1"># Sleep until total time is larger than self.post_delay</span>
                         <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">post_delay</span> <span class="o">-</span> <span class="n">t_elapsed</span><span class="p">)</span>
+
             <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
                 <span class="n">e</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">args</span> <span class="o">+</span> <span class="p">(</span><span class="s1">&#39;setting </span><span class="si">{}</span><span class="s1"> to </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">),)</span>
                 <span class="k">raise</span> <span class="n">e</span>
@@ -835,6 +859,22 @@
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">root_instrument</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">set_to</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Use a context manager to temporarily set the value of a parameter to</span>
+<span class="sd">        a value. Example:</span>
+
+<span class="sd">        &gt;&gt;&gt; from qcodes import Parameter</span>
+<span class="sd">        &gt;&gt;&gt; p = Parameter(&quot;p&quot;, set_cmd=None, get_cmd=None)</span>
+<span class="sd">        &gt;&gt;&gt; with p.set_to(3):</span>
+<span class="sd">        ...    print(f&quot;p value in with block {p.get()}&quot;)</span>
+<span class="sd">        &gt;&gt;&gt; print(f&quot;p value outside with block {p.get()}&quot;)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">context_manager</span> <span class="o">=</span> <span class="n">_SetParamContext</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">context_manager</span>
+
 
 <div class="viewcode-block" id="Parameter"><a class="viewcode-back" href="../../../api/generated/qcodes.Parameter.html#qcodes.Parameter">[docs]</a><span class="k">class</span> <span class="nc">Parameter</span><span class="p">(</span><span class="n">_BaseParameter</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
