@@ -161,7 +161,7 @@
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
 <span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="n">VisaInstrument</span><span class="p">,</span> <span class="n">validators</span> <span class="k">as</span> <span class="n">vals</span>
-<span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="n">InstrumentChannel</span><span class="p">,</span> <span class="n">ChannelList</span>
+<span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="n">InstrumentChannel</span><span class="p">,</span> <span class="n">ChannelList</span><span class="p">,</span> <span class="n">Instrument</span>
 <span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="n">ArrayParameter</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="k">import</span> <span class="n">Enum</span><span class="p">,</span> <span class="n">Numbers</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.workarounds</span> <span class="k">import</span> <span class="n">visa_query_binary_values_fix_for</span>
@@ -256,8 +256,6 @@
         <span class="c1"># transfer the data</span>
         <span class="c1"># ---------------------------------------------------------------------</span>
 
-        <span class="c1"># switch the response header off for lower overhead</span>
-        <span class="n">instr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;:SYSTem:HEADer OFF&#39;</span><span class="p">)</span>
         <span class="c1"># select the channel from which to read</span>
         <span class="n">instr</span><span class="o">.</span><span class="n">_parent</span><span class="o">.</span><span class="n">data_source</span><span class="p">(</span><span class="s1">&#39;CHAN</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_channel</span><span class="p">))</span>
         <span class="c1"># specifiy the data format in which to read</span>
@@ -306,6 +304,148 @@
             <span class="n">instr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;:RUN&#39;</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">channel_data</span></div></div>
+
+
+<div class="viewcode-block" id="MeasurementSubsystem"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.Keysight.html#qcodes.instrument_drivers.Keysight.Infiniium.MeasurementSubsystem">[docs]</a><span class="k">class</span> <span class="nc">MeasurementSubsystem</span><span class="p">(</span><span class="n">InstrumentChannel</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Submodule containing the measurement subsystem commands and associated</span>
+<span class="sd">    parameters</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># note: this is not really a channel, but InstrumentChannel does everything</span>
+    <span class="c1"># a &#39;Submodule&#39; class should do</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="p">:</span> <span class="n">Instrument</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parent</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;source_1&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Measurement primary source&#39;</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_source</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_source</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+                           <span class="n">val_mapping</span><span class="o">=</span><span class="p">{</span><span class="n">i</span><span class="p">:</span> <span class="n">f</span><span class="s1">&#39;CHAN</span><span class="si">{i}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">)},</span>
+                           <span class="n">snapshot_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;source_2&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Measurement secondary source&#39;</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_source</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_source</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+                           <span class="n">val_mapping</span><span class="o">=</span><span class="p">{</span><span class="n">i</span><span class="p">:</span> <span class="n">f</span><span class="s1">&#39;CHAN</span><span class="si">{i}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">)},</span>
+                           <span class="n">snapshot_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;amplitude&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Voltage amplitude&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_make_meas_cmd</span><span class="p">(</span><span class="s1">&#39;VAMPlitude&#39;</span><span class="p">),</span>
+                           <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;V&#39;</span><span class="p">,</span>
+                           <span class="n">snapshot_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;average&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Voltage average&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_make_meas_cmd</span><span class="p">(</span><span class="s1">&#39;VAVerage&#39;</span><span class="p">),</span>
+                           <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;V&#39;</span><span class="p">,</span>
+                           <span class="n">snapshot_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;base&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Statistical base&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_make_meas_cmd</span><span class="p">(</span><span class="s1">&#39;VBASe&#39;</span><span class="p">),</span>
+                           <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;V&#39;</span><span class="p">,</span>
+                           <span class="n">snapshot_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;frequency&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Signal frequency&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_make_meas_cmd</span><span class="p">(</span><span class="s1">&#39;FREQuency&#39;</span><span class="p">),</span>
+                           <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;Hz&#39;</span><span class="p">,</span>
+                           <span class="n">docstring</span><span class="o">=</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                                     measure the frequency of the first</span>
+<span class="s2">                                     complete cycle on the screen using</span>
+<span class="s2">                                     the mid-threshold levels of the waveform</span>
+<span class="s2">                                     &quot;&quot;&quot;</span><span class="p">,</span>
+                           <span class="n">snapshot_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;lower&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Voltage lower&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_make_meas_cmd</span><span class="p">(</span><span class="s1">&#39;VLOWer&#39;</span><span class="p">),</span>
+                           <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;V&#39;</span><span class="p">,</span>
+                           <span class="n">snapshot_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;max&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Voltage maximum&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_make_meas_cmd</span><span class="p">(</span><span class="s1">&#39;VMAX&#39;</span><span class="p">),</span>
+                           <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;V&#39;</span><span class="p">,</span>
+                           <span class="n">snapshot_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;middle&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Middle threshold voltage&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_make_meas_cmd</span><span class="p">(</span><span class="s1">&#39;VMIDdle&#39;</span><span class="p">),</span>
+                           <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;V&#39;</span><span class="p">,</span>
+                           <span class="n">snapshot_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;min&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Voltage minimum&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_make_meas_cmd</span><span class="p">(</span><span class="s1">&#39;VMIN&#39;</span><span class="p">),</span>
+                           <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;V&#39;</span><span class="p">,</span>
+                           <span class="n">snapshot_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;overshoot&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Voltage overshoot&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_make_meas_cmd</span><span class="p">(</span><span class="s1">&#39;VOVershoot&#39;</span><span class="p">),</span>
+                           <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;V&#39;</span><span class="p">,</span>
+                           <span class="n">snapshot_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;vpp&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Voltage peak-to-peak&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_make_meas_cmd</span><span class="p">(</span><span class="s1">&#39;VPP&#39;</span><span class="p">),</span>
+                           <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;V&#39;</span><span class="p">,</span>
+                           <span class="n">snapshot_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;rms&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Voltage RMS&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_make_meas_cmd</span><span class="p">(</span><span class="s1">&#39;VRMS&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; DISPlay, DC&#39;</span><span class="p">,</span>
+                           <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;V&#39;</span><span class="p">,</span>
+                           <span class="n">snapshot_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;rms_no_DC&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Voltage RMS&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_make_meas_cmd</span><span class="p">(</span><span class="s1">&#39;VRMS&#39;</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; DISPlay, AC&#39;</span><span class="p">,</span>
+                           <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;V&#39;</span><span class="p">,</span>
+                           <span class="n">snapshot_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_make_meas_cmd</span><span class="p">(</span><span class="n">cmd</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Helper function to avoid typos</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">f</span><span class="s1">&#39;:MEASure:</span><span class="si">{cmd}</span><span class="s1">?&#39;</span>
+
+    <span class="k">def</span> <span class="nf">_set_source</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rank</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set the measurement source, either primary (rank==1) or secondary</span>
+<span class="sd">        (rank==2)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">sources</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;:MEASure:SOURCE?&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">rank</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;:MEASure:SOURCE </span><span class="si">{source}</span><span class="s1">, </span><span class="si">{sources[1]}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;:MEASure:SOURCE </span><span class="si">{sources[0]}</span><span class="s1">, </span><span class="si">{source}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_source</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rank</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the measurement source, either primary (rank==1) or secondary</span>
+<span class="sd">        (rank==2)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">sources</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;:MEASure:SOURCE?&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">sources</span><span class="p">[</span><span class="n">rank</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span></div>
 
 
 <div class="viewcode-block" id="InfiniiumChannel"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.Keysight.html#qcodes.instrument_drivers.Keysight.Infiniium.InfiniiumChannel">[docs]</a><span class="k">class</span> <span class="nc">InfiniiumChannel</span><span class="p">(</span><span class="n">InstrumentChannel</span><span class="p">):</span>
@@ -359,12 +499,12 @@
             <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(),</span>
         <span class="p">)</span>
 
-
         <span class="c1"># Acquisition</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;trace&#39;</span><span class="p">,</span>
                            <span class="n">channel</span><span class="o">=</span><span class="n">channel</span><span class="p">,</span>
                            <span class="n">parameter_class</span><span class="o">=</span><span class="n">RawTrace</span>
                            <span class="p">)</span></div>
+
 
 <div class="viewcode-block" id="Infiniium"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.Keysight.html#qcodes.instrument_drivers.Keysight.Infiniium.Infiniium">[docs]</a><span class="k">class</span> <span class="nc">Infiniium</span><span class="p">(</span><span class="n">VisaInstrument</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -388,6 +528,10 @@
 
         <span class="c1"># Scope trace boolean</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">trace_ready</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="c1"># switch the response header off,</span>
+        <span class="c1"># else none of our parameters will work</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;:SYSTem:HEADer OFF&#39;</span><span class="p">)</span>
 
         <span class="c1"># functions</span>
 
@@ -524,14 +668,13 @@
                                       <span class="s1">&#39;HRESolution&#39;</span><span class="p">,</span> <span class="s1">&#39;SEGMented&#39;</span><span class="p">,</span>
                                       <span class="s1">&#39;SEGPdetect&#39;</span><span class="p">,</span> <span class="s1">&#39;SEGHres&#39;</span><span class="p">)</span>
                             <span class="p">)</span>
-        
+
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;acquire_timespan&#39;</span><span class="p">,</span>
                             <span class="n">get_cmd</span><span class="o">=</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">acquire_points</span><span class="o">.</span><span class="n">get_latest</span><span class="p">()</span> \
                                             <span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">acquire_sample_rate</span><span class="o">.</span><span class="n">get_latest</span><span class="p">()),</span>
                             <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;s&#39;</span><span class="p">,</span>
                             <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span>
                             <span class="p">)</span>
-
 
         <span class="c1"># time of the first point</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;waveform_xorigin&#39;</span><span class="p">,</span>
@@ -550,6 +693,9 @@
         <span class="n">channels</span><span class="o">.</span><span class="n">lock</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_submodule</span><span class="p">(</span><span class="s1">&#39;channels&#39;</span><span class="p">,</span> <span class="n">channels</span><span class="p">)</span>
 
+        <span class="c1"># Submodules</span>
+        <span class="n">meassubsys</span> <span class="o">=</span> <span class="n">MeasurementSubsystem</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;measure&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_submodule</span><span class="p">(</span><span class="s1">&#39;measure&#39;</span><span class="p">,</span> <span class="n">meassubsys</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_cmd_and_invalidate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">partial</span><span class="p">(</span><span class="n">Infiniium</span><span class="o">.</span><span class="n">_cmd_and_invalidate_call</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">)</span>
