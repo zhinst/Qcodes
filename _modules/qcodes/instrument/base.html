@@ -159,7 +159,8 @@
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">warnings</span>
 <span class="kn">import</span> <span class="nn">weakref</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">cast</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> \
+    <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">cast</span><span class="p">,</span> <span class="n">Type</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
@@ -769,6 +770,34 @@
 
         <span class="k">return</span> <span class="n">ins</span>
 
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">exist</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">instrument_class</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">type</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check if an instrument with a given names exists (i.e. is already</span>
+<span class="sd">        instantiated).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name: name of the instrument</span>
+<span class="sd">            instrument_class: The type of instrument you are looking for.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">instrument_exists</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">_</span> <span class="o">=</span> <span class="n">Instrument</span><span class="o">.</span><span class="n">find_instrument</span><span class="p">(</span>
+                <span class="n">name</span><span class="p">,</span> <span class="n">instrument_class</span><span class="o">=</span><span class="n">instrument_class</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">KeyError</span> <span class="k">as</span> <span class="n">exception</span><span class="p">:</span>
+            <span class="n">instrument_is_not_found</span> <span class="o">=</span> \
+                <span class="nb">any</span><span class="p">(</span><span class="n">str_</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">exception</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">str_</span> <span class="ow">in</span> <span class="p">[</span><span class="n">name</span><span class="p">,</span> <span class="s1">&#39;has been removed&#39;</span><span class="p">])</span>
+
+            <span class="k">if</span> <span class="n">instrument_is_not_found</span><span class="p">:</span>
+                <span class="n">instrument_exists</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">exception</span>
+
+        <span class="k">return</span> <span class="n">instrument_exists</span>
+
     <span class="c1"># `write_raw` and `ask_raw` are the interface to hardware                #</span>
     <span class="c1"># `write` and `ask` are standard wrappers to help with error reporting   #</span>
     <span class="c1">#</span>
@@ -852,6 +881,53 @@
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
             <span class="s1">&#39;Instrument </span><span class="si">{}</span><span class="s1"> has not defined an ask method&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
                 <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span></div>
+
+
+<span class="k">def</span> <span class="nf">find_or_create_instrument</span><span class="p">(</span><span class="n">instrument_class</span><span class="p">:</span> <span class="n">Type</span><span class="p">[</span><span class="n">Instrument</span><span class="p">],</span>
+                              <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                              <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+                              <span class="n">recreate</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                              <span class="o">**</span><span class="n">kwargs</span>
+                              <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Instrument</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Find an instrument with the given name of a given class, or create one if</span>
+<span class="sd">    it is not found. In case the instrument was found, and `recreate` is True,</span>
+<span class="sd">    the instrument will be re-instantiated.</span>
+
+<span class="sd">    Note that the class of the existing instrument has to be equal to the</span>
+<span class="sd">    instrument class of interest. For example, if an instrument with the same</span>
+<span class="sd">    name but of a different class exists, the function will raise an exception.</span>
+
+<span class="sd">    This function is very convenient because it allows not to bother about</span>
+<span class="sd">    which instruments are already instantiated and which are not.</span>
+
+<span class="sd">    If an instrument is found, a connection message is printed, as if the</span>
+<span class="sd">    instrument has just been instantiated.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        instrument_class</span>
+<span class="sd">            Class of the instrument to find or create</span>
+<span class="sd">        name</span>
+<span class="sd">            Name of the instrument to find or create</span>
+<span class="sd">        recreate</span>
+<span class="sd">            When True, the instruments gets recreated if it is found</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The found or created instrument</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">Instrument</span><span class="o">.</span><span class="n">exist</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">instrument_class</span><span class="o">=</span><span class="n">instrument_class</span><span class="p">):</span>
+        <span class="n">instrument</span> <span class="o">=</span> <span class="n">instrument_class</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">instrument</span> <span class="o">=</span> <span class="n">Instrument</span><span class="o">.</span><span class="n">find_instrument</span><span class="p">(</span>
+            <span class="n">name</span><span class="p">,</span> <span class="n">instrument_class</span><span class="o">=</span><span class="n">instrument_class</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">recreate</span><span class="p">:</span>
+            <span class="n">instrument</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="n">instrument</span> <span class="o">=</span> <span class="n">instrument_class</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">instrument</span><span class="o">.</span><span class="n">connect_message</span><span class="p">()</span>  <span class="c1"># prints the message</span>
+
+    <span class="k">return</span> <span class="n">instrument</span>
 </pre></div>
 
            </div>
