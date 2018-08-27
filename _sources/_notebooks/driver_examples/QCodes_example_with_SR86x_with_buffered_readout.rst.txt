@@ -26,6 +26,7 @@ Imports
     import time
     import matplotlib.pyplot as plt 
     import numpy
+    from pprint import pprint  # for pretty printing lists and dictionaries
     
     # QCoDeS
     import qcodes
@@ -46,8 +47,209 @@ Initialize the driver
 
 .. parsed-literal::
 
-    Connected to: Stanford_Research_Systems SR860 (serial:003230, firmware:V1.47) in 0.23s
+    Connected to: Stanford_Research_Systems SR860 (serial:003223, firmware:V1.47) in 0.25s
 
+
+Basics of reading values from the lock-in
+-----------------------------------------
+
+Lock-in amplifier measures a number of values. The most frequently used
+ones are available in the driver directly as QCODES parameters:
+
+.. code:: ipython3
+
+    print(f'X = { lockin.X() }')
+    print(f'Y = { lockin.Y() }')
+    print(f'R = { lockin.R() }')
+    print(f'P = { lockin.P() }')
+
+
+.. parsed-literal::
+
+    X = 3.1690581181e-07
+    Y = 2.9734803775e-07
+    R = 4.2155235747e-07
+    P = 45.936515808
+
+
+Actually, the full list of values (or 'parameters', not to be confused
+with QCODES parameters) that the lock-in amplifier measures is available
+in the following dictionary (refer to the page 132 of the instrument's
+manual for more information):
+
+.. code:: ipython3
+
+    pprint(list(lockin.PARAMETER_NAMES.keys()))
+
+
+.. parsed-literal::
+
+    ['X',
+     'Y',
+     'R',
+     'P',
+     'aux_in1',
+     'aux_in2',
+     'aux_in3',
+     'aux_in4',
+     'Xnoise',
+     'Ynoise',
+     'aux_out1',
+     'aux_out2',
+     'phase',
+     'amplitude',
+     'sine_outdc',
+     'frequency',
+     'frequency_ext']
+
+
+Use the ``get_values`` method of the driver to obtain values of 2 or 3
+of those parameters. The values that are returned by this method are
+guaranteed to be coming from the same measurement, as opposed to
+requesting values sequentially by calling ``lockin.X()`` and then
+``lockin.Y()``. The method returns a tuple of values.
+
+.. code:: ipython3
+
+    lockin.get_values('X', 'Y', 'Xnoise')
+
+
+
+
+.. parsed-literal::
+
+    (-2.1813903572e-07, 1.6225968125e-07, 3.1462531069e-07)
+
+
+
+.. code:: ipython3
+
+    lockin.get_values('R', 'P')
+
+
+
+
+.. parsed-literal::
+
+    (2.696416459e-07, 152.20687866)
+
+
+
+Data channels
+-------------
+
+Lock-in amplifier has a notion of data channels. Each data channel can
+be assigned to a measured parameter mentioned above. Each data channel
+is being displayed on the insturment's screen, and has a corresponding
+color.
+
+Let's list the data channels using the ``data_channels`` list:
+
+.. code:: ipython3
+
+    msg = f'Lock-in amplifier has the following data channels:\n'
+    msg += '\n'.join([f'{dch.cmd_id_name} ({dch.color})' for dch in lockin.data_channels])
+    print(msg)
+
+
+.. parsed-literal::
+
+    Lock-in amplifier has the following data channels:
+    DAT1 (green)
+    DAT2 (blue)
+    DAT3 (yellow)
+    DAT4 (orange)
+
+
+These channels are also accessible individually from the lock-in
+amplifier driver instance with ``data_channel_<i>`` attributes.
+
+Each of the channels has a ``color``, ``cmd_id`` that is used in VISA
+commands, and ``cmd_id_name`` that can be (but is not) used in VISA
+commands, and is just there for reference.
+
+Most importantly, each data channel has an ``assigned_parameter`` to it.
+The available parameter are coming from the same list of parameters from
+above.
+
+.. code:: ipython3
+
+    lockin.data_channel_3.assigned_parameter('aux_in3')
+    lockin.data_channel_3.assigned_parameter()
+
+
+
+
+.. parsed-literal::
+
+    'aux_in3'
+
+
+
+The main feature of the data channels is that the lock-in amplifier has
+commands to retrieve all of their values at once. This feature is
+similar to ``get_values`` method, but instead of specifying the
+parameter names, the values of the data channels are returned.
+
+``get_data_channels_values`` method returns a tuple of the values of the
+data channels.
+
+.. code:: ipython3
+
+    lockin.get_data_channels_values()
+
+
+
+
+.. parsed-literal::
+
+    (-1.3243408148e-07, -1.4647376645e-07, -0.00053787231445, -132.11825562)
+
+
+
+In order to see which are the assigned parameters for all the data
+channels, ``get_data_channels_parameters`` method can be used. Note that
+this method has a keyword argument ``query_instrument`` that allows you
+to choose not to query the values from the instrument in order to save
+time on VISA communication.
+
+.. code:: ipython3
+
+    lockin.get_data_channels_parameters()
+
+
+
+
+.. parsed-literal::
+
+    ('X', 'Y', 'aux_in3', 'P')
+
+
+
+Finally, a convenience method available that returns a dictionary of
+data channels assigned parameters with the associated values. Note that
+this method also has a keyword argument ``requery_names`` that allows
+you to choose whether the assigned parameter names are queried from the
+instrument. In this case, by default the names are not queried.
+
+.. code:: ipython3
+
+    lockin.get_data_channels_dict()
+
+
+
+
+.. parsed-literal::
+
+    {'P': -95.362594604,
+     'X': -3.9464794099e-08,
+     'Y': -4.204223103e-07,
+     'aux_in3': -0.00045776367188}
+
+
+
+Setting up for the buffer readout examples
+------------------------------------------
 
 Set capture configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~

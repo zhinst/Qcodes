@@ -100,6 +100,9 @@
 <li class="toctree-l3"><a class="reference internal" href="QCodes example with SR830.html">QCoDeS example with SR830</a></li>
 <li class="toctree-l3 current"><a class="current reference internal" href="#">Standford Research SR86x Lock-in Amplifier example (with buffered readout)</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#setting-up-infrastructure-for-the-examples">Setting up infrastructure for the examples</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#basics-of-reading-values-from-the-lock-in">Basics of reading values from the lock-in</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#data-channels">Data channels</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#setting-up-for-the-buffer-readout-examples">Setting up for the buffer readout examples</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#one-shot-immediate-capture">One-shot immediate capture</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#capture-after-trigger-is-sent">Capture after trigger is sent</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#capturing-one-sample-per-trigger">Capturing one sample per trigger</a></li>
@@ -224,6 +227,7 @@ One can also use <code class="docutils literal notranslate"><span class="pre">qc
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
 <span class="kn">import</span> <span class="nn">numpy</span>
+<span class="kn">from</span> <span class="nn">pprint</span> <span class="k">import</span> <span class="n">pprint</span>  <span class="c1"># for pretty printing lists and dictionaries</span>
 
 <span class="c1"># QCoDeS</span>
 <span class="kn">import</span> <span class="nn">qcodes</span>
@@ -241,10 +245,145 @@ One can also use <code class="docutils literal notranslate"><span class="pre">qc
 <div class="code ipython3 highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">lockin</span> <span class="o">=</span> <span class="n">SR860</span><span class="p">(</span><span class="s2">&quot;lockin&quot;</span><span class="p">,</span> <span class="s2">&quot;GPIB0::4::INSTR&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Connected</span> <span class="n">to</span><span class="p">:</span> <span class="n">Stanford_Research_Systems</span> <span class="n">SR860</span> <span class="p">(</span><span class="n">serial</span><span class="p">:</span><span class="mi">003230</span><span class="p">,</span> <span class="n">firmware</span><span class="p">:</span><span class="n">V1</span><span class="o">.</span><span class="mi">47</span><span class="p">)</span> <span class="ow">in</span> <span class="mf">0.23</span><span class="n">s</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Connected</span> <span class="n">to</span><span class="p">:</span> <span class="n">Stanford_Research_Systems</span> <span class="n">SR860</span> <span class="p">(</span><span class="n">serial</span><span class="p">:</span><span class="mi">003223</span><span class="p">,</span> <span class="n">firmware</span><span class="p">:</span><span class="n">V1</span><span class="o">.</span><span class="mi">47</span><span class="p">)</span> <span class="ow">in</span> <span class="mf">0.25</span><span class="n">s</span>
 </pre></div>
 </div>
 </div>
+</div>
+<div class="section" id="basics-of-reading-values-from-the-lock-in">
+<h2>Basics of reading values from the lock-in<a class="headerlink" href="#basics-of-reading-values-from-the-lock-in" title="Permalink to this headline">¶</a></h2>
+<p>Lock-in amplifier measures a number of values. The most frequently used
+ones are available in the driver directly as QCODES parameters:</p>
+<div class="code ipython3 highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;X = { lockin.X() }&#39;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Y = { lockin.Y() }&#39;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;R = { lockin.R() }&#39;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;P = { lockin.P() }&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">X</span> <span class="o">=</span> <span class="mf">3.1690581181e-07</span>
+<span class="n">Y</span> <span class="o">=</span> <span class="mf">2.9734803775e-07</span>
+<span class="n">R</span> <span class="o">=</span> <span class="mf">4.2155235747e-07</span>
+<span class="n">P</span> <span class="o">=</span> <span class="mf">45.936515808</span>
+</pre></div>
+</div>
+<p>Actually, the full list of values (or ‘parameters’, not to be confused
+with QCODES parameters) that the lock-in amplifier measures is available
+in the following dictionary (refer to the page 132 of the instrument’s
+manual for more information):</p>
+<div class="code ipython3 highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pprint</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">lockin</span><span class="o">.</span><span class="n">PARAMETER_NAMES</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="s1">&#39;X&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;Y&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;R&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;P&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;aux_in1&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;aux_in2&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;aux_in3&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;aux_in4&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;Xnoise&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;Ynoise&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;aux_out1&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;aux_out2&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;phase&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;amplitude&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;sine_outdc&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;frequency&#39;</span><span class="p">,</span>
+ <span class="s1">&#39;frequency_ext&#39;</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>Use the <code class="docutils literal notranslate"><span class="pre">get_values</span></code> method of the driver to obtain values of 2 or 3
+of those parameters. The values that are returned by this method are
+guaranteed to be coming from the same measurement, as opposed to
+requesting values sequentially by calling <code class="docutils literal notranslate"><span class="pre">lockin.X()</span></code> and then
+<code class="docutils literal notranslate"><span class="pre">lockin.Y()</span></code>. The method returns a tuple of values.</p>
+<div class="code ipython3 highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">lockin</span><span class="o">.</span><span class="n">get_values</span><span class="p">(</span><span class="s1">&#39;X&#39;</span><span class="p">,</span> <span class="s1">&#39;Y&#39;</span><span class="p">,</span> <span class="s1">&#39;Xnoise&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="o">-</span><span class="mf">2.1813903572e-07</span><span class="p">,</span> <span class="mf">1.6225968125e-07</span><span class="p">,</span> <span class="mf">3.1462531069e-07</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="code ipython3 highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">lockin</span><span class="o">.</span><span class="n">get_values</span><span class="p">(</span><span class="s1">&#39;R&#39;</span><span class="p">,</span> <span class="s1">&#39;P&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="mf">2.696416459e-07</span><span class="p">,</span> <span class="mf">152.20687866</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="data-channels">
+<h2>Data channels<a class="headerlink" href="#data-channels" title="Permalink to this headline">¶</a></h2>
+<p>Lock-in amplifier has a notion of data channels. Each data channel can
+be assigned to a measured parameter mentioned above. Each data channel
+is being displayed on the insturment’s screen, and has a corresponding
+color.</p>
+<p>Let’s list the data channels using the <code class="docutils literal notranslate"><span class="pre">data_channels</span></code> list:</p>
+<div class="code ipython3 highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">msg</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;Lock-in amplifier has the following data channels:</span><span class="se">\n</span><span class="s1">&#39;</span>
+<span class="n">msg</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">f</span><span class="s1">&#39;</span><span class="si">{dch.cmd_id_name}</span><span class="s1"> (</span><span class="si">{dch.color}</span><span class="s1">)&#39;</span> <span class="k">for</span> <span class="n">dch</span> <span class="ow">in</span> <span class="n">lockin</span><span class="o">.</span><span class="n">data_channels</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Lock</span><span class="o">-</span><span class="ow">in</span> <span class="n">amplifier</span> <span class="n">has</span> <span class="n">the</span> <span class="n">following</span> <span class="n">data</span> <span class="n">channels</span><span class="p">:</span>
+<span class="n">DAT1</span> <span class="p">(</span><span class="n">green</span><span class="p">)</span>
+<span class="n">DAT2</span> <span class="p">(</span><span class="n">blue</span><span class="p">)</span>
+<span class="n">DAT3</span> <span class="p">(</span><span class="n">yellow</span><span class="p">)</span>
+<span class="n">DAT4</span> <span class="p">(</span><span class="n">orange</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>These channels are also accessible individually from the lock-in
+amplifier driver instance with <code class="docutils literal notranslate"><span class="pre">data_channel_&lt;i&gt;</span></code> attributes.</p>
+<p>Each of the channels has a <code class="docutils literal notranslate"><span class="pre">color</span></code>, <code class="docutils literal notranslate"><span class="pre">cmd_id</span></code> that is used in VISA
+commands, and <code class="docutils literal notranslate"><span class="pre">cmd_id_name</span></code> that can be (but is not) used in VISA
+commands, and is just there for reference.</p>
+<p>Most importantly, each data channel has an <code class="docutils literal notranslate"><span class="pre">assigned_parameter</span></code> to it.
+The available parameter are coming from the same list of parameters from
+above.</p>
+<div class="code ipython3 highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">lockin</span><span class="o">.</span><span class="n">data_channel_3</span><span class="o">.</span><span class="n">assigned_parameter</span><span class="p">(</span><span class="s1">&#39;aux_in3&#39;</span><span class="p">)</span>
+<span class="n">lockin</span><span class="o">.</span><span class="n">data_channel_3</span><span class="o">.</span><span class="n">assigned_parameter</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="s1">&#39;aux_in3&#39;</span>
+</pre></div>
+</div>
+<p>The main feature of the data channels is that the lock-in amplifier has
+commands to retrieve all of their values at once. This feature is
+similar to <code class="docutils literal notranslate"><span class="pre">get_values</span></code> method, but instead of specifying the
+parameter names, the values of the data channels are returned.</p>
+<p><code class="docutils literal notranslate"><span class="pre">get_data_channels_values</span></code> method returns a tuple of the values of the
+data channels.</p>
+<div class="code ipython3 highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">lockin</span><span class="o">.</span><span class="n">get_data_channels_values</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="o">-</span><span class="mf">1.3243408148e-07</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.4647376645e-07</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.00053787231445</span><span class="p">,</span> <span class="o">-</span><span class="mf">132.11825562</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>In order to see which are the assigned parameters for all the data
+channels, <code class="docutils literal notranslate"><span class="pre">get_data_channels_parameters</span></code> method can be used. Note that
+this method has a keyword argument <code class="docutils literal notranslate"><span class="pre">query_instrument</span></code> that allows you
+to choose not to query the values from the instrument in order to save
+time on VISA communication.</p>
+<div class="code ipython3 highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">lockin</span><span class="o">.</span><span class="n">get_data_channels_parameters</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="s1">&#39;X&#39;</span><span class="p">,</span> <span class="s1">&#39;Y&#39;</span><span class="p">,</span> <span class="s1">&#39;aux_in3&#39;</span><span class="p">,</span> <span class="s1">&#39;P&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Finally, a convenience method available that returns a dictionary of
+data channels assigned parameters with the associated values. Note that
+this method also has a keyword argument <code class="docutils literal notranslate"><span class="pre">requery_names</span></code> that allows
+you to choose whether the assigned parameter names are queried from the
+instrument. In this case, by default the names are not queried.</p>
+<div class="code ipython3 highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">lockin</span><span class="o">.</span><span class="n">get_data_channels_dict</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s1">&#39;P&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mf">95.362594604</span><span class="p">,</span>
+ <span class="s1">&#39;X&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mf">3.9464794099e-08</span><span class="p">,</span>
+ <span class="s1">&#39;Y&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mf">4.204223103e-07</span><span class="p">,</span>
+ <span class="s1">&#39;aux_in3&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mf">0.00045776367188</span><span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="setting-up-for-the-buffer-readout-examples">
+<h2>Setting up for the buffer readout examples<a class="headerlink" href="#setting-up-for-the-buffer-readout-examples" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="set-capture-configuration">
 <h3>Set capture configuration<a class="headerlink" href="#set-capture-configuration" title="Permalink to this headline">¶</a></h3>
 <p>The lock-in needs to know what values shall be captured. Let’s capture
