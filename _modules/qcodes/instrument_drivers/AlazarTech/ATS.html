@@ -804,6 +804,7 @@
 <span class="sd">            Whatever is given by acquisition_controller.post_acquire method</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># region set parameters from args</span>
+        <span class="n">start_func</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parameters_synced</span> <span class="o">==</span> <span class="kc">False</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;You must sync parameters to Alazar card &quot;</span>
                                <span class="s2">&quot;before calling acquire by calling &quot;</span>
@@ -834,9 +835,6 @@
 
         <span class="c1"># -----set final configurations-----</span>
 
-        <span class="c1"># Abort any previous measurement</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarAbortAsyncRead&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">)</span>
-
         <span class="n">buffers_per_acquisition</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">buffers_per_acquisition</span><span class="p">)</span>
         <span class="n">samples_per_record</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">samples_per_record</span><span class="p">)</span>
         <span class="n">records_per_buffer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">records_per_buffer</span><span class="p">)</span>
@@ -847,7 +845,6 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarSetRecordSize&#39;</span><span class="p">,</span>
                            <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span> <span class="n">pretriggersize</span><span class="p">,</span>
                            <span class="n">post_trigger_size</span><span class="p">)</span>
-
         <span class="c1"># set acquisition parameters here for NPT, TS mode</span>
         <span class="n">samples_per_buffer</span> <span class="o">=</span> <span class="mi">0</span>
 
@@ -867,7 +864,6 @@
                            <span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">transfer_offset</span><span class="p">),</span> <span class="n">samples_per_record</span><span class="p">,</span>
                            <span class="n">records_per_buffer</span><span class="p">,</span> <span class="n">records_per_acquisition</span><span class="p">,</span>
                            <span class="n">acquire_flags</span><span class="p">)</span>
-
         <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;TS&#39;</span><span class="p">:</span>
             <span class="k">if</span> <span class="p">(</span><span class="n">samples_per_record</span> <span class="o">%</span> <span class="n">buffers_per_acquisition</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">):</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;buffers_per_acquisition is not a divisor of &#39;</span>
@@ -960,10 +956,9 @@
 
             <span class="c1"># -----start capture here-----</span>
             <span class="n">acquisition_controller</span><span class="o">.</span><span class="n">pre_start_capture</span><span class="p">()</span>
-            <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">clock</span><span class="p">()</span>  <span class="c1"># Keep track of when acquisition started</span>
+            <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>  <span class="c1"># Keep track of when acquisition started</span>
             <span class="c1"># call the startcapture method</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarStartCapture&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">)</span>
-
             <span class="n">acquisition_controller</span><span class="o">.</span><span class="n">pre_acquire</span><span class="p">()</span>
 
             <span class="c1"># buffer handling from acquisition</span>
@@ -972,7 +967,7 @@
             <span class="n">buffer_timeout</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">buffer_timeout</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_set_updated_if_alazar_parameter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">buffer_timeout</span><span class="p">)</span>
 
-            <span class="n">done_setup</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">clock</span><span class="p">()</span>
+            <span class="n">done_setup</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
             <span class="k">while</span> <span class="p">(</span><span class="n">buffers_completed</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffers_per_acquisition</span><span class="o">.</span><span class="n">get</span><span class="p">()):</span>
                 <span class="c1"># Wait for the buffer at the head of the list of available</span>
                 <span class="c1"># buffers to be filled by the board.</span>
@@ -980,10 +975,7 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarWaitAsyncBufferComplete&#39;</span><span class="p">,</span>
                                <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">buf</span><span class="o">.</span><span class="n">addr</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_void_p</span><span class="p">),</span> <span class="n">buffer_timeout</span><span class="p">)</span>
 
-                <span class="c1"># TODO(damazter) (C) last series of buffers must be handled</span>
-                <span class="c1"># exceptionally</span>
-                <span class="c1"># (and I want to test the difference) by changing buffer</span>
-                <span class="c1"># recycling for the last series of buffers</span>
+                <span class="n">acquisition_controller</span><span class="o">.</span><span class="n">buffer_done_callback</span><span class="p">(</span><span class="n">buffers_completed</span><span class="p">)</span>
 
                 <span class="c1"># if buffers must be recycled, extract data and repost them</span>
                 <span class="c1"># otherwise continue to next buffer</span>
@@ -995,19 +987,19 @@
                 <span class="n">bytes_transferred</span> <span class="o">+=</span> <span class="n">buf</span><span class="o">.</span><span class="n">size_bytes</span>
         <span class="k">finally</span><span class="p">:</span>
             <span class="c1"># stop measurement here</span>
-            <span class="n">done_capture</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">clock</span><span class="p">()</span>
+            <span class="n">done_capture</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarAbortAsyncRead&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">)</span>
-        <span class="n">time_done_abort</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">clock</span><span class="p">()</span>
+        <span class="n">time_done_abort</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
         <span class="c1"># -----cleanup here-----</span>
         <span class="c1"># extract data if not yet done</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">buffer_recycling</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">buf</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">buffer_list</span><span class="p">):</span>
                 <span class="n">acquisition_controller</span><span class="o">.</span><span class="n">handle_buffer</span><span class="p">(</span><span class="n">buf</span><span class="o">.</span><span class="n">buffer</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
-        <span class="n">time_done_handling</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">clock</span><span class="p">()</span>
+        <span class="n">time_done_handling</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
         <span class="c1"># free up memory</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">clear_buffers</span><span class="p">()</span>
 
-        <span class="n">time_done_free_mem</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">clock</span><span class="p">()</span>
+        <span class="n">time_done_free_mem</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
         <span class="c1"># check if all parameters are up to date</span>
         <span class="c1"># Getting IDN is very slow so skip that</span>
         <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
@@ -1021,8 +1013,10 @@
 
 
         <span class="c1"># Compute the total transfer time, and display performance information.</span>
-        <span class="n">end_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">clock</span><span class="p">()</span>
+        <span class="n">end_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+        <span class="n">tot_time</span> <span class="o">=</span> <span class="n">end_time</span> <span class="o">-</span> <span class="n">start_func</span>
         <span class="n">transfer_time_sec</span> <span class="o">=</span> <span class="n">end_time</span> <span class="o">-</span> <span class="n">start</span>
+        <span class="n">presetup_time</span> <span class="o">=</span> <span class="n">start</span> <span class="o">-</span> <span class="n">start_func</span>
         <span class="n">setup_time</span> <span class="o">=</span> <span class="n">done_setup</span> <span class="o">-</span> <span class="n">start</span>
         <span class="n">capture_time</span> <span class="o">=</span> <span class="n">done_capture</span> <span class="o">-</span> <span class="n">done_setup</span>
         <span class="n">abort_time</span> <span class="o">=</span> <span class="n">time_done_abort</span> <span class="o">-</span> <span class="n">done_capture</span>
@@ -1043,11 +1037,14 @@
                          <span class="p">(</span><span class="n">records_per_buffer</span> <span class="o">*</span> <span class="n">buffers_completed</span><span class="p">,</span> <span class="n">records_per_sec</span><span class="p">))</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Transferred </span><span class="si">{:g}</span><span class="s2"> bytes (</span><span class="si">{:g}</span><span class="s2"> &quot;</span>
                          <span class="s2">&quot;bytes per sec)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">bytes_transferred</span><span class="p">,</span> <span class="n">bytes_per_sec</span><span class="p">))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Pre setup took </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">presetup_time</span><span class="p">))</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Pre capture setup took </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">setup_time</span><span class="p">))</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Capture took </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">capture_time</span><span class="p">))</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;abort took </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">abort_time</span><span class="p">))</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;handling took </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">handling_time</span><span class="p">))</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;free mem took </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">free_mem_time</span><span class="p">))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;tot acquire time is </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tot_time</span><span class="p">))</span>
+
         <span class="c1"># return result</span>
         <span class="k">return</span> <span class="n">acquisition_controller</span><span class="o">.</span><span class="n">post_acquire</span><span class="p">()</span></div>
 
@@ -1382,7 +1379,20 @@
 <span class="sd">            to get form the acquisition</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
-            <span class="s1">&#39;This method should be implemented in a subclass&#39;</span><span class="p">)</span></div></div>
+            <span class="s1">&#39;This method should be implemented in a subclass&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AcquisitionController.buffer_done_callback"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.AlazarTech.html#qcodes.instrument_drivers.AlazarTech.ATS.AcquisitionController.buffer_done_callback">[docs]</a>    <span class="k">def</span> <span class="nf">buffer_done_callback</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">buffers_completed</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This method is called when a buffer is completed. It can be used</span>
+<span class="sd">        if you want to implement an event that happens for each buffer.</span>
+<span class="sd">        You will probably want to combine this with `AUX_IN_TRIGGER_ENABLE` to wait</span>
+<span class="sd">        before starting capture of the next buffer.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            buffers_completed: how many buffers have been completed and copied</span>
+<span class="sd">            to local memory at the time of this callback.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div></div>
 </pre></div>
 
            </div>
