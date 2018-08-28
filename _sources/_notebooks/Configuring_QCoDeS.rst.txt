@@ -5,105 +5,24 @@
     %autoreload 2
     import qcodes as qc
 
-
-.. parsed-literal::
-
-    matplotlib plotting not supported, try "from qcodes.plots.qcmatplotlib import MatPlot" to see the full error
-    pyqtgraph plotting not supported, try "from qcodes.plots.pyqtgraph import QtPlot" to see the full error
-
-
-
-.. parsed-literal::
-
-    <IPython.core.display.Javascript object>
-
-
-
-.. raw:: html
-
-    <style>.qcodes-output-view:not(.ui-draggable) {
-        bottom: 0;
-        right: 5px;
-    }
-    .qcodes-output-view {
-        position: fixed;
-        z-index: 999;
-        background-color: #fff;
-        box-shadow: 0 0 12px 1px rgba(87, 87, 87, 0.2);
-    }
-    
-    .qcodes-output-header {
-        float: right;
-    }
-    
-    .qcodes-highlight {
-        animation: pulse 1s linear;
-        background-color: #fa4;
-    }
-    
-    @keyframes pulse {
-        0% {
-            background-color: #f00;
-        }
-        100% {
-            background-color: #fa4;
-        }
-    }
-    
-    .qcodes-process-list {
-        float: left;
-        max-width: 780px;
-        margin: 3px 5px 3px 10px;
-        overflow: hidden;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-    }
-    
-    .qcodes-output-view[qcodes-state=minimized] .qcodes-process-list {
-        max-width: 300px;
-    }
-    
-    .qcodes-output-view span {
-        padding: 2px 6px 3px 12px;
-    }
-    
-    .qcodes-output-view .btn {
-        margin: 0 3px 0 0;
-    }
-    
-    .qcodes-output-view[qcodes-state=docked] .qcodes-docked,
-    .qcodes-output-view[qcodes-state=floated] .qcodes-floated,
-    .qcodes-output-view[qcodes-state=minimized] .qcodes-minimized,
-    .qcodes-output-view[qcodes-state=minimized] .qcodes-content {
-        display: none;
-    }
-    
-    .qcodes-output-view .disabled {
-        opacity: 0.4;
-    }
-    
-    .qcodes-abort-loop {
-        background-color: #844;
-        color: #fff;
-    }
-    
-    .qcodes-output-view pre {
-        clear: both;
-        margin: 0;
-        border: 0;
-        border-top: 1px solid #ccc;
-        background-color: #ffe;
-        min-height: 50px;
-        max-height: 400px;
-        min-width: 400px;
-        max-width: 1000px;
-    }</style>
-
-
 QCoDeS config
 =============
 
-Qcodes loads defaults and configurations at module import
+The Qcodes config module uses JSON files to store QCoDeS configuration.
+
+The config file controls various options to QCoDeS such as the default
+location where data is stored and logging level of debug output. A
+default configuration is shipped with QCoDeS. As we will see below you
+can overwrite this configuration in several different ways to customize
+the configuration. For instance you may want to change the location of
+the ``qcodes.dataset`` experiments db. In the example below you should
+see that by default it is stored in ``~/experiments.db`` (``~`` is
+shorthand for the users home folder) but you can see that in the current
+config I have changed it to be stored inside a sub folder of my home
+folder.
+
+Qcodes loads both the defaults and the active configuration at module
+import so you can directly inspect them
 
 .. code:: ipython3
 
@@ -114,9 +33,21 @@ Qcodes loads defaults and configurations at module import
 
 .. parsed-literal::
 
-    {'core': {'legacy_mp': False, 'loglevel': 'DEBUG'},
-     'gui': {'notebook': True, 'plotlib': 'matplotlib'},
-     'user': {}}
+    {'core': {'loglevel': 'INFO',
+      'file_loglevel': 'INFO',
+      'default_fmt': 'data/{date}/#{counter}_{name}_{time}',
+      'register_magic': True,
+      'db_location': 'c:\\Users\\jenielse\\mymainfolder\\experiments.db',
+      'db_debug': False},
+     'gui': {'notebook': True,
+      'plotlib': 'all',
+      'pyqtmaxplots': 100,
+      'defaultcolormap': 'hot'},
+     'user': {'scriptfolder': 'c:\\Users\\jenielse\\myscripts\\',
+      'mainfolder': 'c:\\Users\\jenielse\\mymainfolder\\'},
+     'station_configurator': {'enable_forced_reconnect': False,
+      'default_folder': 'c:\\Users\\jenielse\\mymainfolder\\',
+      'default_file': 'instrument_config.yaml'}}
 
 
 
@@ -129,9 +60,20 @@ Qcodes loads defaults and configurations at module import
 
 .. parsed-literal::
 
-    {'core': {'legacy_mp': False, 'loglevel': 'DEBUG'},
-     'gui': {'notebook': True, 'plotlib': 'matplotlib'},
-     'user': {}}
+    {'core': {'loglevel': 'WARNING',
+      'file_loglevel': 'INFO',
+      'default_fmt': 'data/{date}/#{counter}_{name}_{time}',
+      'register_magic': True,
+      'db_location': '~/experiments.db',
+      'db_debug': False},
+     'gui': {'notebook': True,
+      'plotlib': 'all',
+      'pyqtmaxplots': 100,
+      'defaultcolormap': 'hot'},
+     'user': {'scriptfolder': '.', 'mainfolder': '.'},
+     'station_configurator': {'enable_forced_reconnect': False,
+      'default_folder': '.',
+      'default_file': 'instrument_config.yml'}}
 
 
 
@@ -145,10 +87,10 @@ One can inspect what the configuration options mean at runtime
 .. parsed-literal::
 
     controls core settings of qcodes.
-    Current value: {'legacy_mp': False, 'loglevel': 'DEBUG'}. Type: object. Default: Not defined.
+    Current value: {'loglevel': 'YOLO', 'file_loglevel': 'INFO', 'default_fmt': 'data/{date}/#{counter}_{name}_{time}', 'register_magic': True, 'db_location': 'c:\\Users\\jenielse\\mymainfolder\\experiments.db', 'db_debug': False}. Type: object. Default: Not defined.
 
 
-configuring qcodes
+Configuring qcodes
 ------------------
 
 Defaults are the settings that are shipped with the package, which you
@@ -171,9 +113,9 @@ Simply copy the file to the directories and you are good to go.
 
 .. parsed-literal::
 
-    /home/unga/qcodesrc.json
+    C:\Users\jenielse\qcodesrc.json
     
-    /home/unga/src/Qcodes/docs/examples/qcodesrc.json
+    C:\Users\jenielse\source\repos\Qcodes\docs\examples\qcodesrc.json
 
 
 But the easiest way to add something to the config is to use the
@@ -199,7 +141,38 @@ saved in the 'user' part of the config.
     Current value: /dev/random. Type: string. Default: /dev/random.
 
 
-saving changes
+You can also manually update the config from a specific file by suppling
+the path to the directory directly to ``qc.config.update_config`` as
+shown below.
+
+.. code:: ipython3
+
+    qc.config.update_config(path="C:\\Users\\jenielse\\")
+
+
+
+
+.. parsed-literal::
+
+    {'core': {'loglevel': 'WARNING',
+      'file_loglevel': 'INFO',
+      'default_fmt': 'data/{date}/#{counter}_{name}_{time}',
+      'register_magic': True,
+      'db_location': 'c:\\Users\\jenielse\\mymainfolder\\experiments.db',
+      'db_debug': False},
+     'gui': {'notebook': True,
+      'plotlib': 'all',
+      'pyqtmaxplots': 100,
+      'defaultcolormap': 'hot'},
+     'user': {'scriptfolder': 'c:\\Users\\jenielse\\myscripts\\',
+      'mainfolder': 'c:\\Users\\jenielse\\mymainfolder\\'},
+     'station_configurator': {'enable_forced_reconnect': False,
+      'default_folder': 'c:\\Users\\jenielse\\mymainfolder\\',
+      'default_file': 'instrument_config.yaml'}}
+
+
+
+Saving changes
 --------------
 
 All the changes made to the defaults are stored, and one can then decide
@@ -261,7 +234,7 @@ Changing core
 -------------
 
 one can change the core values at runtime, but there is no guarantee
-that they are valided. Changing core values will also shadow the config
+that they are valid. Changing core values will also shadow the config
 from being updated if the defaults are updated upsteam (i.e. in the
 repo). So use it with a care.
 
@@ -269,18 +242,18 @@ repo). So use it with a care.
 
     qc.config.current_config.core.loglevel = 'INFO'
 
-but one can maunually validate
+But one can maunually validate
 
 .. code:: ipython3
 
     qc.config.validate()
 
-which will raise an exception in case of bad inputs
+Which will raise an exception in case of bad inputs
 
 .. code:: ipython3
 
     qc.config.current_config.core.loglevel = 'YOLO'
-    qc.config.validate() 
+    qc.config.validate()
     # NOTE that you how have a broken config! 
 
 
@@ -291,32 +264,32 @@ which will raise an exception in case of bad inputs
 
     ValidationError                           Traceback (most recent call last)
 
-    <ipython-input-14-28539f77dfd3> in <module>()
+    <ipython-input-32-b0cc11f2d82e> in <module>()
           1 qc.config.current_config.core.loglevel = 'YOLO'
     ----> 2 qc.config.validate()
           3 # NOTE that you how have a broken config!
 
 
-    /home/unga/src/Qcodes/qcodes/config/config.py in validate(self, json_config, schema, extra_schema_path)
-        168         else:
-        169             if json_config is None and schema is None:
-    --> 170                 jsonschema.validate(self.current_config, self.current_schema)
-        171             else:
-        172                 jsonschema.validate(json_config, schema)
+    c:\users\jenielse\source\repos\qcodes\qcodes\config\config.py in validate(self, json_config, schema, extra_schema_path)
+        208         else:
+        209             if json_config is None and schema is None:
+    --> 210                 jsonschema.validate(self.current_config, self.current_schema)
+        211             else:
+        212                 jsonschema.validate(json_config, schema)
 
 
-    /home/unga/.pyenv/versions/3.4.5/envs/qcodes-dev/lib/python3.4/site-packages/jsonschema/validators.py in validate(instance, schema, cls, *args, **kwargs)
-        476         cls = validator_for(schema)
-        477     cls.check_schema(schema)
-    --> 478     cls(schema, *args, **kwargs).validate(instance)
+    ~\AppData\Local\Continuum\miniconda3\envs\qcodes\lib\site-packages\jsonschema\validators.py in validate(instance, schema, cls, *args, **kwargs)
+        539         cls = validator_for(schema)
+        540     cls.check_schema(schema)
+    --> 541     cls(schema, *args, **kwargs).validate(instance)
     
 
-    /home/unga/.pyenv/versions/3.4.5/envs/qcodes-dev/lib/python3.4/site-packages/jsonschema/validators.py in validate(self, *args, **kwargs)
-        121         def validate(self, *args, **kwargs):
-        122             for error in self.iter_errors(*args, **kwargs):
-    --> 123                 raise error
-        124 
-        125         def is_type(self, instance, type):
+    ~\AppData\Local\Continuum\miniconda3\envs\qcodes\lib\site-packages\jsonschema\validators.py in validate(self, *args, **kwargs)
+        128         def validate(self, *args, **kwargs):
+        129             for error in self.iter_errors(*args, **kwargs):
+    --> 130                 raise error
+        131 
+        132         def is_type(self, instance, type):
 
 
     ValidationError: 'YOLO' is not one of ['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG']
