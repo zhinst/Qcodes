@@ -66,7 +66,13 @@ A single, simple 1D sweep
 .. code:: ipython3
 
     %%time
+    
     xvals = np.linspace(-3.4, 4.2, 250)
+    
+    # shuffle randomly the values in order to test that plot
+    # that is to be created for this data is a correct line
+    # that does not depend on the order of the data
+    np.random.shuffle(xvals)
     
     for xnum in xvals:
         noise = np.random.randn()*0.1  # multiplicative noise yeah yeah
@@ -77,8 +83,8 @@ A single, simple 1D sweep
 
 .. parsed-literal::
 
-    CPU times: user 520 ms, sys: 196 ms, total: 716 ms
-    Wall time: 2.18 s
+    CPU times: user 405 ms, sys: 155 ms, total: 560 ms
+    Wall time: 1.14 s
 
 
 Now let us plot that run. The function ``plot_by_id`` takes the
@@ -104,7 +110,7 @@ colorbar axes (just ``None``\ s if there are no colorbars).
 
 .. raw:: html
 
-    <div id='4557359d-362f-4c2d-9c95-f23bf4bb933d'></div>
+    <div id='9874ac21-d0ed-43f5-a2af-3943e6cf4089'></div>
 
 
 Using the returned axis, we can e.g. change the plot linewidth and
@@ -166,14 +172,14 @@ The following plot demontrates the feature.
 
 .. raw:: html
 
-    <div id='02e318c3-257a-4a6b-9c34-684fec95231c'></div>
+    <div id='450a2910-95ad-4f36-8cc9-3ae1d41e8734'></div>
 
 
 
 
 .. parsed-literal::
 
-    ([<matplotlib.axes._subplots.AxesSubplot at 0x2b6d25560588>], [None])
+    ([<matplotlib.axes._subplots.AxesSubplot at 0x150bacab22b0>], [None])
 
 
 
@@ -221,7 +227,7 @@ the same axis twice to ``plot_by_id``.
 
 .. raw:: html
 
-    <div id='8c8fba36-b7c4-4580-9a5c-6a70c77e2203'></div>
+    <div id='b32ea1ec-e689-4eb3-92b2-152e36f7ba36'></div>
 
 
 
@@ -233,7 +239,7 @@ the same axis twice to ``plot_by_id``.
 
 .. raw:: html
 
-    <div id='44bd3562-9bb3-41bf-a6bc-888f056cd279'></div>
+    <div id='d075b901-c774-4b7f-8085-5a11fc9dc82c'></div>
 
 
 Let's do that now
@@ -253,7 +259,7 @@ Let's do that now
 
 .. raw:: html
 
-    <div id='74ac7b13-02d9-400d-bddf-e96d0028cdec'></div>
+    <div id='c22c8834-cfe3-461e-8345-507c3c04e331'></div>
 
 
 Regular 2D rectangular sweep scan
@@ -296,7 +302,7 @@ For 2D plots, a colorbar is usually present. As mentioned above,
 
 .. raw:: html
 
-    <div id='71a21a93-7788-4fbf-94fe-b919ef173a6f'></div>
+    <div id='3cde62c6-5e05-4324-a870-46e94cca09f7'></div>
 
 
 A somewhat normal situation is that the colorbar was somehow
@@ -348,7 +354,7 @@ increase the resolution in the right half plane.
 
 .. raw:: html
 
-    <div id='4b3e6260-dc8b-431e-b83c-17f97c621a44'></div>
+    <div id='d3ae9622-4a08-466d-8751-597c845f0a7f'></div>
 
 
 Interrupted 2D scans (a hole in the cheese)
@@ -407,7 +413,272 @@ This is also supported, in fact, any single rectangular hole is allowed
 
 .. raw:: html
 
-    <div id='db93b096-6d74-4ce7-9c12-d32e2c075956'></div>
+    <div id='d7315e86-f905-40c8-a693-b8aa9ac5f9f8'></div>
+
+
+Plots with string (categorial) data
+-----------------------------------
+
+``plot_by_id`` support plotting categorial data (strings) as well. The
+tick labels of the plots contain the string values.
+
+Note that this feature requires ``matplotlib`` version ``2.1``.
+
+2D cases
+~~~~~~~~
+
+String-valued indepentent parameter
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Let's use an example of a qubit measurement. These measurements are
+quite complicated, but for the sake of this example we will abstract
+away from all the complexity, and simulate the values of the relevant
+parameters.
+
+In this example, the string-valued parmater is independent.
+
+Note that the order of string values on the axis of the plot is exactly
+the same as the order with which the values were added to the dataset.
+
+.. code:: ipython3
+
+    def gen_random_unit_vectors(dims: int, number: int) -> np.ndarray:
+        """
+        Generate an array of a given numer of random unit vectors of given
+        dimensions.
+        """
+        vecs = np.random.normal(size=(number, dims))
+        mags = np.linalg.norm(vecs, axis=-1)
+        return vecs / mags[..., np.newaxis]
+
+.. code:: ipython3
+
+    # 2-qubit correlator
+    two_q_corr_values = ['X_X', 'X_Y', 'X_Z', 'X_I', 'Y_Y', 'Y_Z', 'Y_I', 'Z_Z', 'Z_I']
+    #                      note the >>> paramtype <<< it is important
+    #                                   \/ \/ \/
+    two_q_corr = ParamSpec('two_q_corr', 'text', label='2-qubit correlator', unit='')
+    
+    # The values of the qubit state correspond to 2-qubit correlators
+    val = ParamSpec('val', 'numeric', label='Component value', unit='', depends_on=[two_q_corr])
+    
+    data_set = new_data_set('sweep-with-strings')
+    
+    data_set.add_parameter(two_q_corr)
+    data_set.add_parameter(val)
+    
+    values = gen_random_unit_vectors(len(two_q_corr_values), 1)[0]
+    for two_q_corr_id, value in zip(two_q_corr_values, values):
+        data_set.add_result({'two_q_corr': two_q_corr_id, 'val': value})
+    
+    data_set.mark_complete()
+    
+    run_id_strings = data_set.run_id
+
+.. code:: ipython3
+
+    plot_by_id(run_id_strings)
+
+
+
+.. parsed-literal::
+
+    <IPython.core.display.Javascript object>
+
+
+
+.. raw:: html
+
+    <div id='91b1a39c-305d-48fa-8933-644d40f2463c'></div>
+
+
+
+
+.. parsed-literal::
+
+    ([<matplotlib.axes._subplots.AxesSubplot at 0x150bac93dc88>], [None])
+
+
+
+String-valued dependent value
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In this example, let's plot the case where string-valued parameter is
+the dependent one.
+
+.. code:: ipython3
+
+    numeric_param = ParamSpec('numeric_param', 'numeric', label='Numeric value', unit='J')
+    
+    string_values = ['X_X', 'X_Y', 'X_Z', 'X_I', 'Y_Y', 'Y_Z', 'Y_I', 'Z_Z', 'Z_I']
+    string_param = ParamSpec('string_param', 'text', label='String parameter', unit='', depends_on=[numeric_param])
+    
+    data_set = new_data_set('sweep-with-strings')
+    
+    data_set.add_parameter(numeric_param)
+    data_set.add_parameter(string_param)
+    
+    numeric_values = gen_random_unit_vectors(len(string_values), 1)[0]
+    for string_value, numeric_value in zip(string_values, numeric_values):
+        data_set.add_result({'string_param': string_value, 'numeric_param': numeric_value})
+    
+    data_set.mark_complete()
+    
+    run_id_strings_dependent = data_set.run_id
+
+.. code:: ipython3
+
+    plot_by_id(run_id_strings_dependent)
+
+
+
+.. parsed-literal::
+
+    <IPython.core.display.Javascript object>
+
+
+
+.. raw:: html
+
+    <div id='5cb6774c-42ad-4342-a592-811388889310'></div>
+
+
+
+
+.. parsed-literal::
+
+    ([<matplotlib.axes._subplots.AxesSubplot at 0x150bac9b2550>], [None])
+
+
+
+3D case
+~~~~~~~
+
+At the moment, **3D plotting** of data that has **string-valued**
+components is **not fully supported.** Moreover, choosing an apropriate
+plot type for such cases will be revisited.
+
+String-valued independent parameter
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code:: ipython3
+
+    # 2-qubit correlator
+    two_q_corr_values = ['X_X', 'X_Y', 'X_Z', 'X_I', 'Y_Y', 'Y_Z', 'Y_I', 'Z_Z', 'Z_I']
+    #                      note the >>> paramtype <<< it is important
+    #                                   \/ \/ \/
+    two_q_corr = ParamSpec('two_q_corr', 'text', label='2-qubit correlator', unit='')
+    
+    # Let's use the number of the measurement as a 2nd dimension
+    meas_number = ParamSpec('meas_number', 'numeric', label='Measurement number', unit='#')
+    
+    # The values of the qubit state correspond to 2-qubit correlators
+    val = ParamSpec('val', 'numeric', label='Component value', unit='', 
+                    depends_on=[two_q_corr, meas_number])
+    
+    data_set = new_data_set('sweep-with-strings')
+    
+    data_set.add_parameter(two_q_corr)
+    data_set.add_parameter(meas_number)
+    data_set.add_parameter(val)
+    
+    n_measurements = 20
+    values = gen_random_unit_vectors(len(two_q_corr_values), n_measurements)
+    
+    for n_meas in range(n_measurements):
+        for two_q_corr_id, value in zip(two_q_corr_values, values[n_meas]):
+            data_set.add_result({'two_q_corr': two_q_corr_id, 'val': value, 'meas_number': n_meas})
+    
+    data_set.mark_complete()
+    
+    run_id_3d_strings = data_set.run_id
+
+.. code:: ipython3
+
+    plot_by_id(run_id_3d_strings)
+
+
+
+.. parsed-literal::
+
+    <IPython.core.display.Javascript object>
+
+
+
+.. raw:: html
+
+    <div id='2dddd3fa-4ab9-43d6-9238-216357ee9d79'></div>
+
+
+
+
+.. parsed-literal::
+
+    ([<matplotlib.axes._subplots.AxesSubplot at 0x150bac7f7908>],
+     [<matplotlib.colorbar.Colorbar at 0x150bac7b8710>])
+
+
+
+String-valued dependent parameter
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This case may produce **incorrect** plots, see an example below.
+
+.. code:: ipython3
+
+    # Let's use the number of the measurement as a 2nd dimension
+    meas_number = ParamSpec('meas_number', 'numeric', label='Measurement number', unit='#')
+    
+    # The values of the qubit state correspond to 2-qubit correlators
+    val = ParamSpec('val', 'numeric', label='Component value', unit='')
+    
+    # 2-qubit correlator
+    two_q_corr_values = ['X_X', 'X_Y', 'X_Z', 'X_I', 'Y_Y', 'Y_Z', 'Y_I', 'Z_Z', 'Z_I']
+    #                      note the >>> paramtype <<< it is important
+    two_q_corr = ParamSpec('two_q_corr', 'text', label='2-qubit correlator', unit='',
+                           depends_on=[val, meas_number])
+    
+    data_set = new_data_set('sweep-with-strings')
+    
+    data_set.add_parameter(meas_number)
+    data_set.add_parameter(val)
+    data_set.add_parameter(two_q_corr)
+    
+    n_measurements = 20
+    values = gen_random_unit_vectors(len(two_q_corr_values), n_measurements)
+    
+    for n_meas in range(n_measurements):
+        for two_q_corr_id, value in zip(two_q_corr_values, values[n_meas]):
+            data_set.add_result({'two_q_corr': two_q_corr_id, 'val': value, 'meas_number': n_meas})
+    
+    data_set.mark_complete()
+    
+    run_id_3d_strings_dep = data_set.run_id
+
+.. code:: ipython3
+
+    plot_by_id(run_id_3d_strings_dep)
+
+
+
+.. parsed-literal::
+
+    <IPython.core.display.Javascript object>
+
+
+
+.. raw:: html
+
+    <div id='6892884f-bda0-4a99-8d66-d532ec4360e0'></div>
+
+
+
+
+.. parsed-literal::
+
+    ([<matplotlib.axes._subplots.AxesSubplot at 0x150bac758978>],
+     [<matplotlib.colorbar.Colorbar at 0x150bac72b6a0>])
+
 
 
 Fancy plotting
@@ -431,7 +702,7 @@ We first make a little grid of axes.
 
 .. raw:: html
 
-    <div id='3689e52f-58d9-4b6e-9d47-e0ce6c7af031'></div>
+    <div id='057c216d-dadd-4374-8a4c-36f759e74e1f'></div>
 
 
 Next, we make some runs (shamelessly copy-pasting from above).
