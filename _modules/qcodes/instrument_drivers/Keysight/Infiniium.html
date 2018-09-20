@@ -164,7 +164,6 @@
 <span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="n">InstrumentChannel</span><span class="p">,</span> <span class="n">ChannelList</span><span class="p">,</span> <span class="n">Instrument</span>
 <span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="n">ArrayParameter</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="k">import</span> <span class="n">Enum</span><span class="p">,</span> <span class="n">Numbers</span>
-<span class="kn">from</span> <span class="nn">qcodes.utils.workarounds</span> <span class="k">import</span> <span class="n">visa_query_binary_values_fix_for</span>
 
 
 <span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
@@ -239,7 +238,7 @@
         <span class="c1"># set up the instrument</span>
         <span class="c1"># ---------------------------------------------------------------------</span>
 
-        <span class="c1"># TODO: check numner of points</span>
+        <span class="c1"># TODO: check number of points</span>
         <span class="c1"># check if requested number of points is less than 500 million</span>
 
         <span class="c1"># get intrument state</span>
@@ -265,14 +264,16 @@
         <span class="n">instr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;:WAVeform:STReaming OFF&#39;</span><span class="p">)</span>
 
         <span class="c1"># request the actual transfer</span>
-        <span class="k">with</span> <span class="n">visa_query_binary_values_fix_for</span><span class="p">(</span><span class="n">instr</span><span class="o">.</span><span class="n">_parent</span><span class="o">.</span><span class="n">visa_handle</span><span class="p">):</span>
-            <span class="n">data</span> <span class="o">=</span> <span class="n">instr</span><span class="o">.</span><span class="n">_parent</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">query_binary_values</span><span class="p">(</span>
-                <span class="s1">&#39;WAV:DATA?&#39;</span><span class="p">,</span> <span class="n">datatype</span><span class="o">=</span><span class="s1">&#39;h&#39;</span><span class="p">,</span> <span class="n">is_big_endian</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">instr</span><span class="o">.</span><span class="n">_parent</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">query_binary_values</span><span class="p">(</span>
+            <span class="s1">&#39;WAV:DATA?&#39;</span><span class="p">,</span> <span class="n">datatype</span><span class="o">=</span><span class="s1">&#39;h&#39;</span><span class="p">,</span> <span class="n">is_big_endian</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">expect_termination</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="c1"># the Infiniium does not include an extra termination char on binary</span>
+        <span class="c1"># messages so we set expect_termination to False</span>
 
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
             <span class="k">raise</span> <span class="n">TraceSetPointsChanged</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> points have been aquired and </span><span class="si">{}</span><span class="s1"> </span><span class="se">\</span>
 <span class="s1">            set points have been prepared in </span><span class="se">\</span>
-<span class="s1">            prepare_curvedata&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lend</span><span class="p">(</span><span class="n">data</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+<span class="s1">            prepare_curvedata&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
         <span class="c1"># check x data scaling</span>
         <span class="n">xorigin</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">instr</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s2">&quot;:WAVeform:XORigin?&quot;</span><span class="p">))</span>
         <span class="c1"># step size</span>
