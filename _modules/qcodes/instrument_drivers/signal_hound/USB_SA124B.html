@@ -154,229 +154,515 @@
            <div itemprop="articleBody">
             
   <h1>Source code for qcodes.instrument_drivers.signal_hound.USB_SA124B</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span> <span class="nn">time</span> <span class="k">import</span> <span class="n">sleep</span><span class="p">,</span> <span class="n">time</span>
+<span></span><span class="kn">from</span> <span class="nn">time</span> <span class="k">import</span> <span class="n">sleep</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">ctypes</span> <span class="k">as</span> <span class="nn">ct</span>
 <span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">enum</span> <span class="k">import</span> <span class="n">IntEnum</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Tuple</span>
 
-<span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="n">Instrument</span><span class="p">,</span> <span class="n">validators</span> <span class="k">as</span> <span class="n">vals</span>
+<span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="n">Instrument</span><span class="p">,</span> <span class="n">ArrayParameter</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">,</span> <span class="n">validators</span> <span class="k">as</span> <span class="n">vals</span>
 
 <span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="n">number</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="TraceParameter"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.TraceParameter">[docs]</a><span class="k">class</span> <span class="nc">TraceParameter</span><span class="p">(</span><span class="n">Parameter</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A parameter that used a flag on the instrument to keeps track of if it&#39;s</span>
+<span class="sd">    value has been synced to the instrument. It is intended that this</span>
+<span class="sd">    type of parameter is synced using an external method which resets the flag.</span>
+
+<span class="sd">    This is most likely used similar to a ``ManualParameter``</span>
+<span class="sd">    I.e. calling set/get will not communicate with the instrument.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TraceParameter.set_raw"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.TraceParameter.set_raw">[docs]</a>    <span class="k">def</span> <span class="nf">set_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span> <span class="c1"># pylint: disable=method-hidden</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">instrument</span><span class="p">,</span> <span class="n">SignalHound_USB_SA124B</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;TraceParameter only works with &quot;</span>
+                               <span class="s2">&quot;&#39;SignalHound_USB_SA124B&#39;&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">instrument</span><span class="o">.</span><span class="n">_parameters_synced</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_save_val</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="ExternalRefParameter"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.ExternalRefParameter">[docs]</a><span class="k">class</span> <span class="nc">ExternalRefParameter</span><span class="p">(</span><span class="n">TraceParameter</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Parameter that handles the fact that external reference can only be</span>
+<span class="sd">    enabled but not disabled.</span>
+
+<span class="sd">    From the manual:</span>
+
+<span class="sd">    Once a device has successfully switched to an external reference it</span>
+<span class="sd">    must remain using it until the device is closed, and it is undefined</span>
+<span class="sd">    behavior to disconnect the reference input from the reference BNC port.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="ExternalRefParameter.set_raw"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.ExternalRefParameter.set_raw">[docs]</a>    <span class="k">def</span> <span class="nf">set_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># pylint: disable=method-hidden</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_latest</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">True</span> <span class="ow">and</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Signal Hound does not support disabling &quot;</span>
+                               <span class="s2">&quot;external reference. To switch back to internal &quot;</span>
+                               <span class="s2">&quot;reference close the device and start again.&quot;</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">set_raw</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="ScaleParameter"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.ScaleParameter">[docs]</a><span class="k">class</span> <span class="nc">ScaleParameter</span><span class="p">(</span><span class="n">TraceParameter</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Parameter that handels changing the unit when the scale is changed.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="ScaleParameter.set_raw"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.ScaleParameter.set_raw">[docs]</a>    <span class="k">def</span> <span class="nf">set_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># pylint: disable=method-hidden</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">instrument</span><span class="p">,</span> <span class="n">SignalHound_USB_SA124B</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;ScaleParameter only works with &quot;</span>
+                               <span class="s2">&quot;&#39;SignalHound_USB_SA124B&#39;&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;log-scale&#39;</span><span class="p">,</span> <span class="s1">&#39;log-full-scale&#39;</span><span class="p">):</span>
+            <span class="n">unit</span> <span class="o">=</span> <span class="s1">&#39;dBm&#39;</span>
+        <span class="k">elif</span> <span class="n">value</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;lin-scale&#39;</span><span class="p">,</span> <span class="s1">&#39;lin-full-scale&#39;</span><span class="p">):</span>
+            <span class="n">unit</span> <span class="o">=</span> <span class="s1">&#39;mV&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Unsupported scale&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">instrument</span><span class="o">.</span><span class="n">trace</span><span class="o">.</span><span class="n">unit</span> <span class="o">=</span> <span class="n">unit</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">instrument</span><span class="o">.</span><span class="n">power</span><span class="o">.</span><span class="n">unit</span> <span class="o">=</span> <span class="n">unit</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">set_raw</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="SweepTraceParameter"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.SweepTraceParameter">[docs]</a><span class="k">class</span> <span class="nc">SweepTraceParameter</span><span class="p">(</span><span class="n">TraceParameter</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    An extension to TraceParameter that keeps track of the trace setpoints in</span>
+<span class="sd">    addition to the functionality of `TraceParameter`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SweepTraceParameter.set_raw"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.SweepTraceParameter.set_raw">[docs]</a>    <span class="k">def</span> <span class="nf">set_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># pylint: disable=method-hidden</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">instrument</span><span class="p">,</span> <span class="n">SignalHound_USB_SA124B</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;SweepTraceParameter only works with &quot;</span>
+                               <span class="s2">&quot;&#39;SignalHound_USB_SA124B&#39;&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">instrument</span><span class="o">.</span><span class="n">_trace_updated</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">set_raw</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="FrequencySweep"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.FrequencySweep">[docs]</a><span class="k">class</span> <span class="nc">FrequencySweep</span><span class="p">(</span><span class="n">ArrayParameter</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Hardware controlled parameter class for SignalHound_USB_SA124B.</span>
+
+<span class="sd">    Instrument returns an array of powers for different frequencies</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name: parameter name</span>
+<span class="sd">        instrument: instrument the parameter belongs to</span>
+<span class="sd">        sweep_len: Number of steps in sweep</span>
+<span class="sd">        start_freq: Starting frequency</span>
+<span class="sd">        stepsize: Size of a frequency step</span>
+
+<span class="sd">    Methods:</span>
+<span class="sd">          set_sweep(sweep_len, start_freq, stepsize): sets the shapes and</span>
+<span class="sd">              setpoint arrays of the parameter to correspond with the sweep</span>
+<span class="sd">          get(): executes a sweep and returns magnitude and phase arrays</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">instrument</span><span class="p">:</span> <span class="s1">&#39;SignalHound_USB_SA124B&#39;</span><span class="p">,</span>
+                 <span class="n">sweep_len</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">start_freq</span><span class="p">:</span> <span class="n">number</span><span class="p">,</span> <span class="n">stepsize</span><span class="p">:</span> <span class="n">number</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">sweep_len</span><span class="p">,),</span>
+                         <span class="n">instrument</span><span class="o">=</span><span class="n">instrument</span><span class="p">,</span>
+                         <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;dBm&#39;</span><span class="p">,</span>
+                         <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Magnitude&#39;</span><span class="p">,</span>
+                         <span class="n">setpoint_units</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;Hz&#39;</span><span class="p">,),</span>
+                         <span class="n">setpoint_labels</span><span class="o">=</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Frequency&#39;</span><span class="p">,),</span>
+                         <span class="n">setpoint_names</span><span class="o">=</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;frequency&#39;</span><span class="p">,))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_sweep</span><span class="p">(</span><span class="n">sweep_len</span><span class="p">,</span> <span class="n">start_freq</span><span class="p">,</span> <span class="n">stepsize</span><span class="p">)</span>
+
+<div class="viewcode-block" id="FrequencySweep.set_sweep"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.FrequencySweep.set_sweep">[docs]</a>    <span class="k">def</span> <span class="nf">set_sweep</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sweep_len</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">start_freq</span><span class="p">:</span> <span class="n">number</span><span class="p">,</span>
+                  <span class="n">stepsize</span><span class="p">:</span> <span class="n">number</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set the setpoints of the Array parameter representing a frequency</span>
+<span class="sd">        sweep.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            sweep_len: Number of points in the sweep</span>
+<span class="sd">            start_freq: Starting frequency of the sweep</span>
+<span class="sd">            stepsize: Size of step between individual points</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">instrument</span><span class="p">,</span> <span class="n">SignalHound_USB_SA124B</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;&#39;FrequencySweep&#39; is only implemented&quot;</span>
+                               <span class="s2">&quot;for &#39;SignalHound_USB_SA124B&#39;&quot;</span><span class="p">)</span>
+        <span class="n">end_freq</span> <span class="o">=</span> <span class="n">start_freq</span> <span class="o">+</span> <span class="n">stepsize</span><span class="o">*</span><span class="p">(</span><span class="n">sweep_len</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">freq_points</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">start_freq</span><span class="p">,</span> <span class="n">end_freq</span><span class="p">,</span> <span class="n">sweep_len</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setpoints</span> <span class="o">=</span> <span class="p">(</span><span class="n">freq_points</span><span class="p">,)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">sweep_len</span><span class="p">,)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">instrument</span><span class="o">.</span><span class="n">_trace_updated</span> <span class="o">=</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="FrequencySweep.get_raw"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.FrequencySweep.get_raw">[docs]</a>    <span class="k">def</span> <span class="nf">get_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">instrument</span><span class="p">,</span> <span class="n">SignalHound_USB_SA124B</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;&#39;FrequencySweep&#39; is only implemented&quot;</span>
+                               <span class="s2">&quot;for &#39;SignalHound_USB_SA124B&#39;&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">instrument</span><span class="o">.</span><span class="n">_trace_updated</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;trace not updated, run configure to update&#39;</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">_get_averaged_sweep_data</span><span class="p">()</span>
+        <span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">instrument</span><span class="o">.</span><span class="n">sleep_time</span><span class="o">.</span><span class="n">get</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">data</span></div></div>
 
 
 <div class="viewcode-block" id="SignalHound_USB_SA124B"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.SignalHound_USB_SA124B">[docs]</a><span class="k">class</span> <span class="nc">SignalHound_USB_SA124B</span><span class="p">(</span><span class="n">Instrument</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    QCoDeS driver for the SignalHound USB SA124B</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">dll_path</span> <span class="o">=</span> <span class="s1">&#39;C:\Windows\System32\sa_api.dll&#39;</span>
 
-    <span class="n">saStatus</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s1">&#39;saUnknownErr&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">666</span><span class="p">,</span>
-        <span class="s1">&#39;saFrequencyRangeErr&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">99</span><span class="p">,</span>
-        <span class="s1">&#39;saInvalidDetectorErr&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">95</span><span class="p">,</span>
-        <span class="s1">&#39;saInvalidScaleErr&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">94</span><span class="p">,</span>
-        <span class="s1">&#39;saBandwidthErr&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">91</span><span class="p">,</span>
-        <span class="s1">&#39;saExternalReferenceNotFound&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">89</span><span class="p">,</span>
-        <span class="c1"># Device specific errors</span>
-        <span class="s1">&#39;saOvenColdErr&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">20</span><span class="p">,</span>
-        <span class="c1"># Data errors</span>
-        <span class="s1">&#39;saInternetErr&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">12</span><span class="p">,</span>
-        <span class="s1">&#39;saUSBCommErr&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">11</span><span class="p">,</span>
-        <span class="c1"># General configuration errors</span>
-        <span class="s1">&#39;saTrackingGeneratorNotFound&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">10</span><span class="p">,</span>
-        <span class="s1">&#39;saDeviceNotIdleErr&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">9</span><span class="p">,</span>
-        <span class="s1">&#39;saDeviceNotFoundErr&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">8</span><span class="p">,</span>
-        <span class="s1">&#39;saInvalidModeErr&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">7</span><span class="p">,</span>
-        <span class="s1">&#39;saNotConfiguredErr&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">6</span><span class="p">,</span>
-        <span class="s1">&#39;saDeviceNotConfiguredErr&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">6</span><span class="p">,</span>  <span class="c1"># Added because key error raised</span>
-        <span class="s1">&#39;saTooManyDevicesErr&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">5</span><span class="p">,</span>
-        <span class="s1">&#39;saInvalidParameterErr&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">4</span><span class="p">,</span>
-        <span class="s1">&#39;saDeviceNotOpenErr&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">3</span><span class="p">,</span>
-        <span class="s1">&#39;saInvalidDeviceErr&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">2</span><span class="p">,</span>
-        <span class="s1">&#39;saNullPtrErr&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
-        <span class="c1"># No error</span>
-        <span class="s1">&#39;saNoError&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
-        <span class="c1"># Warnings</span>
-        <span class="s1">&#39;saNoCorrections&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
-        <span class="s1">&#39;saCompressionWarning&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
-        <span class="s1">&#39;saParameterClamped&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
-        <span class="s1">&#39;saBandwidthClamped&#39;</span><span class="p">:</span> <span class="mi">4</span>
-    <span class="p">}</span>
-    <span class="n">saStatus_inverted</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">((</span><span class="n">v</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">saStatus</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+<span class="sd">    The driver needs Signal Hounds software</span>
+<span class="sd">    `Spike &lt;https://signalhound.com/spike/&gt;`_ installed to function.</span>
+<span class="sd">    In addition you may need to install Microsoft Visual Studio C++</span>
+<span class="sd">    Redistributable for the driver to function within QCoDeS.</span>
+<span class="sd">    At the time of writing the current version of Spike (3.2.3) uses</span>
+<span class="sd">    `Microsoft Visual Studio C++ Redistributable 2012</span>
+<span class="sd">    &lt;https://www.microsoft.com/en-us/download/details.aspx?id=30679&gt;`_</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">dll_path</span> <span class="o">=</span> <span class="s1">&#39;C:</span><span class="se">\\</span><span class="s1">Program Files</span><span class="se">\\</span><span class="s1">Signal Hound</span><span class="se">\\</span><span class="s1">Spike</span><span class="se">\\</span><span class="s1">sa_api.dll&#39;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">dll_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="n">t0</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            name: Name of the instrument.</span>
+<span class="sd">            dll_path: Path to ``sa_api.dll`` Defaults to the default dll within</span>
+<span class="sd">                Spike installation</span>
+<span class="sd">            **kwargs:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Initializing instrument SignalHound USB 124A&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parameters_synced</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_trace_updated</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Initializing instrument SignalHound USB 124B&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">dll</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">CDLL</span><span class="p">(</span><span class="n">dll_path</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll_path</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">hf</span> <span class="o">=</span> <span class="n">constants</span>
-
+        <span class="bp">self</span><span class="o">.</span><span class="n">hf</span> <span class="o">=</span> <span class="n">Constants</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;frequency&#39;</span><span class="p">,</span>
-                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Frequency &#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Frequency&#39;</span><span class="p">,</span>
                            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;Hz&#39;</span><span class="p">,</span>
                            <span class="n">initial_value</span><span class="o">=</span><span class="mf">5e9</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">())</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">(),</span>
+                           <span class="n">parameter_class</span><span class="o">=</span><span class="n">SweepTraceParameter</span><span class="p">,</span>
+                           <span class="n">docstring</span><span class="o">=</span><span class="s1">&#39;Center frequency for sweep.&#39;</span>
+                                     <span class="s1">&#39;This is the set center, the actual &#39;</span>
+                                     <span class="s1">&#39;center may be subject to round off &#39;</span>
+                                     <span class="s1">&#39;compared to this value&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;span&#39;</span><span class="p">,</span>
-                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Span &#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Span&#39;</span><span class="p">,</span>
                            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;Hz&#39;</span><span class="p">,</span>
                            <span class="n">initial_value</span><span class="o">=.</span><span class="mf">25e6</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">())</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;power&#39;</span><span class="p">,</span>
-                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Power &#39;</span><span class="p">,</span>
-                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;dBm&#39;</span><span class="p">,</span>
-                           <span class="n">initial_value</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">(</span><span class="n">max_value</span><span class="o">=</span><span class="mi">20</span><span class="p">))</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;ref_lvl&#39;</span><span class="p">,</span>
-                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Reference power &#39;</span><span class="p">,</span>
-                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;dBm&#39;</span><span class="p">,</span>
-                           <span class="n">initial_value</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">(</span><span class="n">max_value</span><span class="o">=</span><span class="mi">20</span><span class="p">))</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;external_reference&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                           <span class="n">initial_value</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Bool</span><span class="p">())</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;device_type&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_do_get_device_type</span><span class="p">)</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;device_mode&#39;</span><span class="p">,</span>
-                           <span class="n">initial_value</span><span class="o">=</span><span class="s1">&#39;sweeping&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Anything</span><span class="p">())</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;acquisition_mode&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                           <span class="n">initial_value</span><span class="o">=</span><span class="s1">&#39;average&#39;</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="s1">&#39;average&#39;</span><span class="p">,</span> <span class="s1">&#39;min-max&#39;</span><span class="p">))</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;scale&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                           <span class="n">initial_value</span><span class="o">=</span><span class="s1">&#39;log-scale&#39;</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="s1">&#39;log-scale&#39;</span><span class="p">,</span> <span class="s1">&#39;lin-scale&#39;</span><span class="p">,</span>
-                                          <span class="s1">&#39;log-full-scale&#39;</span><span class="p">,</span> <span class="s1">&#39;lin-full-scale&#39;</span><span class="p">))</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;running&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                           <span class="n">initial_value</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Bool</span><span class="p">())</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;decimation&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">(),</span>
+                           <span class="n">parameter_class</span><span class="o">=</span><span class="n">SweepTraceParameter</span><span class="p">,</span>
+                           <span class="n">docstring</span><span class="o">=</span><span class="s1">&#39;Width of frequency span&#39;</span>
+                                     <span class="s1">&#39;This is the set span, the actual &#39;</span>
+                                     <span class="s1">&#39;span may be subject to round off &#39;</span>
+                                     <span class="s1">&#39;compared to this value&#39;</span>
+                           <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;npts&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Number of Points&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                           <span class="n">docstring</span><span class="o">=</span><span class="s1">&#39;Number of points in frequency sweep.&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;avg&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Averages&#39;</span><span class="p">,</span>
                            <span class="n">initial_value</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Ints</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">))</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;bandwidth&#39;</span><span class="p">,</span>
-                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Bandwidth&#39;</span><span class="p">,</span>
-                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;Hz&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Ints</span><span class="p">(),</span>
+                           <span class="n">docstring</span><span class="o">=</span><span class="s1">&#39;Number of averages to perform. &#39;</span>
+                                     <span class="s1">&#39;Averages are performed in software by &#39;</span>
+                                     <span class="s1">&#39;acquiring multiple sweeps&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;ref_lvl&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Reference power&#39;</span><span class="p">,</span>
+                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;dBm&#39;</span><span class="p">,</span>
                            <span class="n">initial_value</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">())</span>
-        <span class="c1"># rbw Resolution bandwidth in Hz. RBW can be arbitrary.</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">(</span><span class="n">max_value</span><span class="o">=</span><span class="mi">20</span><span class="p">),</span>
+                           <span class="n">parameter_class</span><span class="o">=</span><span class="n">TraceParameter</span><span class="p">,</span>
+                           <span class="n">docstring</span><span class="o">=</span><span class="s2">&quot;Setting reference level will &quot;</span>
+                                     <span class="s2">&quot;automatically select gain and attenuation&quot;</span>
+                                     <span class="s2">&quot;optimal for measuring at and below &quot;</span>
+                                     <span class="s2">&quot;this level&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;external_reference&#39;</span><span class="p">,</span>
+                           <span class="n">initial_value</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Bool</span><span class="p">(),</span>
+                           <span class="n">parameter_class</span><span class="o">=</span><span class="n">ExternalRefParameter</span><span class="p">,</span>
+                           <span class="n">docstring</span><span class="o">=</span><span class="s1">&#39;Use an external 10 MHz reference source. &#39;</span>
+                                     <span class="s1">&#39;Note that Signal Hound does not support &#39;</span>
+                                     <span class="s1">&#39;disabling external ref. To disable close &#39;</span>
+                                     <span class="s1">&#39;the connection and restart.&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;device_type&#39;</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_device_type</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;device_mode&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="s1">&#39;sweeping&#39;</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                           <span class="n">docstring</span><span class="o">=</span><span class="s1">&#39;The driver currently only  &#39;</span>
+                                     <span class="s1">&#39;supports sweeping mode. &#39;</span>
+                                     <span class="s1">&#39;It is therefor not possible&#39;</span>
+                                     <span class="s1">&#39;to set this parameter to anything else&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;acquisition_mode&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="s1">&#39;average&#39;</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                           <span class="n">docstring</span><span class="o">=</span><span class="s2">&quot;The driver only supports averaging &quot;</span>
+                                     <span class="s2">&quot;mode it is therefor not possible to set&quot;</span>
+                                     <span class="s2">&quot;this parameter to anything else&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;rbw&#39;</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Resolution Bandwidth&#39;</span><span class="p">,</span>
                            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;Hz&#39;</span><span class="p">,</span>
                            <span class="n">initial_value</span><span class="o">=</span><span class="mf">1e3</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">())</span>
-        <span class="c1"># vbw Video bandwidth in Hz. VBW must be less than or equal to RBW.</span>
-        <span class="c1">#  VBW can be arbitrary. For best performance use RBW as the VBW.</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">250e3</span><span class="p">),</span>
+                           <span class="n">parameter_class</span><span class="o">=</span><span class="n">TraceParameter</span><span class="p">,</span>
+                           <span class="n">docstring</span><span class="o">=</span><span class="s1">&#39;Resolution Bandwidth (RBW) is&#39;</span>
+                                     <span class="s1">&#39;the bandwidth of &#39;</span>
+                                     <span class="s1">&#39;spectral energy represented in each &#39;</span>
+                                     <span class="s1">&#39;frequency bin&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;vbw&#39;</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Video Bandwidth&#39;</span><span class="p">,</span>
                            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;Hz&#39;</span><span class="p">,</span>
                            <span class="n">initial_value</span><span class="o">=</span><span class="mf">1e3</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">())</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">(),</span>
+                           <span class="n">parameter_class</span><span class="o">=</span><span class="n">TraceParameter</span><span class="p">,</span>
+                           <span class="n">docstring</span><span class="o">=</span><span class="s1">&#39;The video bandwidth (VBW) is applied &#39;</span>
+                                     <span class="s1">&#39;after the signal has been converted to &#39;</span>
+                                     <span class="s1">&#39;frequency domain as power, voltage, &#39;</span>
+                                     <span class="s1">&#39;or log units. It is implemented as a &#39;</span>
+                                     <span class="s1">&#39;simple rectangular window, averaging the &#39;</span>
+                                     <span class="s1">&#39;amplitude readings for each frequency &#39;</span>
+                                     <span class="s1">&#39;bin over several overlapping FFTs. &#39;</span>
+                                     <span class="s1">&#39;For best performance use RBW as the VBW.&#39;</span><span class="p">)</span>
 
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;reject_image&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Reject image&#39;</span><span class="p">,</span>
+                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span>
+                           <span class="n">initial_value</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                           <span class="n">parameter_class</span><span class="o">=</span><span class="n">TraceParameter</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">docstring</span><span class="o">=</span><span class="s2">&quot;Apply software filter to remove &quot;</span>
+                                     <span class="s2">&quot;undersampling mirroring&quot;</span><span class="p">,</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Bool</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;sleep_time&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Sleep time&#39;</span><span class="p">,</span>
+                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;s&#39;</span><span class="p">,</span>
+                           <span class="n">initial_value</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">docstring</span><span class="o">=</span><span class="s2">&quot;Time to sleep before and after &quot;</span>
+                                     <span class="s2">&quot;getting data from the instrument&quot;</span><span class="p">,</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+        <span class="c1"># We don&#39;t know the correct values of</span>
+        <span class="c1"># the sweep parameters yet so we supply</span>
+        <span class="c1"># some defaults. The correct will be set when we call configure below</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;trace&#39;</span><span class="p">,</span>
+                           <span class="n">sweep_len</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                           <span class="n">start_freq</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                           <span class="n">stepsize</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                           <span class="n">parameter_class</span><span class="o">=</span><span class="n">FrequencySweep</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;power&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Power&#39;</span><span class="p">,</span>
+                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;dBm&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_power_at_freq</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                           <span class="n">docstring</span><span class="o">=</span><span class="s2">&quot;The maximum power in a window of 250 kHz&quot;</span>
+                                     <span class="s2">&quot;around the specified  frequency with &quot;</span>
+                                     <span class="s2">&quot;Resolution bandwidth set to 1 kHz.&quot;</span>
+                                     <span class="s2">&quot;The integration window is specified by &quot;</span>
+                                     <span class="s2">&quot;the VideoBandWidth (set by vbw)&quot;</span><span class="p">)</span>
+        <span class="c1"># scale is defined after the trace and power parameter so that</span>
+        <span class="c1"># it can change the units of those in it&#39;s set method when the</span>
+        <span class="c1"># scale changes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;scale&#39;</span><span class="p">,</span>
+                           <span class="n">initial_value</span><span class="o">=</span><span class="s1">&#39;log-scale&#39;</span><span class="p">,</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="s1">&#39;log-scale&#39;</span><span class="p">,</span> <span class="s1">&#39;lin-scale&#39;</span><span class="p">,</span>
+                                          <span class="s1">&#39;log-full-scale&#39;</span><span class="p">,</span> <span class="s1">&#39;lin-full-scale&#39;</span><span class="p">),</span>
+                           <span class="n">parameter_class</span><span class="o">=</span><span class="n">ScaleParameter</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">openDevice</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">device_type</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">configure</span><span class="p">()</span>
 
-        <span class="n">t1</span> <span class="o">=</span> <span class="n">time</span><span class="p">()</span>
-        <span class="c1"># poor-man&#39;s connect_message. We could overwrite get_idn</span>
-        <span class="c1"># instead and use connect_message.</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Initialized SignalHound in </span><span class="si">%.2f</span><span class="s1">s&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">t1</span><span class="o">-</span><span class="n">t0</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">connect_message</span><span class="p">()</span>
 
-<div class="viewcode-block" id="SignalHound_USB_SA124B.default_server_name"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.SignalHound_USB_SA124B.default_server_name">[docs]</a>    <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">default_server_name</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="k">return</span> <span class="s1">&#39;USB&#39;</span></div>
+    <span class="k">def</span> <span class="nf">_update_trace</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Private method to sync changes of the</span>
+<span class="sd">        frequency axis to the setpoints of the</span>
+<span class="sd">        trace parameter. This also set the units</span>
+<span class="sd">        of power and trace.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">sweep_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">QuerySweep</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">npts</span><span class="o">.</span><span class="n">_save_val</span><span class="p">(</span><span class="n">sweep_info</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">trace</span><span class="o">.</span><span class="n">set_sweep</span><span class="p">(</span><span class="o">*</span><span class="n">sweep_info</span><span class="p">)</span>
 
-<div class="viewcode-block" id="SignalHound_USB_SA124B.openDevice"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.SignalHound_USB_SA124B.openDevice">[docs]</a>    <span class="k">def</span> <span class="nf">openDevice</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SignalHound_USB_SA124B.sync_parameters"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.SignalHound_USB_SA124B.sync_parameters">[docs]</a>    <span class="k">def</span> <span class="nf">sync_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sync parameters sets the configuration of the instrument using the</span>
+<span class="sd">        parameters specified in the Qcodes instrument.</span>
+
+<span class="sd">        Sync parameters consists of five parts</span>
+<span class="sd">            1. Center span configuration (freqs and span)</span>
+<span class="sd">            2. Acquisition configuration</span>
+<span class="sd">                lin-scale/log-scale</span>
+<span class="sd">                avg/max power</span>
+<span class="sd">            3. Configuring the external 10MHz reference</span>
+<span class="sd">            4. Configuration of the mode that is being used</span>
+<span class="sd">            5. Acquisition mode. At the moment only `sweeping` is implemented</span>
+
+<span class="sd">        This does not currently implement Configuration of the tracking</span>
+<span class="sd">        generator used in VNA mode</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># 1. CenterSpan Configuration</span>
+        <span class="n">center</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_double</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frequency</span><span class="p">())</span>
+        <span class="n">span</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_double</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">span</span><span class="p">())</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Setting device CenterSpan configuration.&#39;</span><span class="p">)</span>
+
+        <span class="n">err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saConfigCenterSpan</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span><span class="p">,</span> <span class="n">center</span><span class="p">,</span> <span class="n">span</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_for_error</span><span class="p">(</span><span class="n">err</span><span class="p">,</span> <span class="s1">&#39;saConfigCenterSpan&#39;</span><span class="p">)</span>
+
+        <span class="c1"># 2. Acquisition configuration</span>
+        <span class="n">detectorVals</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;min-max&#39;</span><span class="p">:</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_uint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_MIN_MAX</span><span class="p">),</span>
+            <span class="s1">&#39;average&#39;</span><span class="p">:</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_uint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_AVERAGE</span><span class="p">)</span>
+        <span class="p">}</span>
+        <span class="n">scaleVals</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;log-scale&#39;</span><span class="p">:</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_uint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_LOG_SCALE</span><span class="p">),</span>
+            <span class="s1">&#39;lin-scale&#39;</span><span class="p">:</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_uint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_LIN_SCALE</span><span class="p">),</span>
+            <span class="s1">&#39;log-full-scale&#39;</span><span class="p">:</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_uint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_LOG_FULL_SCALE</span><span class="p">),</span>
+            <span class="s1">&#39;lin-full-scale&#39;</span><span class="p">:</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_uint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_LIN_FULL_SCALE</span><span class="p">)</span>
+        <span class="p">}</span>
+        <span class="n">detector</span> <span class="o">=</span> <span class="n">detectorVals</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">acquisition_mode</span><span class="p">()]</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="n">scaleVals</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">scale</span><span class="p">()]</span>
+
+        <span class="n">err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saConfigAcquisition</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span><span class="p">,</span> <span class="n">detector</span><span class="p">,</span> <span class="n">scale</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_for_error</span><span class="p">(</span><span class="n">err</span><span class="p">,</span> <span class="s1">&#39;saConfigAcquisition&#39;</span><span class="p">)</span>
+
+        <span class="c1"># 3. Reference Level configuration</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Setting device reference level configuration.&#39;</span><span class="p">)</span>
+        <span class="n">err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saConfigLevel</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span><span class="p">,</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_double</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ref_lvl</span><span class="p">()))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_for_error</span><span class="p">(</span><span class="n">err</span><span class="p">,</span> <span class="s1">&#39;saConfigLevel&#39;</span><span class="p">)</span>
+
+        <span class="c1"># 4. External Reference configuration</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">external_reference</span><span class="p">():</span>
+            <span class="n">external</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_REF_EXTERNAL_IN</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Setting reference frequency from external source.&#39;</span><span class="p">)</span>
+            <span class="n">err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saSetTimebase</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span><span class="p">,</span>
+                                         <span class="n">external</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">check_for_error</span><span class="p">(</span><span class="n">err</span><span class="p">,</span> <span class="s1">&#39;saSetTimebase&#39;</span><span class="p">)</span>
+
+
+        <span class="n">reject_var</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reject_image</span><span class="p">())</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Setting device Sweeping configuration.&#39;</span><span class="p">)</span>
+        <span class="n">err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saConfigSweepCoupling</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span><span class="p">,</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_double</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rbw</span><span class="p">()),</span>
+            <span class="n">ct</span><span class="o">.</span><span class="n">c_double</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vbw</span><span class="p">()),</span> <span class="n">reject_var</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_for_error</span><span class="p">(</span><span class="n">err</span><span class="p">,</span> <span class="s1">&#39;saConfigSweepCoupling&#39;</span><span class="p">)</span>
+
+
+        <span class="n">modeOpts</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;sweeping&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_SWEEPING</span><span class="p">,</span>
+            <span class="s1">&#39;real_time&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_REAL_TIME</span><span class="p">,</span>  <span class="c1"># not implemented</span>
+            <span class="s1">&#39;IQ&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_IQ</span><span class="p">,</span>  <span class="c1"># not implemented</span>
+            <span class="s1">&#39;idle&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_IDLE</span>
+        <span class="p">}</span>
+        <span class="n">mode</span> <span class="o">=</span> <span class="n">modeOpts</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">device_mode</span><span class="p">()]</span>
+        <span class="c1"># the third argument to saInitiate is a flag that is</span>
+        <span class="c1"># currently not used</span>
+        <span class="n">err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saInitiate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">err</span> <span class="o">==</span> <span class="n">saStatus</span><span class="o">.</span><span class="n">saInvalidParameterErr</span><span class="p">:</span>
+            <span class="n">extrainfo</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                 In real-time mode, this value may be returned if the span</span>
+<span class="s2">                 limits defined in the API header are broken. Also in</span>
+<span class="s2">                 real-time mode, this error will be returned if the</span>
+<span class="s2">                 resolution bandwidth is outside the limits defined in</span>
+<span class="s2">                 the API header.</span>
+<span class="s2">                 In time-gate analysis mode this error will be returned if</span>
+<span class="s2">                 span limits defined in the API header are broken. Also in</span>
+<span class="s2">                 time gate analysis, this error is returned if the</span>
+<span class="s2">                 bandwidth provided require more samples for processing</span>
+<span class="s2">                 than is allowed in the gate length. To fix this</span>
+<span class="s2">                 increase rbw/vbw.</span>
+<span class="s2">             &quot;&quot;&quot;</span>
+        <span class="k">elif</span> <span class="n">err</span> <span class="o">==</span> <span class="n">saStatus</span><span class="o">.</span><span class="n">saBandwidthErr</span><span class="p">:</span>
+            <span class="n">extrainfo</span> <span class="o">=</span> <span class="s1">&#39;RBW is larger than your span. (Sweep Mode)!&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">extrainfo</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_for_error</span><span class="p">(</span><span class="n">err</span><span class="p">,</span> <span class="s1">&#39;saInitiate&#39;</span><span class="p">,</span> <span class="n">extrainfo</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parameters_synced</span> <span class="o">=</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="SignalHound_USB_SA124B.configure"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.SignalHound_USB_SA124B.configure">[docs]</a>    <span class="k">def</span> <span class="nf">configure</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Syncs parameters to the Instrument and updates the setpoint of the</span>
+<span class="sd">        trace.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sync_parameters</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_trace</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="SignalHound_USB_SA124B.openDevice"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.SignalHound_USB_SA124B.openDevice">[docs]</a>    <span class="k">def</span> <span class="nf">openDevice</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Opens connection to the instrument</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Opening Device&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
         <span class="n">deviceHandlePnt</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">pointer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span><span class="p">)</span>
-        <span class="n">ret</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saOpenDevice</span><span class="p">(</span><span class="n">deviceHandlePnt</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">ret</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus</span><span class="p">[</span><span class="s1">&#39;saNoError&#39;</span><span class="p">]:</span>
-            <span class="k">if</span> <span class="n">ret</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus</span><span class="p">[</span><span class="s1">&#39;saNullPtrErr&#39;</span><span class="p">]:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Could not open device due to &#39;</span>
-                                 <span class="s1">&#39;null-pointer error!&#39;</span><span class="p">)</span>
-            <span class="k">elif</span> <span class="n">ret</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus</span><span class="p">[</span><span class="s1">&#39;saDeviceNotOpenErr&#39;</span><span class="p">]:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Could not open device!&#39;</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Could not open device due to unknown &#39;</span>
-                                 <span class="s1">&#39;reason! Error = </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">ret</span><span class="p">)</span>
+        <span class="n">err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saOpenDevice</span><span class="p">(</span><span class="n">deviceHandlePnt</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_for_error</span><span class="p">(</span><span class="n">err</span><span class="p">,</span> <span class="s1">&#39;saOpenDevice&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">device_type</span><span class="p">()</span></div>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">devOpen</span> <span class="o">=</span> <span class="kc">True</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;device_type&#39;</span><span class="p">)</span></div>
-
-<div class="viewcode-block" id="SignalHound_USB_SA124B.closeDevice"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.SignalHound_USB_SA124B.closeDevice">[docs]</a>    <span class="k">def</span> <span class="nf">closeDevice</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SignalHound_USB_SA124B.close"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.SignalHound_USB_SA124B.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Close connection to the instrument.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Closing Device with handle num: &#39;</span>
                  <span class="n">f</span><span class="s1">&#39;</span><span class="si">{self.deviceHandle.value}</span><span class="s1">&#39;</span><span class="p">)</span>
 
         <span class="k">try</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saAbort</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">abort</span><span class="p">()</span>
             <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Running acquistion aborted.&#39;</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Could not abort acquisition: </span><span class="si">{e}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="c1"># it&#39;s ok to catch any exception here</span>
+            <span class="c1"># as we are tearing down the instrument we might</span>
+            <span class="c1"># as well try to continue</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Could not abort acquisition: </span><span class="si">{e}</span><span class="s1">&#39;</span><span class="p">)</span>
 
-        <span class="n">ret</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saCloseDevice</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">ret</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus</span><span class="p">[</span><span class="s1">&#39;saNoError&#39;</span><span class="p">]:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Error closing device!&#39;</span><span class="p">)</span>
+        <span class="n">err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saCloseDevice</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_for_error</span><span class="p">(</span><span class="n">err</span><span class="p">,</span> <span class="s1">&#39;saCloseDevice&#39;</span><span class="p">)</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Closed Device with handle num: </span><span class="si">{self.deviceHandle.value}</span><span class="s1">&#39;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">devOpen</span> <span class="o">=</span> <span class="kc">False</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">running</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span></div>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="SignalHound_USB_SA124B.abort"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.SignalHound_USB_SA124B.abort">[docs]</a>    <span class="k">def</span> <span class="nf">abort</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SignalHound_USB_SA124B.abort"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.SignalHound_USB_SA124B.abort">[docs]</a>    <span class="k">def</span> <span class="nf">abort</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Abort any running acquisition.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Stopping acquisition&#39;</span><span class="p">)</span>
 
         <span class="n">err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saAbort</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">err</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus</span><span class="p">[</span><span class="s1">&#39;saNoError&#39;</span><span class="p">]:</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Call to abort succeeded.&#39;</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">running</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">err</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus</span><span class="p">[</span><span class="s1">&#39;saDeviceNotOpenErr&#39;</span><span class="p">]:</span>
-            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;Device not open!&#39;</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">err</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus</span><span class="p">[</span><span class="s1">&#39;saDeviceNotConfiguredErr&#39;</span><span class="p">]:</span>
-            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;Device was already idle! Did you call abort &#39;</span>
-                          <span class="s1">&#39;without ever calling initiate()?&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">err</span> <span class="o">==</span> <span class="n">saStatus</span><span class="o">.</span><span class="n">saDeviceNotConfiguredErr</span><span class="p">:</span>
+            <span class="n">extrainfo</span> <span class="o">=</span> <span class="s1">&#39;Device was already idle! Did you call abort &#39;</span> \
+                        <span class="s1">&#39;without ever calling initiate()&#39;</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;Unknown error setting abort! Error = </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">err</span><span class="p">)</span></div>
+            <span class="n">extrainfo</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_for_error</span><span class="p">(</span><span class="n">err</span><span class="p">,</span> <span class="s1">&#39;saAbort&#39;</span><span class="p">,</span> <span class="n">extrainfo</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="SignalHound_USB_SA124B.preset"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.SignalHound_USB_SA124B.preset">[docs]</a>    <span class="k">def</span> <span class="nf">preset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SignalHound_USB_SA124B.preset"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.SignalHound_USB_SA124B.preset">[docs]</a>    <span class="k">def</span> <span class="nf">preset</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Like close but performs a hardware reset before closing the</span>
+<span class="sd">        connection.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Performing hardware-reset of device!&#39;</span><span class="p">)</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Please ensure you close the device handle within &#39;</span>
-                    <span class="s1">&#39;two seconds of this call!&#39;</span><span class="p">)</span>
 
         <span class="n">err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saPreset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">err</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus</span><span class="p">[</span><span class="s1">&#39;saNoError&#39;</span><span class="p">]:</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Call to preset succeeded.&#39;</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">err</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus</span><span class="p">[</span><span class="s1">&#39;saDeviceNotOpenErr&#39;</span><span class="p">]:</span>
-            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;Device not open!&#39;</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Unknown error calling preset! Error = </span><span class="si">{err}</span><span class="s1">&#39;</span><span class="p">)</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_for_error</span><span class="p">(</span><span class="n">err</span><span class="p">,</span> <span class="s1">&#39;saPreset&#39;</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
 
-    <span class="k">def</span> <span class="nf">_do_get_device_type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_get_device_type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the model string of the Spectrum Analyzer.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Querying device for model information&#39;</span><span class="p">)</span>
 
         <span class="n">devType</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_uint</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
         <span class="n">devTypePnt</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">pointer</span><span class="p">(</span><span class="n">devType</span><span class="p">)</span>
 
         <span class="n">err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saGetDeviceType</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span><span class="p">,</span> <span class="n">devTypePnt</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">err</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus</span><span class="p">[</span><span class="s1">&#39;saNoError&#39;</span><span class="p">]:</span>
-            <span class="k">pass</span>
-        <span class="k">elif</span> <span class="n">err</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus</span><span class="p">[</span><span class="s1">&#39;saDeviceNotOpenErr&#39;</span><span class="p">]:</span>
-            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;Device not open!&#39;</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">err</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus</span><span class="p">[</span><span class="s1">&#39;saNullPtrErr&#39;</span><span class="p">]:</span>
-            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;Null pointer error!&#39;</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;Unknown error setting getDeviceType! &#39;</span>
-                          <span class="s1">&#39;Error = </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">err</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_for_error</span><span class="p">(</span><span class="n">err</span><span class="p">,</span> <span class="s1">&#39;saGetDeviceType&#39;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">devType</span><span class="o">.</span><span class="n">value</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">saDeviceTypeNone</span><span class="p">:</span>
             <span class="n">dev</span> <span class="o">=</span> <span class="s1">&#39;No device&#39;</span>
@@ -394,57 +680,15 @@
 
     <span class="c1">########################################################################</span>
 
-<div class="viewcode-block" id="SignalHound_USB_SA124B.initialisation"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.SignalHound_USB_SA124B.initialisation">[docs]</a>    <span class="k">def</span> <span class="nf">initialisation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">flag</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
-        <span class="n">mode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;device_mode&#39;</span><span class="p">)</span>
-        <span class="n">modeOpts</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s1">&#39;sweeping&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_SWEEPING</span><span class="p">,</span>
-            <span class="s1">&#39;real_time&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_REAL_TIME</span><span class="p">,</span>
-            <span class="s1">&#39;IQ&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_IQ</span><span class="p">,</span>  <span class="c1"># not implemented</span>
-            <span class="s1">&#39;idle&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_IDLE</span>  <span class="c1"># not implemented</span>
-        <span class="p">}</span>
-        <span class="k">if</span> <span class="n">mode</span> <span class="ow">in</span> <span class="n">modeOpts</span><span class="p">:</span>
-            <span class="n">mode</span> <span class="o">=</span> <span class="n">modeOpts</span><span class="p">[</span><span class="n">mode</span><span class="p">]</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Mode must be one of </span><span class="si">%s</span><span class="s1">. Passed value was </span><span class="si">%s</span><span class="s1">.&#39;</span> <span class="o">%</span>
-                             <span class="p">(</span><span class="n">modeOpts</span><span class="p">,</span> <span class="n">mode</span><span class="p">))</span>
-        <span class="n">err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saInitiate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">flag</span><span class="p">)</span>
-
-        <span class="c1">###################################</span>
-        <span class="c1"># Below here only error handling</span>
-        <span class="c1">###################################</span>
-        <span class="k">if</span> <span class="n">err</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus</span><span class="p">[</span><span class="s1">&#39;saNoError&#39;</span><span class="p">]:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">running</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Call to initiate succeeded.&#39;</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">err</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus</span><span class="p">[</span><span class="s1">&#39;saDeviceNotOpenErr&#39;</span><span class="p">]:</span>
-            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;Device not open!&#39;</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">err</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus</span><span class="p">[</span><span class="s1">&#39;saInvalidParameterErr&#39;</span><span class="p">]:</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
-                <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">                saInvalidParameterErr!</span>
-<span class="sd">                In real-time mode, this value may be returned if the span</span>
-<span class="sd">                limits defined in the API header are broken. Also in</span>
-<span class="sd">                real-time mode, this error will be returned if the</span>
-<span class="sd">                resolution bandwidth is outside the limits defined in</span>
-<span class="sd">                the API header.</span>
-<span class="sd">                In time-gate analysis mode this error will be returned if</span>
-<span class="sd">                span limits defined in the API header are broken. Also in</span>
-<span class="sd">                time gate analysis, this error is returned if the</span>
-<span class="sd">                bandwidth provided require more samples for processing</span>
-<span class="sd">                than is allowed in the gate length. To fix this</span>
-<span class="sd">                increase rbw/vbw.</span>
-<span class="sd">                &quot;&quot;&quot;</span>
-            <span class="p">)</span>
-            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;The value for mode did not match any known value.&#39;</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">err</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus</span><span class="p">[</span><span class="s1">&#39;saBandwidthErr&#39;</span><span class="p">]:</span>
-            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;RBW is larger than your span. (Sweep Mode)!&#39;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">check_for_error</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
-
-        <span class="k">return</span></div>
-
-<div class="viewcode-block" id="SignalHound_USB_SA124B.QuerySweep"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.SignalHound_USB_SA124B.QuerySweep">[docs]</a>    <span class="k">def</span> <span class="nf">QuerySweep</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="SignalHound_USB_SA124B.QuerySweep"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.SignalHound_USB_SA124B.QuerySweep">[docs]</a>    <span class="k">def</span> <span class="nf">QuerySweep</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Queries the sweep for information on the parameters it uses</span>
+<span class="sd">        Queries the sweep for information on the parameters that defines the</span>
+<span class="sd">            x axis of the sweep</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            number of points in sweep, start frequency and step size</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+
         <span class="n">sweep_len</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
         <span class="n">start_freq</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_double</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
         <span class="n">stepsize</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_double</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
@@ -452,204 +696,129 @@
                                         <span class="n">ct</span><span class="o">.</span><span class="n">pointer</span><span class="p">(</span><span class="n">sweep_len</span><span class="p">),</span>
                                         <span class="n">ct</span><span class="o">.</span><span class="n">pointer</span><span class="p">(</span><span class="n">start_freq</span><span class="p">),</span>
                                         <span class="n">ct</span><span class="o">.</span><span class="n">pointer</span><span class="p">(</span><span class="n">stepsize</span><span class="p">))</span>
-        <span class="k">if</span> <span class="n">err</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus</span><span class="p">[</span><span class="s1">&#39;saNoError&#39;</span><span class="p">]:</span>
-            <span class="k">pass</span>
-        <span class="k">elif</span> <span class="n">err</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus</span><span class="p">[</span><span class="s1">&#39;saDeviceNotOpenErr&#39;</span><span class="p">]:</span>
-            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;Device not open!&#39;</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">err</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus</span><span class="p">[</span><span class="s1">&#39;saDeviceNotConfiguredErr&#39;</span><span class="p">]:</span>
-            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;The device specified is not currently streaming!&#39;</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">err</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus</span><span class="p">[</span><span class="s1">&#39;saNullPtrErr&#39;</span><span class="p">]:</span>
-            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;Null pointer error!&#39;</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;Unknown error!&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_for_error</span><span class="p">(</span><span class="n">err</span><span class="p">,</span> <span class="s1">&#39;saQuerySweepInfo&#39;</span><span class="p">)</span>
 
-        <span class="n">info</span> <span class="o">=</span> <span class="p">[</span><span class="n">sweep_len</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">start_freq</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">stepsize</span><span class="o">.</span><span class="n">value</span><span class="p">]</span>
-        <span class="k">return</span> <span class="n">info</span></div>
+        <span class="k">return</span> <span class="n">sweep_len</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">start_freq</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">stepsize</span><span class="o">.</span><span class="n">value</span></div>
 
-<div class="viewcode-block" id="SignalHound_USB_SA124B.configure"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.SignalHound_USB_SA124B.configure">[docs]</a>    <span class="k">def</span> <span class="nf">configure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rejection</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Configure consists of five parts</span>
-<span class="sd">            1. Center span configuration (freqs and span)</span>
-<span class="sd">            2. Acquisition configuration</span>
-<span class="sd">                lin-scale/log-scale</span>
-<span class="sd">                avg/max power</span>
-<span class="sd">            3. Configuring the external 10MHz refernce</span>
-<span class="sd">            4. Configuration of the mode that is being used</span>
-<span class="sd">            5. Configuration of the tracking generator (not implemented)</span>
-<span class="sd">                used in VNA mode</span>
-
-<span class="sd">        Configure sets the configuration of the instrument using the parameters</span>
-<span class="sd">        specified in the Qcodes instrument.</span>
-
-<span class="sd">        Note that to ensure loading call self.initialisation()</span>
-<span class="sd">        These two functions are combined in prepare_for_measurement()</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># CenterSpan Configuration</span>
-        <span class="n">frequency</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;frequency&#39;</span><span class="p">)</span>
-        <span class="n">span</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;span&#39;</span><span class="p">)</span>
-        <span class="n">center</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_double</span><span class="p">(</span><span class="n">frequency</span><span class="p">)</span>
-        <span class="n">span</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_double</span><span class="p">(</span><span class="n">span</span><span class="p">)</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Setting device CenterSpan configuration.&#39;</span><span class="p">)</span>
-
-        <span class="n">err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saConfigCenterSpan</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span><span class="p">,</span> <span class="n">center</span><span class="p">,</span> <span class="n">span</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">check_for_error</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
-
-        <span class="c1"># Acquisition configuration</span>
-        <span class="n">detectorVals</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s1">&#39;min-max&#39;</span><span class="p">:</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_uint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_MIN_MAX</span><span class="p">),</span>
-            <span class="s1">&#39;average&#39;</span><span class="p">:</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_uint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_AVERAGE</span><span class="p">)</span>
-        <span class="p">}</span>
-        <span class="n">scaleVals</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s1">&#39;log-scale&#39;</span><span class="p">:</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_uint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_LOG_SCALE</span><span class="p">),</span>
-            <span class="s1">&#39;lin-scale&#39;</span><span class="p">:</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_uint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_LIN_SCALE</span><span class="p">),</span>
-            <span class="s1">&#39;log-full-scale&#39;</span><span class="p">:</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_uint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_LOG_FULL_SCALE</span><span class="p">),</span>
-            <span class="s1">&#39;lin-full-scale&#39;</span><span class="p">:</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_uint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_LIN_FULL_SCALE</span><span class="p">)</span>
-        <span class="p">}</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">acquisition_mode</span><span class="p">()</span> <span class="ow">in</span> <span class="n">detectorVals</span><span class="p">:</span>
-            <span class="n">detector</span> <span class="o">=</span> <span class="n">detectorVals</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">acquisition_mode</span><span class="p">()]</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Invalid Detector mode! Detector  must be one of &#39;</span>
-                             <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">. Specified detector = </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span>
-                             <span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">detectorVals</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span> <span class="n">detector</span><span class="p">))</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span><span class="p">()</span> <span class="ow">in</span> <span class="n">scaleVals</span><span class="p">:</span>
-            <span class="n">scale</span> <span class="o">=</span> <span class="n">scaleVals</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">scale</span><span class="p">()]</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Invalid Scaling mode! Scaling mode must be one &#39;</span>
-                             <span class="s1">&#39;of </span><span class="si">%s</span><span class="s1">. Specified scale = </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span>
-                             <span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">scaleVals</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span> <span class="n">scale</span><span class="p">))</span>
-        <span class="n">err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saConfigAcquisition</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span><span class="p">,</span> <span class="n">detector</span><span class="p">,</span> <span class="n">scale</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">check_for_error</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
-
-        <span class="c1"># Reference Level configuration</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Setting device reference level configuration.&#39;</span><span class="p">)</span>
-        <span class="n">err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saConfigLevel</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span><span class="p">,</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_double</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;ref_lvl&#39;</span><span class="p">)))</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">check_for_error</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
-
-        <span class="c1"># External Reference configuration</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">external_reference</span><span class="p">():</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Setting reference frequency from external source.&#39;</span><span class="p">)</span>
-            <span class="n">err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saEnableExternalReference</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">check_for_error</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">device_mode</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;sweeping&#39;</span><span class="p">:</span>
-            <span class="c1"># Sweeping Configuration</span>
-            <span class="n">reject_var</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_bool</span><span class="p">(</span><span class="n">rejection</span><span class="p">)</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Setting device Sweeping configuration.&#39;</span><span class="p">)</span>
-            <span class="n">err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saConfigSweepCoupling</span><span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span><span class="p">,</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_double</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;rbw&#39;</span><span class="p">)),</span>
-                <span class="n">ct</span><span class="o">.</span><span class="n">c_double</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;vbw&#39;</span><span class="p">)),</span> <span class="n">reject_var</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">check_for_error</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">device_mode</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;IQ&#39;</span><span class="p">:</span>
-            <span class="n">err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saConfigIQ</span><span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span><span class="p">,</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;decimation&#39;</span><span class="p">)),</span>
-                <span class="n">ct</span><span class="o">.</span><span class="n">c_double</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;bandwidth&#39;</span><span class="p">)))</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">check_for_error</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
-        <span class="k">return</span></div>
-
-<div class="viewcode-block" id="SignalHound_USB_SA124B.sweep"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.SignalHound_USB_SA124B.sweep">[docs]</a>    <span class="k">def</span> <span class="nf">sweep</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_get_sweep_data</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        This function performs a sweep over the configured ranges.</span>
 <span class="sd">        The result of the sweep is returned along with the sweep points</span>
 
 <span class="sd">        returns:</span>
-
+<span class="sd">            datamin numpy array</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">sweep_len</span><span class="p">,</span> <span class="n">start_freq</span><span class="p">,</span> <span class="n">stepsize</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">QuerySweep</span><span class="p">()</span>
-        <span class="k">except</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">prepare_for_measurement</span><span class="p">()</span>
-            <span class="n">sweep_len</span><span class="p">,</span> <span class="n">start_freq</span><span class="p">,</span> <span class="n">stepsize</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">QuerySweep</span><span class="p">()</span>
-
-        <span class="n">end_freq</span> <span class="o">=</span> <span class="n">start_freq</span> <span class="o">+</span> <span class="n">stepsize</span><span class="o">*</span><span class="p">(</span><span class="n">sweep_len</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
-        <span class="n">freq_points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">start_freq</span><span class="p">,</span> <span class="n">end_freq</span><span class="p">,</span> <span class="n">sweep_len</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parameters_synced</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sync_parameters</span><span class="p">()</span>
+        <span class="n">sweep_len</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">QuerySweep</span><span class="p">()</span>
 
         <span class="n">minarr</span> <span class="o">=</span> <span class="p">(</span><span class="n">ct</span><span class="o">.</span><span class="n">c_float</span> <span class="o">*</span> <span class="n">sweep_len</span><span class="p">)()</span>
         <span class="n">maxarr</span> <span class="o">=</span> <span class="p">(</span><span class="n">ct</span><span class="o">.</span><span class="n">c_float</span> <span class="o">*</span> <span class="n">sweep_len</span><span class="p">)()</span>
-        <span class="n">sleep</span><span class="p">(</span><span class="o">.</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># Added extra sleep for updating issue</span>
+        <span class="n">sleep_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sleep_time</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="n">sleep</span><span class="p">(</span><span class="n">sleep_time</span><span class="p">)</span>  <span class="c1"># Added extra sleep for updating issue</span>
         <span class="n">err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saGetSweep_32f</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span><span class="p">,</span> <span class="n">minarr</span><span class="p">,</span> <span class="n">maxarr</span><span class="p">)</span>
-        <span class="n">sleep</span><span class="p">(</span><span class="o">.</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># Added extra sleep</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">err</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus</span><span class="p">[</span><span class="s1">&#39;saNoError&#39;</span><span class="p">]:</span>
+        <span class="n">sleep</span><span class="p">(</span><span class="n">sleep_time</span><span class="p">)</span>  <span class="c1"># Added extra sleep</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">err</span> <span class="o">==</span> <span class="n">saStatus</span><span class="o">.</span><span class="n">saNoError</span><span class="p">:</span>
             <span class="c1"># if an error occurs tries preparing the device and then asks again</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Error raised in QuerySweepInfo, preparing for measurement&#39;</span><span class="p">)</span>
-            <span class="n">sleep</span><span class="p">(</span><span class="o">.</span><span class="mi">1</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">prepare_for_measurement</span><span class="p">()</span>
-            <span class="n">sleep</span><span class="p">(</span><span class="o">.</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Error raised in _get_sweep_data, &#39;</span>
+                        <span class="s1">&#39;trying to get data&#39;</span><span class="p">)</span>
+            <span class="n">sleep</span><span class="p">(</span><span class="n">sleep_time</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sync_parameters</span><span class="p">()</span>
+            <span class="n">sleep</span><span class="p">(</span><span class="n">sleep_time</span><span class="p">)</span>
             <span class="n">minarr</span> <span class="o">=</span> <span class="p">(</span><span class="n">ct</span><span class="o">.</span><span class="n">c_float</span> <span class="o">*</span> <span class="n">sweep_len</span><span class="p">)()</span>
             <span class="n">maxarr</span> <span class="o">=</span> <span class="p">(</span><span class="n">ct</span><span class="o">.</span><span class="n">c_float</span> <span class="o">*</span> <span class="n">sweep_len</span><span class="p">)()</span>
             <span class="n">err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saGetSweep_32f</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span><span class="p">,</span> <span class="n">minarr</span><span class="p">,</span> <span class="n">maxarr</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_for_error</span><span class="p">(</span><span class="n">err</span><span class="p">,</span> <span class="s1">&#39;saGetSweep_32f&#39;</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">err</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus</span><span class="p">[</span><span class="s1">&#39;saNoError&#39;</span><span class="p">]:</span>
-            <span class="k">pass</span>
-        <span class="k">elif</span> <span class="n">err</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus</span><span class="p">[</span><span class="s1">&#39;saDeviceNotOpenErr&#39;</span><span class="p">]:</span>
-            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;Device not open!&#39;</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">err</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus</span><span class="p">[</span><span class="s1">&#39;saDeviceNotConfiguredErr&#39;</span><span class="p">]:</span>
-            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;The device specified is not currently streaming!&#39;</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">err</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus</span><span class="p">[</span><span class="s1">&#39;saNullPtrErr&#39;</span><span class="p">]:</span>
-            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;Null pointer error!&#39;</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">err</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus</span><span class="p">[</span><span class="s1">&#39;saInvalidModeErr&#39;</span><span class="p">]:</span>
-            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;Invalid mode error!&#39;</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">err</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus</span><span class="p">[</span><span class="s1">&#39;saCompressionWarning&#39;</span><span class="p">]:</span>
-            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;Input voltage overload!&#39;</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">err</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus</span><span class="p">[</span><span class="s1">&#39;sCUSBCommErr&#39;</span><span class="p">]:</span>
-            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;Error ocurred in the USB connection!&#39;</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;Unknown error!&#39;</span><span class="p">)</span>
-
-        <span class="c1"># note if used in averaged mode (set in config) datamin=datamax</span>
         <span class="n">datamin</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">minarr</span><span class="p">[</span><span class="n">elem</span><span class="p">]</span> <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">sweep_len</span><span class="p">)])</span>
-        <span class="n">datamax</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">minarr</span><span class="p">[</span><span class="n">elem</span><span class="p">]</span> <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">sweep_len</span><span class="p">)])</span>
 
-        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">freq_points</span><span class="p">,</span> <span class="n">datamin</span><span class="p">,</span> <span class="n">datamax</span><span class="p">])</span></div>
+        <span class="k">return</span> <span class="n">datamin</span>
 
-<div class="viewcode-block" id="SignalHound_USB_SA124B.get_power_at_freq"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.SignalHound_USB_SA124B.get_power_at_freq">[docs]</a>    <span class="k">def</span> <span class="nf">get_power_at_freq</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">Navg</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Returns the maximum power in a window of 250kHz</span>
-<span class="sd">        around the specified  frequency.</span>
-<span class="sd">        The integration window is specified by the VideoBandWidth (set by vbw)</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">poweratfreq</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">Navg</span><span class="p">):</span>
-            <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sweep</span><span class="p">()</span>
-            <span class="n">max_power</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">][:])</span>
-            <span class="n">poweratfreq</span> <span class="o">+=</span> <span class="n">max_power</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">power</span><span class="p">(</span><span class="n">poweratfreq</span> <span class="o">/</span> <span class="n">Navg</span><span class="p">)</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">power</span><span class="p">()</span></div>
-
-<div class="viewcode-block" id="SignalHound_USB_SA124B.get_spectrum"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.SignalHound_USB_SA124B.get_spectrum">[docs]</a>    <span class="k">def</span> <span class="nf">get_spectrum</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">Navg</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_get_averaged_sweep_data</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Averages over SH.sweep Navg times</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">sweep_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">QuerySweep</span><span class="p">()</span>
-        <span class="n">data_spec</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">sweep_params</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">sweep_len</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">QuerySweep</span><span class="p">()</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">sweep_len</span><span class="p">)</span>
+        <span class="n">Navg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">avg</span><span class="p">()</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">Navg</span><span class="p">):</span>
-            <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sweep</span><span class="p">()</span>
-            <span class="n">data_spec</span><span class="p">[:]</span> <span class="o">+=</span> <span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">][:]</span>
-        <span class="n">data_spec</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">data_spec</span><span class="p">[:]</span> <span class="o">/</span> <span class="n">Navg</span>
-        <span class="n">sweep_points</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">][:]</span>
-        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">sweep_points</span><span class="p">,</span> <span class="n">data_spec</span><span class="p">])</span></div>
+            <span class="n">data</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_sweep_data</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">data</span> <span class="o">/</span> <span class="n">Navg</span>
 
-<div class="viewcode-block" id="SignalHound_USB_SA124B.prepare_for_measurement"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.SignalHound_USB_SA124B.prepare_for_measurement">[docs]</a>    <span class="k">def</span> <span class="nf">prepare_for_measurement</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;device_mode&#39;</span><span class="p">,</span> <span class="s1">&#39;sweeping&#39;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">configure</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">initialisation</span><span class="p">()</span>
-        <span class="k">return</span></div>
+    <span class="k">def</span> <span class="nf">_get_power_at_freq</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the maximum power in a window of 250 kHz</span>
+<span class="sd">        around the specified  frequency with Resolution bandwidth set to 1 kHz.</span>
+<span class="sd">        The integration window is specified by the VideoBandWidth (set by vbw)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">original_span</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">span</span><span class="p">()</span>
+        <span class="n">original_rbw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rbw</span><span class="p">()</span>
+        <span class="n">needs_reset</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">original_span</span> <span class="o">==</span> <span class="mf">0.25e6</span> <span class="ow">and</span> <span class="n">original_rbw</span> <span class="o">==</span> <span class="mf">1e3</span><span class="p">):</span>
+            <span class="n">needs_reset</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">span</span><span class="p">(</span><span class="mf">0.25e6</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rbw</span><span class="p">(</span><span class="mf">1e3</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parameters_synced</span><span class="p">:</span>
+            <span class="c1"># call configure to update both</span>
+            <span class="c1"># the paramters on the device and the</span>
+            <span class="c1"># setpoints and units</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">configure</span><span class="p">()</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_averaged_sweep_data</span><span class="p">()</span>
+        <span class="n">max_power</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">needs_reset</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">span</span><span class="p">(</span><span class="n">original_span</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rbw</span><span class="p">(</span><span class="n">original_rbw</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">configure</span><span class="p">()</span>
+        <span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">sleep_time</span><span class="o">.</span><span class="n">get</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">max_power</span>
 
-<div class="viewcode-block" id="SignalHound_USB_SA124B.safe_reload"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.SignalHound_USB_SA124B.safe_reload">[docs]</a>    <span class="k">def</span> <span class="nf">safe_reload</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">closeDevice</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">reload</span><span class="p">()</span></div>
-
-<div class="viewcode-block" id="SignalHound_USB_SA124B.check_for_error"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.SignalHound_USB_SA124B.check_for_error">[docs]</a>    <span class="k">def</span> <span class="nf">check_for_error</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">err</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">err</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus</span><span class="p">[</span><span class="s1">&#39;saNoError&#39;</span><span class="p">]:</span>
-            <span class="n">err_msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">saStatus_inverted</span><span class="p">[</span><span class="n">err</span><span class="p">]</span>
+<div class="viewcode-block" id="SignalHound_USB_SA124B.check_for_error"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.SignalHound_USB_SA124B.check_for_error">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">check_for_error</span><span class="p">(</span><span class="n">err</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">extrainfo</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">err</span> <span class="o">!=</span> <span class="n">saStatus</span><span class="o">.</span><span class="n">saNoError</span><span class="p">:</span>
+            <span class="n">err_str</span> <span class="o">=</span> <span class="n">saStatus</span><span class="p">(</span><span class="n">err</span><span class="p">)</span><span class="o">.</span><span class="n">name</span>
             <span class="k">if</span> <span class="n">err</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Warning:&#39;</span><span class="p">,</span> <span class="n">err_msg</span><span class="p">)</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="n">f</span><span class="s1">&#39;During call of </span><span class="si">{source}</span><span class="s1"> the following&#39;</span>
+                       <span class="n">f</span><span class="s1">&#39;Warning: </span><span class="si">{err_str}</span><span class="s1"> was raised&#39;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">extrainfo</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">msg</span> <span class="o">=</span> <span class="n">msg</span> <span class="o">+</span> <span class="n">f</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1"> Extra info: </span><span class="si">{extrainfo}</span><span class="s1">&#39;</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="n">err_msg</span><span class="p">)</span></div></div>
+                <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="n">f</span><span class="s1">&#39;During call of </span><span class="si">{source}</span><span class="s1"> the following Error: &#39;</span>
+                       <span class="n">f</span><span class="s1">&#39;</span><span class="si">{err_str}</span><span class="s1"> was raised&#39;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">extrainfo</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">msg</span> <span class="o">=</span> <span class="n">msg</span> <span class="o">+</span> <span class="n">f</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1"> Extra info: </span><span class="si">{extrainfo}</span><span class="s1">&#39;</span>
+                <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;Call to </span><span class="si">{source}</span><span class="s1"> was successful&#39;</span>
+            <span class="k">if</span> <span class="n">extrainfo</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="n">msg</span> <span class="o">+</span> <span class="n">f</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1"> Extra info: </span><span class="si">{extrainfo}</span><span class="s1">&#39;</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SignalHound_USB_SA124B.get_idn"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.SignalHound_USB_SA124B.get_idn">[docs]</a>    <span class="k">def</span> <span class="nf">get_idn</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">output</span><span class="p">[</span><span class="s1">&#39;vendor&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;Signal Hound&#39;</span>
+        <span class="n">output</span><span class="p">[</span><span class="s1">&#39;model&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_device_type</span><span class="p">()</span>
+        <span class="n">serialnumber</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_int32</span><span class="p">()</span>
+        <span class="n">err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saGetSerialNumber</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span><span class="p">,</span>
+                                         <span class="n">ct</span><span class="o">.</span><span class="n">pointer</span><span class="p">(</span><span class="n">serialnumber</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_for_error</span><span class="p">(</span><span class="n">err</span><span class="p">,</span> <span class="s1">&#39;saGetSerialNumber&#39;</span><span class="p">)</span>
+        <span class="n">output</span><span class="p">[</span><span class="s1">&#39;serial&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">serialnumber</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+        <span class="n">fw_version</span> <span class="o">=</span> <span class="p">(</span><span class="n">ct</span><span class="o">.</span><span class="n">c_char</span><span class="o">*</span><span class="mi">17</span><span class="p">)()</span>
+        <span class="c1"># the manual says that this must be at least 16 char</span>
+        <span class="c1"># but not clear if that includes a termination zero so</span>
+        <span class="c1"># make it 17 just in case</span>
+        <span class="n">err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saGetFirmwareString</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span><span class="p">,</span> <span class="n">fw_version</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_for_error</span><span class="p">(</span><span class="n">err</span><span class="p">,</span> <span class="s1">&#39;saGetFirmwareString&#39;</span><span class="p">)</span>
+        <span class="n">output</span><span class="p">[</span><span class="s1">&#39;firmware&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">fw_version</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;ascii&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">output</span></div></div>
 
 
-<div class="viewcode-block" id="constants"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.constants">[docs]</a><span class="k">class</span> <span class="nc">constants</span><span class="p">:</span>
+<div class="viewcode-block" id="Constants"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.Constants">[docs]</a><span class="k">class</span> <span class="nc">Constants</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    These constants are defined in sa_api.h as part of the the Signal Hound</span>
+<span class="sd">    SDK</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">SA_MAX_DEVICES</span> <span class="o">=</span> <span class="mi">8</span>
 
     <span class="n">saDeviceTypeNone</span> <span class="o">=</span> <span class="mi">0</span>
@@ -705,7 +874,44 @@
     <span class="n">sa_AUDIO_CW</span> <span class="o">=</span> <span class="mh">0x4</span>
 
     <span class="n">TG_THRU_0DB</span> <span class="o">=</span> <span class="mh">0x1</span>
-    <span class="n">TG_THRU_20DB</span> <span class="o">=</span> <span class="mh">0x2</span></div>
+    <span class="n">TG_THRU_20DB</span> <span class="o">=</span> <span class="mh">0x2</span>
+
+    <span class="n">sa_REF_UNUSED</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">sa_REF_INTERNAL_OUT</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">sa_REF_EXTERNAL_IN</span> <span class="o">=</span> <span class="mi">2</span></div>
+
+
+<div class="viewcode-block" id="saStatus"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.saStatus">[docs]</a><span class="k">class</span> <span class="nc">saStatus</span><span class="p">(</span><span class="n">IntEnum</span><span class="p">):</span>
+    <span class="n">saUnknownErr</span> <span class="o">=</span> <span class="o">-</span><span class="mi">666</span>
+    <span class="n">saFrequencyRangeErr</span> <span class="o">=</span> <span class="mi">99</span>
+    <span class="n">saInvalidDetectorErr</span> <span class="o">=</span> <span class="o">-</span><span class="mi">95</span>
+    <span class="n">saInvalidScaleErr</span> <span class="o">=</span> <span class="o">-</span><span class="mi">94</span>
+    <span class="n">saBandwidthErr</span> <span class="o">=</span> <span class="o">-</span><span class="mi">91</span>
+    <span class="n">saExternalReferenceNotFound</span> <span class="o">=</span> <span class="o">-</span><span class="mi">89</span>
+    <span class="c1"># Device specific errors</span>
+    <span class="n">saOvenColdErr</span> <span class="o">=</span> <span class="o">-</span><span class="mi">20</span>
+    <span class="c1"># Data errors</span>
+    <span class="n">saInternetErr</span> <span class="o">=</span> <span class="o">-</span><span class="mi">12</span>
+    <span class="n">saUSBCommErr</span> <span class="o">=</span> <span class="o">-</span><span class="mi">11</span>
+    <span class="c1"># General configuration errors</span>
+    <span class="n">saTrackingGeneratorNotFound</span> <span class="o">=</span> <span class="o">-</span><span class="mi">10</span>
+    <span class="n">saDeviceNotIdleErr</span> <span class="o">=</span> <span class="o">-</span><span class="mi">9</span>
+    <span class="n">saDeviceNotFoundErr</span> <span class="o">=</span> <span class="o">-</span><span class="mi">8</span>
+    <span class="n">saInvalidModeErr</span> <span class="o">=</span> <span class="o">-</span><span class="mi">7</span>
+    <span class="n">saNotConfiguredErr</span> <span class="o">=</span> <span class="o">-</span><span class="mi">6</span>
+    <span class="n">saDeviceNotConfiguredErr</span> <span class="o">=</span> <span class="o">-</span><span class="mi">6</span> <span class="c1"># Added because key error raised</span>
+    <span class="n">saTooManyDevicesErr</span> <span class="o">=</span> <span class="o">-</span><span class="mi">5</span>
+    <span class="n">saInvalidParameterErr</span> <span class="o">=</span> <span class="o">-</span><span class="mi">4</span>
+    <span class="n">saDeviceNotOpenErr</span> <span class="o">=</span> <span class="o">-</span><span class="mi">3</span>
+    <span class="n">saInvalidDeviceErr</span> <span class="o">=</span> <span class="o">-</span><span class="mi">2</span>
+    <span class="n">saNullPtrErr</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="c1"># No error</span>
+    <span class="n">saNoError</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="c1"># Warnings</span>
+    <span class="n">saNoCorrections</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">saCompressionWarning</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">saParameterClamped</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">saBandwidthClamped</span> <span class="o">=</span> <span class="mi">4</span></div>
 </pre></div>
 
            </div>
