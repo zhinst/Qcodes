@@ -2,9 +2,9 @@
 Offline Plotting Tutorial
 =========================
 
-The new dataset comes with a tool for offline (i.e. not live as the data
-are coming in) plotting. This notebook explains how to use it and what
-it is capable of plotting.
+The dataset comes with a tool for offline (i.e. not live as the data are
+coming in) plotting. This notebook explains how to use it and what it is
+capable of plotting.
 
 The tool in question is the function ``plot_by_id``.
 
@@ -18,7 +18,7 @@ The tool in question is the function ``plot_by_id``.
     from typing import List, Dict, Tuple, Any
     import matplotlib.pyplot as plt
     import qcodes as qc
-    from qcodes import ParamSpec, new_data_set, new_experiment
+    from qcodes import Parameter, new_experiment, Measurement
     from qcodes.dataset.plotting import plot_by_id
     from qcodes.dataset.database import initialise_database
 
@@ -26,11 +26,7 @@ First we make an experimental run, so that we have something to plot.
 
 .. code:: ipython3
 
-    # if you just deleted your database file, you'll need to init a new one
     initialise_database()
-
-.. code:: ipython3
-
     new_experiment('test_plot_by_id', 'nosample')
 
 
@@ -43,29 +39,37 @@ First we make an experimental run, so that we have something to plot.
 
 
 
+Next we make a handful of parameters to be used in the examples of this
+notebook.
+
+For those curious, setting ``set_cmd=None`` and ``get_cmd=None`` makes
+the ``Parameters`` settable and gettable without them being hooked up to
+any external/auxiliary action (in old QCoDeS versions, this was known as
+a ``ManualParameter``).
+
 .. code:: ipython3
 
     # Make a handful of parameters to be used in the examples
     
-    x = ParamSpec('x', 'numeric', label='Voltage', unit='V')
-    t = ParamSpec('t', 'numeric', label='Time', unit='s')
-    y = ParamSpec('y', 'numeric', label='Voltage', unit='V', depends_on=[x])
-    y2 = ParamSpec('y2', 'numeric', label='Current', unit='A', depends_on=[x])
-    z = ParamSpec('z', 'numeric', label='Majorana number', unit='Anyon', depends_on=[x, t])
+    x = Parameter(name='x', label='Voltage', unit='V',
+                  set_cmd=None, get_cmd=None)
+    t = Parameter(name='t', label='Time', unit='s',
+                  set_cmd=None, get_cmd=None)
+    y = Parameter(name='y', label='Voltage', unit='V',
+                  set_cmd=None, get_cmd=None)
+    y2 = Parameter(name='y2', label='Current', unit='A',
+                   set_cmd=None, get_cmd=None)
+    z = Parameter(name='z', label='Majorana number', unit='Anyonic charge',
+                  set_cmd=None, get_cmd=None)
 
 A single, simple 1D sweep
 -------------------------
 
 .. code:: ipython3
 
-    data_set = new_data_set('1D-sweep')
-    
-    data_set.add_parameter(x)
-    data_set.add_parameter(y)
-
-.. code:: ipython3
-
-    %%time
+    meas = Measurement()
+    meas.register_parameter(x)
+    meas.register_parameter(y, setpoints=(x,))
     
     xvals = np.linspace(-3.4, 4.2, 250)
     
@@ -74,17 +78,18 @@ A single, simple 1D sweep
     # that does not depend on the order of the data
     np.random.shuffle(xvals)
     
-    for xnum in xvals:
-        noise = np.random.randn()*0.1  # multiplicative noise yeah yeah
-        data_set.add_result({'x': xnum, 'y': 2*(xnum+noise)**3 - 5*(xnum+noise)**2})
+    with meas.run() as datasaver:
+        for xnum in xvals:
+            noise = np.random.randn()*0.1  # multiplicative noise yeah yeah
+            datasaver.add_result((x, xnum),
+                                 (y, 2*(xnum+noise)**3 - 5*(xnum+noise)**2))
     
-    data_set.mark_complete()
+    dataid = datasaver.run_id
 
 
 .. parsed-literal::
 
-    CPU times: user 260 ms, sys: 104 ms, total: 364 ms
-    Wall time: 1.36 s
+    Starting experimental run with id: 18
 
 
 Now let us plot that run. The function ``plot_by_id`` takes the
@@ -98,7 +103,7 @@ colorbar axes (just ``None``\ s if there are no colorbars).
 
 .. code:: ipython3
 
-    axes, cbaxes = plot_by_id(data_set.run_id)
+    axes, cbaxes = plot_by_id(dataid)
 
 
 
@@ -110,7 +115,7 @@ colorbar axes (just ``None``\ s if there are no colorbars).
 
 .. raw:: html
 
-    <div id='f255bab3-8698-4b5f-8373-c515cf709b87'></div>
+    <div id='0e165246-3a6d-415d-bf80-2a00591ec0a1'></div>
 
 
 Using the returned axis, we can e.g. change the plot linewidth and
@@ -128,7 +133,7 @@ Rescaling units and ticks
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ``plot_by_id`` can conveniently rescale the units and ticks of the plot.
-For example, if one of the axes is voltage in units of ``V`` but the
+For example, if one of the axes is voltage in units of ``V``, but the
 values are in the range of millivolts, then ``plot_by_id`` will rescale
 the ticks of the axis to show ``5`` instead of ``0.005``, and the unit
 in the axis label will be adjusted from ``V`` to ``mV``.
@@ -144,23 +149,27 @@ The following plot demontrates the feature.
 
 .. code:: ipython3
 
-    t_1 = ParamSpec('t_1', 'numeric', label='Time', unit='s')
-    v_1 = ParamSpec('v_1', 'numeric', label='Gate voltage', unit='V', depends_on=[t_1])
+    meas = Measurement()
+    meas.register_parameter(t)
+    meas.register_parameter(y, setpoints=(t,))
     
-    data_set_tv = new_data_set('1D-sweep')
+    with meas.run() as datasaver:
+        for tnum in np.linspace(-3.4, 4.2, 50):
+            noise = np.random.randn()*0.1
+            datasaver.add_result((t, tnum*1e-6),
+                                 (y, (2*(tnum+noise)**3 - 5*(tnum+noise)**2)*1e3))
     
-    data_set_tv.add_parameter(t_1)
-    data_set_tv.add_parameter(v_1)
-    
-    for xnum in np.linspace(-3.4, 4.2, 50):
-        noise = np.random.randn()*0.1
-        data_set_tv.add_result({'t_1': xnum*1e-6, 'v_1': (2*(xnum+noise)**3 - 5*(xnum+noise)**2)*1e3})
-    
-    data_set_tv.mark_complete()
+    dataid = datasaver.run_id
+
+
+.. parsed-literal::
+
+    Starting experimental run with id: 19
+
 
 .. code:: ipython3
 
-    plot_by_id(data_set_tv.run_id)
+    plot_by_id(dataid)
 
 
 
@@ -172,14 +181,14 @@ The following plot demontrates the feature.
 
 .. raw:: html
 
-    <div id='0b4beb74-c92a-435d-9a53-bf624233805b'></div>
+    <div id='42d0a858-0843-405e-9c6f-fa529af16c5b'></div>
 
 
 
 
 .. parsed-literal::
 
-    ([<matplotlib.axes._subplots.AxesSubplot at 0x2adcf054ecc0>], [None])
+    ([<matplotlib.axes._subplots.AxesSubplot at 0x2ad2415e2c50>], [None])
 
 
 
@@ -191,22 +200,28 @@ same parameter.
 
 .. code:: ipython3
 
-    data_set = new_data_set('interleaved-1Ds')
-
-.. code:: ipython3
-
-    data_set.add_parameter(x)
-    data_set.add_parameter(y)
-    data_set.add_parameter(y2)
-
-.. code:: ipython3
-
+    meas = Measurement()
+    meas.register_parameter(x)
+    meas.register_parameter(y, setpoints=[x])
+    meas.register_parameter(y2, setpoints=[x])
+    
     xvals = np.linspace(-5, 5, 250)
     
-    for xnum in xvals:
-        data_set.add_result({'x': xnum, 'y': xnum**2})
-        data_set.add_result({'x': xnum, 'y2': -xnum**2})
-    data_set.mark_complete()
+    with meas.run() as datasaver:
+    
+        for xnum in xvals:
+            datasaver.add_result((x, xnum),
+                                 (y, xnum**2))
+            datasaver.add_result((x, xnum),
+                                 (y2, -xnum**2))
+    
+    dataid = datasaver.run_id
+
+
+.. parsed-literal::
+
+    Starting experimental run with id: 20
+
 
 In such a situation, ``plot_by_id`` by default creates a new axis for
 **each** dependent parameter. Sometimes this is not desirable; we'd
@@ -215,7 +230,7 @@ the same axis twice to ``plot_by_id``.
 
 .. code:: ipython3
 
-    axes, cbaxes = plot_by_id(data_set.run_id)
+    axes, cbaxes = plot_by_id(dataid)
 
 
 
@@ -227,7 +242,7 @@ the same axis twice to ``plot_by_id``.
 
 .. raw:: html
 
-    <div id='12e97150-0732-4404-abfc-311f506e9ec3'></div>
+    <div id='61a89059-1181-468e-989f-0f1bab009218'></div>
 
 
 
@@ -239,7 +254,7 @@ the same axis twice to ``plot_by_id``.
 
 .. raw:: html
 
-    <div id='5e51d816-7a10-4442-a13c-53f59bc3f516'></div>
+    <div id='237b35c1-1bb0-44e8-abbd-905aba7677d7'></div>
 
 
 Let's do that now
@@ -247,7 +262,7 @@ Let's do that now
 .. code:: ipython3
 
     fig, ax = plt.subplots(1)
-    axes, cbaxes = plot_by_id(data_set.run_id, axes=[ax, ax])
+    axes, cbaxes = plot_by_id(dataid, axes=[ax, ax])
 
 
 
@@ -259,7 +274,7 @@ Let's do that now
 
 .. raw:: html
 
-    <div id='fca54e34-5b59-4c1f-895f-a02352541036'></div>
+    <div id='155248ce-5148-43c6-803a-3e4fb620cd99'></div>
 
 
 Regular 2D rectangular sweep scan
@@ -270,27 +285,33 @@ For 2D plots, a colorbar is usually present. As mentioned above,
 
 .. code:: ipython3
 
-    data_set = new_data_set('regular-2D-scan')
-    data_set.add_parameter(x)
-    data_set.add_parameter(t)
-    data_set.add_parameter(z)
-
-.. code:: ipython3
-
+    meas = Measurement()
+    
+    meas.register_parameter(x)
+    meas.register_parameter(t)
+    meas.register_parameter(z, setpoints=(x, t))
+    
     xvals = np.linspace(-4, 5, 50)
     tvals = np.linspace(-500, 1500, 25)
     
-    for xv in xvals:
-        for tv in tvals:
-            # just some arbitrary semi good looking function
-            zv = np.sin(2*np.pi*xv)*np.cos(2*np.pi*0.001*tv) + 0.001*tv
-            data_set.add_result({'x': xv, 't': tv, 'z': zv})
+    with meas.run() as datasaver:
+        for xv in xvals:
+            for tv in tvals:
+                # just some arbitrary semi good looking function
+                zv = np.sin(2*np.pi*xv)*np.cos(2*np.pi*0.001*tv) + 0.001*tv
+                datasaver.add_result((x, xv), (t, tv), (z, zv))
     
-    data_set.mark_complete()
+    dataid = datasaver.run_id
+
+
+.. parsed-literal::
+
+    Starting experimental run with id: 21
+
 
 .. code:: ipython3
 
-    axes, colorbars = plot_by_id(data_set.run_id)
+    axes, colorbars = plot_by_id(dataid)
 
 
 
@@ -302,11 +323,11 @@ For 2D plots, a colorbar is usually present. As mentioned above,
 
 .. raw:: html
 
-    <div id='e9200b11-d451-41df-8041-f3de901d4955'></div>
+    <div id='ef4e6068-4d7b-4241-890f-2897480eb9e4'></div>
 
 
-A somewhat normal situation is that the colorbar was somehow
-mislabelled. Using the returned colorbar, the label can be overwritten.
+A fairlt normal situation is that the colorbar was somehow mislabelled.
+Using the returned colorbar, the label can be overwritten.
 
 .. code:: ipython3
 
@@ -316,33 +337,32 @@ mislabelled. Using the returned colorbar, the label can be overwritten.
 Warped 2D rectangular sweep scan
 --------------------------------
 
-A nice feature of the new dataset is that the grid may be warped; it
+A nice feature of ``plot_by_id`` is that the grid may be warped; it
 makes no difference. Here we warp the x axis of the previous scan to
 increase the resolution in the right half plane.
 
 .. code:: ipython3
 
-    data_set = new_data_set('warped-2D-scan')
-    data_set.add_parameter(x)
-    data_set.add_parameter(t)
-    data_set.add_parameter(z)
-
-.. code:: ipython3
-
-    xvals = np.linspace(-4, 5, 50) + np.cos(2/9*np.pi*xvals+np.pi/4)
+    xvals = np.linspace(-4, 5, 50) + np.cos(-1/6*np.pi*xvals)
     tvals = np.linspace(-500, 1500, 25)
     
-    for xv in xvals:
-        for tv in tvals:
-            # just some arbitrary semi good looking function
-            zv = np.sin(2*np.pi*xv)*np.cos(2*np.pi*0.001*tv) + 0.001*tv
-            data_set.add_result({'x': xv, 't': tv, 'z': zv})
+    with meas.run() as datasaver:
+        for xv in xvals:
+            for tv in tvals:
+                zv = np.sin(2*np.pi*xv)*np.cos(2*np.pi*0.001*tv) + 0.001*tv
+                datasaver.add_result((x, xv), (t, tv), (z, zv))
     
-    data_set.mark_complete()
+    dataid = datasaver.run_id
+
+
+.. parsed-literal::
+
+    Starting experimental run with id: 22
+
 
 .. code:: ipython3
 
-    axes, cbaxes = plot_by_id(data_set.run_id)
+    axes, cbaxes = plot_by_id(dataid)
 
 
 
@@ -354,7 +374,7 @@ increase the resolution in the right half plane.
 
 .. raw:: html
 
-    <div id='9cebbd81-26df-4a79-ac0e-672a1db4d7be'></div>
+    <div id='e50f92fe-0dbf-45d1-892b-6f2667b5f132'></div>
 
 
 Interrupted 2D scans (a hole in the cheese)
@@ -362,13 +382,6 @@ Interrupted 2D scans (a hole in the cheese)
 
 In case a sweep in interrupted, the entire grid will not be filled out.
 This is also supported, in fact, any single rectangular hole is allowed
-
-.. code:: ipython3
-
-    data_set = new_data_set('warped-with-hole-2D-scan')
-    data_set.add_parameter(x)
-    data_set.add_parameter(t)
-    data_set.add_parameter(z)
 
 .. code:: ipython3
 
@@ -388,20 +401,26 @@ This is also supported, in fact, any single rectangular hole is allowed
         else:
             return False
     
-    for xv in xvals:
-        for tv in tvals:
-            if no_x(xv) and no_t(tv):
-                continue
-            else:
-                # just some arbitrary semi good looking function
-                zv = np.sin(2*np.pi*xv)*np.cos(2*np.pi*0.001*tv) + 0.001*tv
-                data_set.add_result({'x': xv, 't': tv, 'z': zv})
+    with meas.run() as datasaver:
+        for xv in xvals:
+            for tv in tvals:
+                if no_x(xv) and no_t(tv):
+                    continue
+                else:
+                    zv = np.sin(2*np.pi*xv)*np.cos(2*np.pi*0.001*tv) + 0.001*tv
+                    datasaver.add_result((x, xv), (t, tv), (z, zv))
     
-    data_set.mark_complete()
+    dataid = datasaver.run_id
+
+
+.. parsed-literal::
+
+    Starting experimental run with id: 23
+
 
 .. code:: ipython3
 
-    axes, colorbars = plot_by_id(data_set.run_id)
+    axes, colorbars = plot_by_id(dataid)
 
 
 
@@ -413,18 +432,19 @@ This is also supported, in fact, any single rectangular hole is allowed
 
 .. raw:: html
 
-    <div id='84359311-8651-4530-9d83-4fb787842f33'></div>
+    <div id='30d4e406-a1aa-430e-9d95-f7248355fdb2'></div>
 
 
 Plots with string (categorial) data
 -----------------------------------
 
-``plot_by_id`` support plotting categorial data (strings) as well. The
+``plot_by_id`` supports plotting categorial data (strings) as well. The
 tick labels of the plots contain the string values.
 
-Note that this feature requires ``matplotlib`` version ``2.1``.
+Note that this feature requires ``matplotlib`` version ``2.1`` (or
+newer).
 
-2D cases
+1D cases
 ~~~~~~~~
 
 String-valued indepentent parameter
@@ -435,49 +455,46 @@ quite complicated, but for the sake of this example we will abstract
 away from all the complexity, and simulate the values of the relevant
 parameters.
 
-In this example, the string-valued parmater is independent.
+In this example, the string-valued parameter is independent.
+
+**NOTE**: for string-valued parameters, one must specify
+``paramtype='text'`` upon registering them with the ``Measurement``
+object.
 
 Note that the order of string values on the axis of the plot is exactly
 the same as the order with which the values were added to the dataset.
 
 .. code:: ipython3
 
-    def gen_random_unit_vectors(dims: int, number: int) -> np.ndarray:
-        """
-        Generate an array of a given numer of random unit vectors of given
-        dimensions.
-        """
-        vecs = np.random.normal(size=(number, dims))
-        mags = np.linalg.norm(vecs, axis=-1)
-        return vecs / mags[..., np.newaxis]
+    two_qubit_corr = Parameter('two_qubit_corr', label='2-qubit correlator',
+                               set_cmd=None, get_cmd=None)
+    
+    two_q_corr_values = ['X_X', 'X_Y', 'X_Z',
+                         'X_I', 'Y_Y', 'Y_Z',
+                         'Y_I', 'Z_Z', 'Z_I']
+    
+    meas = Measurement()
+    meas.register_parameter(two_qubit_corr, paramtype='text')
+    meas.register_parameter(z, setpoints=(two_qubit_corr,))
+    
+    with meas.run() as datasaver:
+    
+        values = np.random.randn(len(two_q_corr_values))
+        for two_q_corr_id, value in zip(two_q_corr_values, values):
+            datasaver.add_result((two_qubit_corr, two_q_corr_id),
+                                 (z, value))
+    
+    run_id_strings = datasaver.run_id
+
+
+.. parsed-literal::
+
+    Starting experimental run with id: 24
+
 
 .. code:: ipython3
 
-    # 2-qubit correlator
-    two_q_corr_values = ['X_X', 'X_Y', 'X_Z', 'X_I', 'Y_Y', 'Y_Z', 'Y_I', 'Z_Z', 'Z_I']
-    #                      note the >>> paramtype <<< it is important
-    #                                   \/ \/ \/
-    two_q_corr = ParamSpec('two_q_corr', 'text', label='2-qubit correlator', unit='')
-    
-    # The values of the qubit state correspond to 2-qubit correlators
-    val = ParamSpec('val', 'numeric', label='Component value', unit='', depends_on=[two_q_corr])
-    
-    data_set = new_data_set('sweep-with-strings')
-    
-    data_set.add_parameter(two_q_corr)
-    data_set.add_parameter(val)
-    
-    values = gen_random_unit_vectors(len(two_q_corr_values), 1)[0]
-    for two_q_corr_id, value in zip(two_q_corr_values, values):
-        data_set.add_result({'two_q_corr': two_q_corr_id, 'val': value})
-    
-    data_set.mark_complete()
-    
-    run_id_strings = data_set.run_id
-
-.. code:: ipython3
-
-    plot_by_id(run_id_strings)
+    axes, colorbars = plot_by_id(run_id_strings)
 
 
 
@@ -489,15 +506,7 @@ the same as the order with which the values were added to the dataset.
 
 .. raw:: html
 
-    <div id='5b5fa124-78e8-4004-95b2-4fb8965bd2fa'></div>
-
-
-
-
-.. parsed-literal::
-
-    ([<matplotlib.axes._subplots.AxesSubplot at 0x2adcf06b6cf8>], [None])
-
+    <div id='cf0a0d20-a94c-43d6-8c45-ce626f198096'></div>
 
 
 String-valued dependent value
@@ -508,27 +517,30 @@ the dependent one.
 
 .. code:: ipython3
 
-    numeric_param = ParamSpec('numeric_param', 'numeric', label='Numeric value', unit='J')
+    meas = Measurement()
+    meas.register_parameter(z)
+    meas.register_parameter(two_qubit_corr, paramtype='text',
+                            setpoints=(z,))
     
-    string_values = ['X_X', 'X_Y', 'X_Z', 'X_I', 'Y_Y', 'Y_Z', 'Y_I', 'Z_Z', 'Z_I']
-    string_param = ParamSpec('string_param', 'text', label='String parameter', unit='', depends_on=[numeric_param])
     
-    data_set = new_data_set('sweep-with-strings')
+    with meas.run() as datasaver:
     
-    data_set.add_parameter(numeric_param)
-    data_set.add_parameter(string_param)
+        values = np.random.randn(len(two_q_corr_values))
+        for two_q_corr_id, value in zip(two_q_corr_values, values):
+            datasaver.add_result((two_qubit_corr, two_q_corr_id),
+                                 (z, value))
     
-    numeric_values = gen_random_unit_vectors(len(string_values), 1)[0]
-    for string_value, numeric_value in zip(string_values, numeric_values):
-        data_set.add_result({'string_param': string_value, 'numeric_param': numeric_value})
-    
-    data_set.mark_complete()
-    
-    run_id_strings_dependent = data_set.run_id
+    run_id_strings = datasaver.run_id
+
+
+.. parsed-literal::
+
+    Starting experimental run with id: 25
+
 
 .. code:: ipython3
 
-    plot_by_id(run_id_strings_dependent)
+    axes, colorbars = plot_by_id(run_id_strings)
 
 
 
@@ -540,21 +552,13 @@ the dependent one.
 
 .. raw:: html
 
-    <div id='81e35cf9-79ad-4914-8cea-774d0b30faed'></div>
+    <div id='085fad51-b5ba-4d49-a4b4-13646bbc14db'></div>
 
 
-
-
-.. parsed-literal::
-
-    ([<matplotlib.axes._subplots.AxesSubplot at 0x2adcf073bd30>], [None])
-
-
-
-3D case
+2D case
 ~~~~~~~
 
-At the moment, **3D plotting** of data that has **string-valued**
+At the moment, **2D plotting** of data that has **string-valued**
 components is **not fully supported.** Moreover, choosing an apropriate
 plot type for such cases will be revisited.
 
@@ -563,39 +567,37 @@ String-valued independent parameter
 
 .. code:: ipython3
 
-    # 2-qubit correlator
-    two_q_corr_values = ['X_X', 'X_Y', 'X_Z', 'X_I', 'Y_Y', 'Y_Z', 'Y_I', 'Z_Z', 'Z_I']
-    #                      note the >>> paramtype <<< it is important
-    #                                   \/ \/ \/
-    two_q_corr = ParamSpec('two_q_corr', 'text', label='2-qubit correlator', unit='')
+    two_q_corr_values = ['X_X', 'X_Y', 'X_Z',
+                         'X_I', 'Y_Y', 'Y_Z',
+                         'Y_I', 'Z_Z', 'Z_I']
     
-    # Let's use the number of the measurement as a 2nd dimension
-    meas_number = ParamSpec('meas_number', 'numeric', label='Measurement number', unit='#')
+    meas = Measurement()
+    meas.register_parameter(two_qubit_corr, paramtype='text')
+    meas.register_parameter(t)
+    meas.register_parameter(z, setpoints=(t, two_qubit_corr))
     
-    # The values of the qubit state correspond to 2-qubit correlators
-    val = ParamSpec('val', 'numeric', label='Component value', unit='', 
-                    depends_on=[two_q_corr, meas_number])
+    n_points = 20
     
-    data_set = new_data_set('sweep-with-strings')
+    with meas.run() as datasaver:
+        for correlator in two_q_corr_values:
+            zvals = np.random.randint(1, 4, n_points)
+            tvals = np.random.rand(n_points)
+            for tval, zval in zip(tvals, zvals):
+                datasaver.add_result((two_qubit_corr, correlator),
+                                     (t, tval), (z, zval))
     
-    data_set.add_parameter(two_q_corr)
-    data_set.add_parameter(meas_number)
-    data_set.add_parameter(val)
     
-    n_measurements = 20
-    values = gen_random_unit_vectors(len(two_q_corr_values), n_measurements)
-    
-    for n_meas in range(n_measurements):
-        for two_q_corr_id, value in zip(two_q_corr_values, values[n_meas]):
-            data_set.add_result({'two_q_corr': two_q_corr_id, 'val': value, 'meas_number': n_meas})
-    
-    data_set.mark_complete()
-    
-    run_id_3d_strings = data_set.run_id
+    run_id_2d_strings = datasaver.run_id
+
+
+.. parsed-literal::
+
+    Starting experimental run with id: 26
+
 
 .. code:: ipython3
 
-    plot_by_id(run_id_3d_strings)
+    axes, colorbars = plot_by_id(run_id_2d_strings)
 
 
 
@@ -607,16 +609,7 @@ String-valued independent parameter
 
 .. raw:: html
 
-    <div id='51e0f1ec-88cd-4909-a34c-06723c98eb4c'></div>
-
-
-
-
-.. parsed-literal::
-
-    ([<matplotlib.axes._subplots.AxesSubplot at 0x2adcf07e3278>],
-     [<matplotlib.colorbar.Colorbar at 0x2adcf0837048>])
-
+    <div id='af1a4ff6-843b-4650-b902-a63cfe665e9f'></div>
 
 
 String-valued dependent parameter
@@ -626,38 +619,37 @@ This case may produce **incorrect** plots, see an example below.
 
 .. code:: ipython3
 
-    # Let's use the number of the measurement as a 2nd dimension
-    meas_number = ParamSpec('meas_number', 'numeric', label='Measurement number', unit='#')
+    two_q_corr_values = ['X_X', 'X_Y', 'X_Z',
+                         'X_I', 'Y_Y', 'Y_Z',
+                         'Y_I', 'Z_Z', 'Z_I']
     
-    # The values of the qubit state correspond to 2-qubit correlators
-    val = ParamSpec('val', 'numeric', label='Component value', unit='')
+    meas = Measurement()
+    meas.register_parameter(t)
+    meas.register_parameter(z)
+    meas.register_parameter(two_qubit_corr, setpoints=(t, z),
+                            paramtype='text')
     
-    # 2-qubit correlator
-    two_q_corr_values = ['X_X', 'X_Y', 'X_Z', 'X_I', 'Y_Y', 'Y_Z', 'Y_I', 'Z_Z', 'Z_I']
-    #                      note the >>> paramtype <<< it is important
-    two_q_corr = ParamSpec('two_q_corr', 'text', label='2-qubit correlator', unit='',
-                           depends_on=[val, meas_number])
+    n_points = 20
     
-    data_set = new_data_set('sweep-with-strings')
+    with meas.run() as datasaver:
+        for zval, correlator in enumerate(two_q_corr_values):
+            tvals = np.random.rand(n_points)
+            for tval in tvals:
+                datasaver.add_result((two_qubit_corr, correlator),
+                                     (t, tval), (z, zval))
     
-    data_set.add_parameter(meas_number)
-    data_set.add_parameter(val)
-    data_set.add_parameter(two_q_corr)
     
-    n_measurements = 20
-    values = gen_random_unit_vectors(len(two_q_corr_values), n_measurements)
-    
-    for n_meas in range(n_measurements):
-        for two_q_corr_id, value in zip(two_q_corr_values, values[n_meas]):
-            data_set.add_result({'two_q_corr': two_q_corr_id, 'val': value, 'meas_number': n_meas})
-    
-    data_set.mark_complete()
-    
-    run_id_3d_strings_dep = data_set.run_id
+    run_id_2d_strings = datasaver.run_id
+
+
+.. parsed-literal::
+
+    Starting experimental run with id: 27
+
 
 .. code:: ipython3
 
-    plot_by_id(run_id_3d_strings_dep)
+    axes, colorbars = plot_by_id(run_id_2d_strings)
 
 
 
@@ -669,16 +661,7 @@ This case may produce **incorrect** plots, see an example below.
 
 .. raw:: html
 
-    <div id='231eefb2-0da0-4dbd-9703-832dd307fbd1'></div>
-
-
-
-
-.. parsed-literal::
-
-    ([<matplotlib.axes._subplots.AxesSubplot at 0x2adcf07cee80>],
-     [<matplotlib.colorbar.Colorbar at 0x2adcf0896518>])
-
+    <div id='b170b2e6-7d56-4af2-b9af-0e43de561ba7'></div>
 
 
 Fancy plotting
@@ -702,7 +685,7 @@ We first make a little grid of axes.
 
 .. raw:: html
 
-    <div id='9184d6c7-2839-4910-9bd3-8a5fecab8b52'></div>
+    <div id='b46c9555-d30a-4f06-a60f-2f4c7cfd4f74'></div>
 
 
 Next, we make some runs (shamelessly copy-pasting from above).
@@ -710,39 +693,46 @@ Next, we make some runs (shamelessly copy-pasting from above).
 .. code:: ipython3
 
     # First run
-    
-    data_set = new_data_set('1D-sweep')
-    
-    data_set.add_parameter(x)
-    data_set.add_parameter(y)
+    meas = Measurement()
+    meas.register_parameter(x)
+    meas.register_parameter(y, setpoints=(x,))
     
     xvals = np.linspace(-3.4, 4.2, 250)
     
-    for xnum in xvals:
-        noise = np.random.randn()*0.1  # multiplicative noise yeah yeah
-        data_set.add_result({'x': xnum, 'y': 2*(xnum+noise)**3 - 5*(xnum+noise)**2})
+    with meas.run() as datasaver:
+        for xnum in xvals:
+            noise = np.random.randn()*0.1  # multiplicative noise yeah yeah
+            datasaver.add_result((x, xnum),
+                                 (y, 2*(xnum+noise)**3 - 5*(xnum+noise)**2))
     
-    data_set.mark_complete()
-    rid1 = data_set.run_id
+    rid1 = datasaver.run_id
     
     # Second run
     
-    data_set = new_data_set('2D-sweep')
-    data_set.add_parameter(x)
-    data_set.add_parameter(t)
-    data_set.add_parameter(z)
+    meas = Measurement()
+    
+    meas.register_parameter(x)
+    meas.register_parameter(t)
+    meas.register_parameter(z, setpoints=(x, t))
     
     xvals = np.linspace(-4, 5, 50)
     tvals = np.linspace(-500, 1500, 25)
-    for xv in xvals:
-        for tv in tvals:
-            # just some arbitrary semi good looking function
-            zv = np.sin(2*np.pi*xv)*np.cos(2*np.pi*0.001*tv) + 0.001*tv
-            data_set.add_result({'x': xv, 't': tv, 'z': zv})
     
-    data_set.mark_complete()
+    with meas.run() as datasaver:
+        for xv in xvals:
+            for tv in tvals:
+                # just some arbitrary semi good looking function
+                zv = np.sin(2*np.pi*xv)*np.cos(2*np.pi*0.001*tv) + 0.001*tv
+                datasaver.add_result((x, xv), (t, tv), (z, zv))
     
-    rid2 = data_set.run_id
+    rid2 = datasaver.run_id
+
+
+.. parsed-literal::
+
+    Starting experimental run with id: 28
+    Starting experimental run with id: 29
+
 
 And then we put them just where we please.
 
