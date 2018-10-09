@@ -169,9 +169,6 @@
 <span class="kn">from</span> <span class="nn">qcodes.instrument.parameter</span> <span class="k">import</span> <span class="n">Parameter</span>
 <span class="kn">from</span> <span class="nn">.utils</span> <span class="k">import</span> <span class="n">TraceParameter</span>
 
-<span class="c1"># imported for backwards compat only</span>
-<span class="kn">from</span> <span class="nn">.utils</span> <span class="k">import</span> <span class="n">TrivialDictionary</span><span class="p">,</span> <span class="n">AlazarParameter</span>
-
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 <span class="c1"># TODO(damazter) (C) logging</span>
@@ -631,54 +628,14 @@
                                <span class="s2">&quot;but internal sample rate supplied. &quot;</span>
                                <span class="s2">&quot;Please use &#39;external_sample_rate&#39;&quot;</span><span class="p">)</span>
             <span class="n">sample_rate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">external_sample_rate</span>
-            <span class="k">if</span> <span class="s1">&#39;sample_rate&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_set_updated_if_alazar_parameter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">clock_source</span> <span class="o">==</span> <span class="s1">&#39;INTERNAL_CLOCK&#39;</span><span class="p">:</span>
             <span class="n">sample_rate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span>
             <span class="k">if</span> <span class="n">external_sample_rate</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Using internal clock &quot;</span>
                                <span class="s2">&quot;but external sample rate supplied. &quot;</span>
                                <span class="s2">&quot;Please use &#39;external_sample_rate&#39;&quot;</span><span class="p">)</span>
-            <span class="k">if</span> <span class="s1">&#39;external_sample_rate&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_set_updated_if_alazar_parameter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">external_sample_rate</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">sync_settings_to_card</span><span class="p">()</span></div>
-
-    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">_get_raw_or_bytes</span><span class="p">(</span><span class="n">parameter</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Parameter</span><span class="p">,</span>
-                                                 <span class="n">AlazarParameter</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span><span class="nb">int</span><span class="p">,</span><span class="nb">float</span><span class="p">]:</span>
-        <span class="sd">&quot;&quot;&quot;A simple function to make it easier to handle the difference between</span>
-<span class="sd">        Alazar paramters and regular parameters. Should be removed one AlazarParameters</span>
-<span class="sd">        are no longer used.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">parameter</span><span class="p">,</span> <span class="n">AlazarParameter</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">parameter</span><span class="o">.</span><span class="n">_get_byte</span><span class="p">()</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">parameter</span><span class="o">.</span><span class="n">raw_value</span>
-
-    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">_set_or__set</span><span class="p">(</span><span class="n">parameter</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Parameter</span><span class="p">,</span> <span class="n">AlazarParameter</span><span class="p">],</span>
-                     <span class="n">value</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span><span class="nb">float</span><span class="p">,</span><span class="nb">str</span><span class="p">],</span>
-                     <span class="n">set_updated</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Simple wrapper to make it easier to set both an AlazarParameter and a</span>
-<span class="sd">        regular one. Can be dropped once we remove AlazarParameters</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">parameter</span><span class="p">,</span> <span class="n">AlazarParameter</span><span class="p">):</span>
-            <span class="n">parameter</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">set_updated</span><span class="p">:</span>
-                <span class="n">parameter</span><span class="o">.</span><span class="n">_set_updated</span><span class="p">()</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">parameter</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-
-    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">_set_updated_if_alazar_parameter</span><span class="p">(</span><span class="n">parameter</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Parameter</span><span class="p">,</span> <span class="n">AlazarParameter</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Simple wrapper to set Paramter updated if</span>
-<span class="sd">        it is an AlazarParameter</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">parameter</span><span class="p">,</span> <span class="n">AlazarParameter</span><span class="p">):</span>
-            <span class="n">parameter</span><span class="o">.</span><span class="n">_set_updated</span><span class="p">()</span>
 
 <div class="viewcode-block" id="AlazarTech_ATS.syncing"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.AlazarTech.html#qcodes.instrument_drivers.AlazarTech.ATS.AlazarTech_ATS.syncing">[docs]</a>    <span class="nd">@contextmanager</span>
     <span class="k">def</span> <span class="nf">syncing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -703,20 +660,21 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Syncs all parameters to Alazar card</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_set_updated_if_alazar_parameter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">clock_source</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">clock_source</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;EXTERNAL_CLOCK_10MHz_REF&#39;</span><span class="p">:</span>
             <span class="n">sample_rate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">external_sample_rate</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">external_sample_rate</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;UNDEFINED&#39;</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Using external 10 MHz Ref but external sample_rate is not set&quot;</span><span class="p">)</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">)</span> <span class="o">!=</span> <span class="s1">&#39;UNDEFINED&#39;</span><span class="p">:</span>
-                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Using external 10 MHz Ref but parameter sample_rate is set.&quot;</span>
-                              <span class="s2">&quot;This will have no effect and is ignored&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">external_sample_rate</span><span class="o">.</span><span class="n">raw_value</span> <span class="o">==</span> <span class="s1">&#39;UNDEFINED&#39;</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Using external 10 MHz Ref but external &quot;</span>
+                                   <span class="s2">&quot;sample_rate is not set&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span><span class="o">.</span><span class="n">raw_value</span> <span class="o">!=</span> <span class="s1">&#39;UNDEFINED&#39;</span><span class="p">:</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Using external 10 MHz Ref but parameter sample_&quot;</span>
+                              <span class="s2">&quot;rate is set. This will have no effect and &quot;</span>
+                              <span class="s2">&quot;is ignored&quot;</span><span class="p">)</span>
             <span class="c1"># mark the unused parameter as up to date</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span><span class="o">.</span><span class="n">_set_updated</span><span class="p">()</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;UNDEFINED&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_rate</span><span class="o">.</span><span class="n">raw_value</span> <span class="o">==</span> <span class="s1">&#39;UNDEFINED&#39;</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Using Internal clock but parameter sample_rate is not set&quot;</span><span class="p">)</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">external_sample_rate</span><span class="p">)</span> <span class="o">!=</span> <span class="s1">&#39;UNDEFINED&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">external_sample_rate</span><span class="o">.</span><span class="n">raw_value</span> <span class="o">!=</span> <span class="s1">&#39;UNDEFINED&#39;</span><span class="p">:</span>
                 <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Using Internal clock but parameter external_sample_rate is set.&quot;</span>
                               <span class="s2">&quot;This will have no effect and is ignored&quot;</span><span class="p">)</span>
             <span class="c1"># mark the unused parameter as up to date</span>
@@ -826,8 +784,6 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_set_if_present</span><span class="p">(</span><span class="s1">&#39;buffer_timeout&#39;</span><span class="p">,</span> <span class="n">buffer_timeout</span><span class="p">)</span>
 
         <span class="c1"># endregion</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span> <span class="n">AlazarParameter</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="o">.</span><span class="n">_set_updated</span><span class="p">()</span>
         <span class="n">mode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">mode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;TS&#39;</span><span class="p">,</span> <span class="s1">&#39;NPT&#39;</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Only the &#39;TS&#39; and &#39;NPT&#39; modes are implemented &quot;</span>
@@ -835,9 +791,10 @@
 
         <span class="c1"># -----set final configurations-----</span>
 
-        <span class="n">buffers_per_acquisition</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">buffers_per_acquisition</span><span class="p">)</span>
-        <span class="n">samples_per_record</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">samples_per_record</span><span class="p">)</span>
-        <span class="n">records_per_buffer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">records_per_buffer</span><span class="p">)</span>
+        <span class="n">buffers_per_acquisition</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffers_per_acquisition</span><span class="o">.</span><span class="n">raw_value</span>
+        <span class="n">samples_per_record</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">samples_per_record</span><span class="o">.</span><span class="n">raw_value</span>
+        <span class="n">records_per_buffer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">records_per_buffer</span><span class="o">.</span><span class="n">raw_value</span>
+
         <span class="c1"># Set record size for NPT mode</span>
         <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;NPT&#39;</span><span class="p">:</span>
             <span class="n">pretriggersize</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># pretriggersize is 0 for NPT always</span>
@@ -848,20 +805,21 @@
         <span class="c1"># set acquisition parameters here for NPT, TS mode</span>
         <span class="n">samples_per_buffer</span> <span class="o">=</span> <span class="mi">0</span>
 
-        <span class="n">acquire_flags</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="p">)</span> <span class="o">|</span>
-                         <span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">external_startcapture</span><span class="p">)</span> <span class="o">|</span>
-                         <span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">enable_record_headers</span><span class="p">)</span> <span class="o">|</span>
-                         <span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alloc_buffers</span><span class="p">)</span> <span class="o">|</span>
-                         <span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fifo_only_streaming</span><span class="p">)</span> <span class="o">|</span>
-                         <span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">interleave_samples</span><span class="p">)</span> <span class="o">|</span>
-                         <span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_processed_data</span><span class="p">))</span>
+        <span class="n">acquire_flags</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="o">.</span><span class="n">raw_value</span> <span class="o">|</span>
+                         <span class="bp">self</span><span class="o">.</span><span class="n">external_startcapture</span><span class="o">.</span><span class="n">raw_value</span> <span class="o">|</span>
+                         <span class="bp">self</span><span class="o">.</span><span class="n">enable_record_headers</span><span class="o">.</span><span class="n">raw_value</span> <span class="o">|</span>
+                         <span class="bp">self</span><span class="o">.</span><span class="n">alloc_buffers</span><span class="o">.</span><span class="n">raw_value</span> <span class="o">|</span>
+                         <span class="bp">self</span><span class="o">.</span><span class="n">fifo_only_streaming</span><span class="o">.</span><span class="n">raw_value</span> <span class="o">|</span>
+                         <span class="bp">self</span><span class="o">.</span><span class="n">interleave_samples</span><span class="o">.</span><span class="n">raw_value</span> <span class="o">|</span>
+                         <span class="bp">self</span><span class="o">.</span><span class="n">get_processed_data</span><span class="o">.</span><span class="n">raw_value</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;NPT&#39;</span><span class="p">:</span>
             <span class="n">records_per_acquisition</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="n">records_per_buffer</span> <span class="o">*</span> <span class="n">buffers_per_acquisition</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarBeforeAsyncRead&#39;</span><span class="p">,</span>
-                           <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">channel_selection</span><span class="p">),</span>
-                           <span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">transfer_offset</span><span class="p">),</span> <span class="n">samples_per_record</span><span class="p">,</span>
+                           <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel_selection</span><span class="o">.</span><span class="n">raw_value</span><span class="p">,</span>
+                           <span class="bp">self</span><span class="o">.</span><span class="n">transfer_offset</span><span class="o">.</span><span class="n">raw_value</span><span class="p">,</span>
+                           <span class="n">samples_per_record</span><span class="p">,</span>
                            <span class="n">records_per_buffer</span><span class="p">,</span> <span class="n">records_per_acquisition</span><span class="p">,</span>
                            <span class="n">acquire_flags</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;TS&#39;</span><span class="p">:</span>
@@ -872,30 +830,17 @@
                                 <span class="s1">&#39;calculation&#39;</span><span class="p">)</span>
             <span class="n">samples_per_buffer</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">samples_per_record</span> <span class="o">/</span>
                                      <span class="n">buffers_per_acquisition</span><span class="p">)</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">records_per_buffer</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">records_per_buffer</span><span class="o">.</span><span class="n">raw_value</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;records_per_buffer should be 1 in TS mode, &#39;</span>
                                 <span class="s1">&#39;defauling to 1&#39;</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_set_or__set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">records_per_buffer</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-            <span class="n">records_per_buffer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">records_per_buffer</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">records_per_buffer</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">records_per_buffer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">records_per_buffer</span><span class="o">.</span><span class="n">raw_value</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarBeforeAsyncRead&#39;</span><span class="p">,</span>
-                           <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">channel_selection</span><span class="p">),</span>
-                           <span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">transfer_offset</span><span class="p">),</span> <span class="n">samples_per_buffer</span><span class="p">,</span>
+                           <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel_selection</span><span class="o">.</span><span class="n">raw_value</span><span class="p">,</span>
+                           <span class="bp">self</span><span class="o">.</span><span class="n">transfer_offset</span><span class="o">.</span><span class="n">raw_value</span><span class="p">,</span> <span class="n">samples_per_buffer</span><span class="p">,</span>
                            <span class="n">records_per_buffer</span><span class="p">,</span> <span class="n">buffers_per_acquisition</span><span class="p">,</span>
                            <span class="n">acquire_flags</span><span class="p">)</span>
-
-        <span class="c1"># Todo this can all be dropped once the alazar parameters are removed</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_set_updated_if_alazar_parameter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">samples_per_record</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_set_updated_if_alazar_parameter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">records_per_buffer</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_set_updated_if_alazar_parameter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">buffers_per_acquisition</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_set_updated_if_alazar_parameter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">channel_selection</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_set_updated_if_alazar_parameter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">transfer_offset</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_set_updated_if_alazar_parameter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">external_startcapture</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_set_updated_if_alazar_parameter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">enable_record_headers</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_set_updated_if_alazar_parameter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alloc_buffers</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_set_updated_if_alazar_parameter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fifo_only_streaming</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_set_updated_if_alazar_parameter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">interleave_samples</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_set_updated_if_alazar_parameter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_processed_data</span><span class="p">)</span>
 
         <span class="c1"># bytes per sample</span>
         <span class="n">max_s</span><span class="p">,</span> <span class="n">bps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_channel_info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">)</span>
@@ -905,15 +850,8 @@
         <span class="n">bytes_per_record</span> <span class="o">=</span> <span class="n">bytes_per_sample</span> <span class="o">*</span> <span class="n">samples_per_record</span>
 
         <span class="c1"># channels</span>
-        <span class="n">channels_binrep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">channel_selection</span><span class="p">)</span>
+        <span class="n">channels_binrep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel_selection</span><span class="o">.</span><span class="n">raw_value</span>
         <span class="n">number_of_channels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_num_channels</span><span class="p">(</span><span class="n">channels_binrep</span><span class="p">)</span>
-
-        <span class="c1"># bytes per sample</span>
-        <span class="n">max_s</span><span class="p">,</span> <span class="n">bps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_channel_info</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">)</span>
-        <span class="c1"># TODO(JHN) Why +7 I guess its to do ceil division?</span>
-        <span class="n">bytes_per_sample</span> <span class="o">=</span> <span class="p">(</span><span class="n">bps</span> <span class="o">+</span> <span class="mi">7</span><span class="p">)</span> <span class="o">//</span> <span class="mi">8</span>
-        <span class="c1"># bytes per record</span>
-        <span class="n">bytes_per_record</span> <span class="o">=</span> <span class="n">bytes_per_sample</span> <span class="o">*</span> <span class="n">samples_per_record</span>
 
         <span class="c1"># bytes per buffer</span>
         <span class="n">bytes_per_buffer</span> <span class="o">=</span> <span class="p">(</span><span class="n">bytes_per_record</span> <span class="o">*</span>
@@ -926,19 +864,16 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">clear_buffers</span><span class="p">()</span>
 
         <span class="c1"># make sure that allocated_buffers &lt;= buffers_per_acquisition</span>
-        <span class="n">allocated_buffers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">allocated_buffers</span><span class="p">)</span>
-        <span class="n">buffers_per_acquisition</span> <span class="o">=</span>  <span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">buffers_per_acquisition</span><span class="p">)</span>
+        <span class="n">allocated_buffers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">allocated_buffers</span><span class="o">.</span><span class="n">raw_value</span>
+        <span class="n">buffers_per_acquisition</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffers_per_acquisition</span><span class="o">.</span><span class="n">raw_value</span>
 
         <span class="k">if</span> <span class="n">allocated_buffers</span> <span class="o">&gt;</span> <span class="n">buffers_per_acquisition</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;&#39;allocated_buffers&#39; should be &lt;= &quot;</span>
                             <span class="s2">&quot;&#39;buffers_per_acquisition&#39;. Defaulting &#39;allocated_buffers&#39;&quot;</span>
                             <span class="n">f</span><span class="s2">&quot; to </span><span class="si">{buffers_per_acquisition}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">allocated_buffers</span><span class="p">,</span> <span class="n">AlazarParameter</span><span class="p">):</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">allocated_buffers</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">buffers_per_acquisition</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">allocated_buffers</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">buffers_per_acquisition</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">allocated_buffers</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">buffers_per_acquisition</span><span class="p">)</span>
 
-        <span class="n">allocated_buffers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">allocated_buffers</span><span class="p">)</span>
+        <span class="n">allocated_buffers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">allocated_buffers</span><span class="o">.</span><span class="n">raw_value</span>
         <span class="n">buffer_recycling</span> <span class="o">=</span> <span class="n">buffers_per_acquisition</span> <span class="o">&gt;</span> <span class="n">allocated_buffers</span>
         <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">allocated_buffers</span><span class="p">):</span>
             <span class="k">try</span><span class="p">:</span>
@@ -952,7 +887,6 @@
             <span class="k">for</span> <span class="n">buf</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffer_list</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarPostAsyncBuffer&#39;</span><span class="p">,</span>
                                <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">buf</span><span class="o">.</span><span class="n">addr</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_void_p</span><span class="p">),</span> <span class="n">buf</span><span class="o">.</span><span class="n">size_bytes</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_set_updated_if_alazar_parameter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">allocated_buffers</span><span class="p">)</span>
 
             <span class="c1"># -----start capture here-----</span>
             <span class="n">acquisition_controller</span><span class="o">.</span><span class="n">pre_start_capture</span><span class="p">()</span>
@@ -964,8 +898,7 @@
             <span class="c1"># buffer handling from acquisition</span>
             <span class="n">buffers_completed</span> <span class="o">=</span> <span class="mi">0</span>
             <span class="n">bytes_transferred</span> <span class="o">=</span> <span class="mi">0</span>
-            <span class="n">buffer_timeout</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_raw_or_bytes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">buffer_timeout</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_set_updated_if_alazar_parameter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">buffer_timeout</span><span class="p">)</span>
+            <span class="n">buffer_timeout</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffer_timeout</span><span class="o">.</span><span class="n">raw_value</span>
 
             <span class="n">done_setup</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
             <span class="k">while</span> <span class="p">(</span><span class="n">buffers_completed</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffers_per_acquisition</span><span class="o">.</span><span class="n">get</span><span class="p">()):</span>
@@ -1003,13 +936,11 @@
         <span class="c1"># check if all parameters are up to date</span>
         <span class="c1"># Getting IDN is very slow so skip that</span>
         <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">AlazarParameter</span><span class="p">):</span>
-                <span class="k">if</span> <span class="n">name</span> <span class="o">!=</span> <span class="s1">&#39;IDN&#39;</span><span class="p">:</span>
-                    <span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
-            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">TraceParameter</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">TraceParameter</span><span class="p">):</span>
                 <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">synced_to_card</span> <span class="o">==</span> <span class="kc">False</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;TraceParameter </span><span class="si">{p}</span><span class="s2"> not synced to Alazar &quot;</span>
-                                       <span class="s2">&quot;card detected. Aborting. Data may be corrupt&quot;</span><span class="p">)</span>
+                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;TraceParameter </span><span class="si">{p}</span><span class="s2"> not synced to &quot;</span>
+                                       <span class="n">f</span><span class="s2">&quot;Alazar card detected. Aborting. Data &quot;</span>
+                                       <span class="n">f</span><span class="s2">&quot;may be corrupt&quot;</span><span class="p">)</span>
 
 
         <span class="c1"># Compute the total transfer time, and display performance information.</span>
@@ -1051,27 +982,21 @@
     <span class="k">def</span> <span class="nf">_set_if_present</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span><span class="nb">str</span><span class="p">,</span><span class="nb">float</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">parameter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">param_name</span><span class="p">]</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">parameter</span><span class="p">,</span> <span class="n">AlazarParameter</span><span class="p">):</span>
-                <span class="n">parameter</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">parameter</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="n">parameter</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_set_list_if_present</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_base</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span><span class="nb">str</span><span class="p">,</span><span class="nb">float</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
                 <span class="n">parameter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">param_base</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span>
-                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">parameter</span><span class="p">,</span> <span class="n">AlazarParameter</span><span class="p">):</span>
-                    <span class="n">parameter</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">parameter</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+                <span class="n">parameter</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_call_dll</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Execute a dll function `func_name`, passing it the given arguments</span>
 
 <span class="sd">        For each argument in the list</span>
-<span class="sd">        - If an arg is a AlazarParameter of this instrument, the parameter</span>
-<span class="sd">          value from `._get_bytes()` is used. If the call succeeds, these</span>
+<span class="sd">        - If an arg is a TraceParameter of this instrument, the parameter</span>
+<span class="sd">          value from `.raw_value` is used. If the call succeeds, these</span>
 <span class="sd">          parameters will be marked as updated using their `._set_updated()`</span>
 <span class="sd">          method</span>
 <span class="sd">        - If a regular parameter the raw_value is used and uptodate is tracked</span>
@@ -1079,13 +1004,10 @@
 <span class="sd">        - Otherwise the arg is used directly</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># create the argument list</span>
-        <span class="n">args_out</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">update_params</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">AlazarParameter</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">args_out</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">update_params</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Parameter</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">AlazarParameter</span><span class="p">):</span>
-                <span class="n">args_out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">arg</span><span class="o">.</span><span class="n">_get_byte</span><span class="p">())</span>
-                <span class="n">update_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
-            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">):</span>
                 <span class="n">args_out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">arg</span><span class="o">.</span><span class="n">raw_value</span><span class="p">)</span>
                 <span class="n">update_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
@@ -1119,7 +1041,7 @@
 
         <span class="c1"># mark parameters updated (only after we&#39;ve checked for errors)</span>
         <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">update_params</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">AlazarParameter</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">TraceParameter</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="n">TraceParameter</span><span class="p">):</span>
                 <span class="n">param</span><span class="o">.</span><span class="n">_set_updated</span><span class="p">()</span>
 
 
