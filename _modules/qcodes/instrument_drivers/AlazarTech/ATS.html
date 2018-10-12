@@ -447,11 +447,18 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        This methods gets the most relevant information of this instrument</span>
 
+<span class="sd">        The firmware version reported should match the version number of</span>
+<span class="sd">        downloadable fw files from AlazarTech. But note that the firmware</span>
+<span class="sd">        version has often been found to be incorrect for several firmware</span>
+<span class="sd">        versions. At the time of writing it is known to be correct for the</span>
+<span class="sd">        9360 (v 21.07) and 9373 (v 30.04) but incorrect for several earlier</span>
+<span class="sd">        versions. In Alazar DSO this is reported as FPGA Version.</span>
+
 <span class="sd">        Returns:</span>
 
 <span class="sd">            Dictionary containing</span>
 
-<span class="sd">                - &#39;firmware&#39;: None</span>
+<span class="sd">                - &#39;firmware&#39;: as string</span>
 <span class="sd">                - &#39;model&#39;: as string</span>
 <span class="sd">                - &#39;serial&#39;: board serial number</span>
 <span class="sd">                - &#39;vendor&#39;: &#39;AlazarTech&#39;,</span>
@@ -517,7 +524,17 @@
                        <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span> <span class="mh">0x10000031</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">byref</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
         <span class="n">pcie_link_width</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;firmware&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+
+        <span class="c1"># Alazartech has confirmed in a support mail that this</span>
+        <span class="c1"># is the way to get the firmware version</span>
+        <span class="n">firmware_major</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">asopc_type</span><span class="p">)</span> <span class="o">&gt;&gt;</span> <span class="mi">16</span><span class="p">)</span> <span class="o">&amp;</span> <span class="mh">0xff</span>
+        <span class="n">firmware_minor</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">asopc_type</span><span class="p">)</span> <span class="o">&gt;&gt;</span> <span class="mi">24</span><span class="p">)</span> <span class="o">&amp;</span> <span class="mh">0xf</span>
+        <span class="c1"># firmware_minor above does not contain any prefixed zeros</span>
+        <span class="c1"># but the minor version is always 2 digits.</span>
+        <span class="n">firmware_version</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{firmware_major}</span><span class="s1">.</span><span class="si">{firmware_minor:02d}</span><span class="s1">&#39;</span>
+
+
+        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;firmware&#39;</span><span class="p">:</span> <span class="n">firmware_version</span><span class="p">,</span>
                 <span class="s1">&#39;model&#39;</span><span class="p">:</span> <span class="n">board_kind</span><span class="p">,</span>
                 <span class="s1">&#39;max_samples&#39;</span><span class="p">:</span> <span class="n">max_s</span><span class="p">,</span>
                 <span class="s1">&#39;bits_per_sample&#39;</span><span class="p">:</span> <span class="n">bps</span><span class="p">,</span>
