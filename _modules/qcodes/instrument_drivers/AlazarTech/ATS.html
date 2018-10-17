@@ -416,6 +416,16 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_ATS_dll</span><span class="o">.</span><span class="n">AlazarWaitAsyncBufferComplete</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="p">[</span>
             <span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint32</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_void_p</span><span class="p">,</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint32</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ATS_dll</span><span class="o">.</span><span class="n">AlazarReadRegister</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint32</span><span class="p">,</span>
+            <span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint32</span><span class="p">,</span>
+            <span class="n">ctypes</span><span class="o">.</span><span class="n">POINTER</span><span class="p">(</span><span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint32</span><span class="p">),</span>
+            <span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint32</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ATS_dll</span><span class="o">.</span><span class="n">AlazarWriteRegister</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint32</span><span class="p">,</span>
+            <span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint32</span><span class="p">,</span>
+            <span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint32</span><span class="p">,</span>
+            <span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint32</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_ATS_dll</span><span class="o">.</span><span class="n">AlazarBeforeAsyncRead</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="p">[</span><span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint32</span><span class="p">,</span>
                                                         <span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint32</span><span class="p">,</span>
                                                         <span class="n">ctypes</span><span class="o">.</span><span class="n">c_long</span><span class="p">,</span>
@@ -1154,7 +1164,42 @@
         <span class="k">elif</span> <span class="n">byte_rep</span> <span class="ow">in</span> <span class="n">sixteen_channels</span><span class="p">:</span>
             <span class="k">return</span> <span class="mi">16</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Invalid channel configuration supplied&#39;</span><span class="p">)</span></div></div>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Invalid channel configuration supplied&#39;</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span> <span class="nf">_read_register</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">offset</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Read a value from a given register in the Alazars memory</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            offset: Offset into he memmory to read from</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The value read as en integer</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint32</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">pwd</span> <span class="o">=</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint32</span><span class="p">(</span><span class="mh">0x32145876</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarReadRegister&#39;</span><span class="p">,</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span>
+                       <span class="n">offset</span><span class="p">,</span>
+                       <span class="n">ctypes</span><span class="o">.</span><span class="n">byref</span><span class="p">(</span><span class="n">output</span><span class="p">),</span>
+                       <span class="n">pwd</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">output</span><span class="o">.</span><span class="n">value</span>
+
+    <span class="k">def</span> <span class="nf">_write_register</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">offset</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Write a value to a given offset in the Alazars memory</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            offset: The offset to write to</span>
+<span class="sd">            value: The value to write</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pwd</span> <span class="o">=</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint32</span><span class="p">(</span><span class="mh">0x32145876</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_call_dll</span><span class="p">(</span><span class="s1">&#39;AlazarWriteRegister&#39;</span><span class="p">,</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">,</span>
+                       <span class="n">offset</span><span class="p">,</span>
+                       <span class="n">value</span><span class="p">,</span>
+                       <span class="n">pwd</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="Buffer"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.AlazarTech.html#qcodes.instrument_drivers.AlazarTech.ATS.Buffer">[docs]</a><span class="k">class</span> <span class="nc">Buffer</span><span class="p">:</span>
