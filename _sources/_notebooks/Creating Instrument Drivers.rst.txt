@@ -21,12 +21,11 @@ Base Classes
 There are 3 available: - ``VisaInstrument`` - for most instruments that
 communicate over a text channel (ethernet, GPIB, serial, USB...) that do
 not have a custom DLL or other driver to manage low-level commands. -
-``IPInstrument`` - a specialized driver just for ethernet connections.
-Otherwise works nearly identically to ``VisaInstrument``. -
-``Instrument`` - superclass of both ``VisaInstrument`` and
-``IPInstrument``, use this if you do not communicate over a text
-channel, for example: - PCI cards with their own DLLs - Instruments with
-only manual controls.
+``IPInstrument`` - a deprecated driver just for ethernet connections. Do
+not use this; use ``VisaInstrument`` instead. - ``Instrument`` -
+superclass of both ``VisaInstrument`` and ``IPInstrument``, use this if
+you do not communicate over a text channel, for example: - PCI cards
+with their own DLLs - Instruments with only manual controls.
 
 If possible, please use a ``VisaInstrument``, as this allows for the
 creation of a simulated instrument. (See the
@@ -311,7 +310,9 @@ A totally manual instrument (like the ithaco 1211) will contain only
 ``ManualParameter``\ s. Some instruments may have a mix of manual and
 standard parameters. Here we also define a new ``CurrentParameter``
 class that uses the ithaco parameters to convert a measured voltage to a
-current.
+current. When subclassing a parameter class (``Parameter``,
+``MultiParameter``, ...), the functions for setting and getting should
+be called ``get_raw`` and ``set_raw``, respectively.
 
 .. code:: ipython3
 
@@ -349,7 +350,7 @@ current.
             self._measured_param = measured_param
             self._instrument = c_amp_ins
     
-        def get(self):
+        def get_raw(self):
             volt = self._measured_param.get()
             current = (self._instrument.sens.get() *
                        self._instrument.sens_factor.get()) * volt
@@ -434,13 +435,15 @@ can invoke any class you want:
 -  ``Parameter`` handles most common instrument settings and
    measurements.
 -  Accepts get and/or set commands as either strings for the
-   instrument's ``ask`` and ``write`` methods, or functions/methods.
+   instrument's ``ask`` and ``write`` methods, or functions/methods. The
+   set and get commands may also be set to ``False`` and ``None``.
+   ``False`` corresponds to "no get/set method available" (example: the
+   reading of a voltmeter is not settable, so we set ``set_cmd=False``).
+   ``None`` corresponds to a manually updated parameter (example: an
+   instrument with no remote interface).
 -  Has options for translating between instrument codes and more
    meaningful data values
 -  Supports software-controlled ramping
--  ``ManualParameter`` is for things you don't control electronically,
-   like physical knobs. When you *manually* change the knob, you must
-   *manually* change it in software too.
 -  Any other parameter class may be used in ``add_parameter``, if it
    accepts ``name`` and ``instrument`` as constructor kwargs. Generally
    these should subclass ``Parameter``, ``ArrayParameter``, or

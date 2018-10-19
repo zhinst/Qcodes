@@ -213,12 +213,11 @@
 <p>There are 3 available: - <code class="docutils literal notranslate"><span class="pre">VisaInstrument</span></code> - for most instruments that
 communicate over a text channel (ethernet, GPIB, serial, USB…) that do
 not have a custom DLL or other driver to manage low-level commands. -
-<code class="docutils literal notranslate"><span class="pre">IPInstrument</span></code> - a specialized driver just for ethernet connections.
-Otherwise works nearly identically to <code class="docutils literal notranslate"><span class="pre">VisaInstrument</span></code>. -
-<code class="docutils literal notranslate"><span class="pre">Instrument</span></code> - superclass of both <code class="docutils literal notranslate"><span class="pre">VisaInstrument</span></code> and
-<code class="docutils literal notranslate"><span class="pre">IPInstrument</span></code>, use this if you do not communicate over a text
-channel, for example: - PCI cards with their own DLLs - Instruments with
-only manual controls.</p>
+<code class="docutils literal notranslate"><span class="pre">IPInstrument</span></code> - a deprecated driver just for ethernet connections. Do
+not use this; use <code class="docutils literal notranslate"><span class="pre">VisaInstrument</span></code> instead. - <code class="docutils literal notranslate"><span class="pre">Instrument</span></code> -
+superclass of both <code class="docutils literal notranslate"><span class="pre">VisaInstrument</span></code> and <code class="docutils literal notranslate"><span class="pre">IPInstrument</span></code>, use this if
+you do not communicate over a text channel, for example: - PCI cards
+with their own DLLs - Instruments with only manual controls.</p>
 <p>If possible, please use a <code class="docutils literal notranslate"><span class="pre">VisaInstrument</span></code>, as this allows for the
 creation of a simulated instrument. (See the
 <code class="docutils literal notranslate"><span class="pre">Creating</span> <span class="pre">Simulated</span> <span class="pre">PyVISA</span> <span class="pre">Instruments</span></code> notebook)</p>
@@ -492,7 +491,9 @@ it.</p>
 <code class="docutils literal notranslate"><span class="pre">ManualParameter</span></code>s. Some instruments may have a mix of manual and
 standard parameters. Here we also define a new <code class="docutils literal notranslate"><span class="pre">CurrentParameter</span></code>
 class that uses the ithaco parameters to convert a measured voltage to a
-current.</p>
+current. When subclassing a parameter class (<code class="docutils literal notranslate"><span class="pre">Parameter</span></code>,
+<code class="docutils literal notranslate"><span class="pre">MultiParameter</span></code>, …), the functions for setting and getting should
+be called <code class="docutils literal notranslate"><span class="pre">get_raw</span></code> and <code class="docutils literal notranslate"><span class="pre">set_raw</span></code>, respectively.</p>
 <div class="code ipython3 highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">CurrentParameter</span><span class="p">(</span><span class="n">MultiParameter</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Current measurement via an Ithaco preamp and a measured voltage.</span>
@@ -527,7 +528,7 @@ current.</p>
         <span class="bp">self</span><span class="o">.</span><span class="n">_measured_param</span> <span class="o">=</span> <span class="n">measured_param</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span> <span class="o">=</span> <span class="n">c_amp_ins</span>
 
-    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">get_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">volt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_measured_param</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
         <span class="n">current</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">sens</span><span class="o">.</span><span class="n">get</span><span class="p">()</span> <span class="o">*</span>
                    <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">sens_factor</span><span class="o">.</span><span class="n">get</span><span class="p">())</span> <span class="o">*</span> <span class="n">volt</span>
@@ -610,13 +611,15 @@ can invoke any class you want:</p>
 <li><code class="docutils literal notranslate"><span class="pre">Parameter</span></code> handles most common instrument settings and
 measurements.</li>
 <li>Accepts get and/or set commands as either strings for the
-instrument’s <code class="docutils literal notranslate"><span class="pre">ask</span></code> and <code class="docutils literal notranslate"><span class="pre">write</span></code> methods, or functions/methods.</li>
+instrument’s <code class="docutils literal notranslate"><span class="pre">ask</span></code> and <code class="docutils literal notranslate"><span class="pre">write</span></code> methods, or functions/methods. The
+set and get commands may also be set to <code class="docutils literal notranslate"><span class="pre">False</span></code> and <code class="docutils literal notranslate"><span class="pre">None</span></code>.
+<code class="docutils literal notranslate"><span class="pre">False</span></code> corresponds to “no get/set method available” (example: the
+reading of a voltmeter is not settable, so we set <code class="docutils literal notranslate"><span class="pre">set_cmd=False</span></code>).
+<code class="docutils literal notranslate"><span class="pre">None</span></code> corresponds to a manually updated parameter (example: an
+instrument with no remote interface).</li>
 <li>Has options for translating between instrument codes and more
 meaningful data values</li>
 <li>Supports software-controlled ramping</li>
-<li><code class="docutils literal notranslate"><span class="pre">ManualParameter</span></code> is for things you don’t control electronically,
-like physical knobs. When you <em>manually</em> change the knob, you must
-<em>manually</em> change it in software too.</li>
 <li>Any other parameter class may be used in <code class="docutils literal notranslate"><span class="pre">add_parameter</span></code>, if it
 accepts <code class="docutils literal notranslate"><span class="pre">name</span></code> and <code class="docutils literal notranslate"><span class="pre">instrument</span></code> as constructor kwargs. Generally
 these should subclass <code class="docutils literal notranslate"><span class="pre">Parameter</span></code>, <code class="docutils literal notranslate"><span class="pre">ArrayParameter</span></code>, or

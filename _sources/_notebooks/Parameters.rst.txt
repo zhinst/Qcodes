@@ -7,25 +7,25 @@ Parameters in QCoDeS
     import qcodes as qc
     import numpy as np
 
-QCoDeS provides 5 classes of parameter built in. Three base classes
-(which must be subclassed to use): - ``Parameter`` represents a single
-value at a time - Example: voltage - ``ArrayParameter`` represents an
-array of values of all the same type that are returned all at once -
-Example: voltage vs time waveform - ``MultiParameter`` represents a
-collection of values with different meaning and possibly different
-dimension - Example: I and Q, or I vs time and Q vs time
-
-And two ready-to-use subclasses of ``Parameter``: -
-``StandardParameter`` - ``ManualParameter``
+QCoDeS provides 3 classes of parameter built in: - ``Parameter``
+represents a single value at a time - Example: voltage -
+``ArrayParameter`` represents an array of values of all the same type
+that are returned all at once - Example: voltage vs time waveform -
+``MultiParameter`` represents a collection of values with different
+meaning and possibly different dimension - Example: I and Q, or I vs
+time and Q vs time
 
 which are described in the "Creating Instrument Drivers" tutorial.
 
 Parameter
 ---------
 
-Most of the time you can use ``StandardParameter`` directly; even if you
-have custom ``get``/``set`` functions, but sometimes it's useful to
-subclass ``Parameter``:
+Most of the time you can use ``Parameter`` directly; even if you have
+custom ``get``/``set`` functions, but sometimes it's useful to subclass
+``Parameter``. Note that since the superclass ``Parameter`` actually
+wraps these functions (to include some extra nice-to-have
+functionality), your subclass should define ``get_raw`` and ``set_raw``
+rather than ``get`` and ``set``.
 
 .. code:: ipython3
 
@@ -38,14 +38,12 @@ subclass ``Parameter``:
                                        'but can be reset to any integer >= 0 by set')
             self._count = 0
         
-        # you must provide a get method, a set method, or both
-        def get(self):
+        # you must provide a get method, a set method, or both.
+        def get_raw(self):
             self._count += 1
             return self._count
         
-        def set(self, val):
-            # StandardParameter handles validation automatically, Parameter doesn't
-            self._vals.validate(val)
+        def set_raw(self, val):
             self._count = val
     
     c = MyCounter('c')
@@ -66,56 +64,6 @@ subclass ``Parameter``:
 
     # c2(val) is equivalent to c2.set(val)
     c2(22)
-    
-    # use these in a loop
-    data = qc.Loop(c[0:10:2]).each(c2).run_temp()
-    print('Loop results:', data)
-    print(data.arrays)
-
-
-.. parsed-literal::
-
-    Loop results: DataSet:
-       mode     = DataMode.LOCAL
-       location = False
-       <Type>   | <array_id> | <array.name> | <array.shape>
-       Setpoint | c_set      | c            | (5,)
-       Measured | c2         | c2           | (5,)
-    {
-      'c2': DataArray[5]: c2
-        array([ 23.,  24.,  25.,  26.,  27.])
-      'c_set': DataArray[5]: c_set
-        array([ 0.,  2.,  4.,  6.,  8.])
-    }
-
-
-.. code:: ipython3
-
-    # load a single get call into a new DataSet
-    # not super useful in this case, but it makes
-    # a length-1 array for each item
-    data = qc.Measure(c, c2).run_temp()
-    print('Measure results:', data)
-    print(data.arrays)
-
-
-.. parsed-literal::
-
-    Measure results: DataSet:
-       mode     = DataMode.LOCAL
-       location = False
-       <Type>   | <array_id> | <array.name> | <array.shape>
-       Setpoint | single_set | single       | (1,)
-       Measured | c          | c            | (1,)
-       Measured | c2         | c2           | (1,)
-    {
-      'c2': DataArray[1]: c2
-        array([ 28.])
-      'c': DataArray[1]: c
-        array([ 9.])
-      'single_set': DataArray[1]: single_set
-        array([ 0.])
-    }
 
 
 ArrayParameter
@@ -145,7 +93,7 @@ by ``get`` nested inside extra dimension(s) for the loop.
                              docstring='fills a 3x2 array with increasing integers')
             self._val = 0
         
-        def get(self):
+        def get_raw(self):
             # here I'm returning a nested list, but any sequence type will do.
             # tuple, np.array, DataArray...
             out = [[self._val + 2 * i + j for j in range(2)] for i in range(3)]
@@ -163,109 +111,11 @@ by ``get`` nested inside extra dimension(s) for the loop.
     first call: [[0, 1], [2, 3], [4, 5]]
 
 
-.. code:: ipython3
-
-    # load a single get call into a new DataSet
-    data = qc.Measure(array_counter).run_temp()
-    print('Measure results:', data)
-    print(data.arrays)
-
-
-.. parsed-literal::
-
-    Measure results: DataSet:
-       mode     = DataMode.LOCAL
-       location = False
-       <Type>   | <array_id>    | <array.name>  | <array.shape>
-       Measured | array_counter | array_counter | (3, 2)
-    {
-      'index1': DataArray[3,2]: index1
-        array([[ 0.,  1.],
-               [ 0.,  1.],
-               [ 0.,  1.]])
-      'array_counter': DataArray[3,2]: array_counter
-        array([[  6.,   7.],
-               [  8.,   9.],
-               [ 10.,  11.]])
-      'index0': DataArray[3]: index0
-        array([ 0.,  1.,  2.])
-    }
-
-
-.. code:: ipython3
-
-    # nest inside another loop
-    data = qc.Loop(c[0:10:2]).each(array_counter).run_temp()
-    print('Loop results:', data)
-    print(data.arrays)
-
-
-.. parsed-literal::
-
-    Loop results: DataSet:
-       mode     = DataMode.LOCAL
-       location = False
-       <Type>   | <array_id>    | <array.name>  | <array.shape>
-       Setpoint | c_set         | c             | (5,)
-       Measured | array_counter | array_counter | (5, 3, 2)
-    {
-      'array_counter': DataArray[5,3,2]: array_counter
-        array([[[ 12.,  13.],
-                [ 14.,  15.],
-                [ 16.,  17.]],
-        
-               [[ 18.,  19.],
-                [ 20.,  21.],
-                [ 22.,  23.]],
-        
-               [[ 24.,  25.],
-                [ 26.,  27.],
-                [ 28.,  29.]],
-        
-               [[ 30.,  31.],
-                [ 32.,  33.],
-                [ 34.,  35.]],
-        
-               [[ 36.,  37.],
-                [ 38.,  39.],
-                [ 40.,  41.]]])
-      'index0': DataArray[5,3]: index0
-        array([[ 0.,  1.,  2.],
-               [ 0.,  1.,  2.],
-               [ 0.,  1.,  2.],
-               [ 0.,  1.,  2.],
-               [ 0.,  1.,  2.]])
-      'c_set': DataArray[5]: c_set
-        array([ 0.,  2.,  4.,  6.,  8.])
-      'index1': DataArray[5,3,2]: index1
-        array([[[ 0.,  1.],
-                [ 0.,  1.],
-                [ 0.,  1.]],
-        
-               [[ 0.,  1.],
-                [ 0.,  1.],
-                [ 0.,  1.]],
-        
-               [[ 0.,  1.],
-                [ 0.,  1.],
-                [ 0.,  1.]],
-        
-               [[ 0.,  1.],
-                [ 0.,  1.],
-                [ 0.,  1.]],
-        
-               [[ 0.,  1.],
-                [ 0.,  1.],
-                [ 0.,  1.]]])
-    }
-
-
 MultiParameter
 --------------
 
 Return multiple items at once, where each item can be a single value or
-an array. When you use it in a ``Loop``, it makes a separate
-``DataArray`` for each item.
+an array.
 
 NOTE: Most of the kwarg names here are the plural of those used in
 ``Parameter`` and ``ArrayParameter``. In particular, ``MultiParameter``
@@ -289,7 +139,7 @@ is the ONLY one that uses ``units``, all the others use ``unit``.
                              docstring='param that returns two single values, I and Q')
             self._scale_param = scale_param
         
-        def get(self):
+        def get_raw(self):
             scale_val = self._scale_param()
             return (scale_val, scale_val / 2)
     
@@ -307,33 +157,6 @@ is the ONLY one that uses ``units``, all the others use ``unit``.
 
 .. code:: ipython3
 
-    # Loop usage
-    data = qc.Loop(scale[0:1:.1]).each(iq).run_temp()
-    print('Loop_results:', data)
-    print(data.arrays)
-
-
-.. parsed-literal::
-
-    Loop_results: DataSet:
-       mode     = DataMode.LOCAL
-       location = False
-       <Type>   | <array_id> | <array.name> | <array.shape>
-       Setpoint | scale_set  | scale        | (10,)
-       Measured | I          | I            | (10,)
-       Measured | Q          | Q            | (10,)
-    {
-      'I': DataArray[10]: I
-        array([ 0. ,  0.1,  0.2,  0.3,  0.4,  0.5,  0.6,  0.7,  0.8,  0.9])
-      'scale_set': DataArray[10]: scale_set
-        array([ 0. ,  0.1,  0.2,  0.3,  0.4,  0.5,  0.6,  0.7,  0.8,  0.9])
-      'Q': DataArray[10]: Q
-        array([ 0.  ,  0.05,  0.1 ,  0.15,  0.2 ,  0.25,  0.3 ,  0.35,  0.4 ,  0.45])
-    }
-
-
-.. code:: ipython3
-
     class IQArray(qc.MultiParameter):
         def __init__(self, scale_param):
             # names, labels, and units are the same 
@@ -347,7 +170,7 @@ is the ONLY one that uses ``units``, all the others use ``unit``.
             self._scale_param = scale_param
             self._indices = np.array([0, 1, 2, 3, 4])
     
-        def get(self):
+        def get_raw(self):
             scale_val = self._scale_param()
             return (self._indices * scale_val, self._indices * scale_val / 2)
     
@@ -362,60 +185,4 @@ is the ONLY one that uses ``units``, all the others use ``unit``.
 
     simple get (array([0, 1, 2, 3, 4]), array([ 0. ,  0.5,  1. ,  1.5,  2. ]))
 
-
-.. code:: ipython3
-
-    # Loop usage
-    data = qc.Loop(scale[0:1:.1]).each(iq_array).run_temp()
-    print('Loop_results:', data)
-    print(data.arrays)
-
-
-.. parsed-literal::
-
-    Loop_results: DataSet:
-       mode     = DataMode.LOCAL
-       location = False
-       <Type>   | <array_id> | <array.name> | <array.shape>
-       Setpoint | scale_set  | scale        | (10,)
-       Measured | index0     | index0       | (10, 5)
-       Measured | I          | I            | (10, 5)
-       Measured | Q          | Q            | (10, 5)
-    {
-      'I': DataArray[10,5]: I
-        array([[ 0. ,  0. ,  0. ,  0. ,  0. ],
-               [ 0. ,  0.1,  0.2,  0.3,  0.4],
-               [ 0. ,  0.2,  0.4,  0.6,  0.8],
-               [ 0. ,  0.3,  0.6,  0.9,  1.2],
-               [ 0. ,  0.4,  0.8,  1.2,  1.6],
-               [ 0. ,  0.5,  1. ,  1.5,  2. ],
-               [ 0. ,  0.6,  1.2,  1.8,  2.4],
-               [ 0. ,  0.7,  1.4,  2.1,  2.8],
-               [ 0. ,  0.8,  1.6,  2.4,  3.2],
-               [ 0. ,  0.9,  1.8,  2.7,  3.6]])
-      'Q': DataArray[10,5]: Q
-        array([[ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ],
-               [ 0.  ,  0.05,  0.1 ,  0.15,  0.2 ],
-               [ 0.  ,  0.1 ,  0.2 ,  0.3 ,  0.4 ],
-               [ 0.  ,  0.15,  0.3 ,  0.45,  0.6 ],
-               [ 0.  ,  0.2 ,  0.4 ,  0.6 ,  0.8 ],
-               [ 0.  ,  0.25,  0.5 ,  0.75,  1.  ],
-               [ 0.  ,  0.3 ,  0.6 ,  0.9 ,  1.2 ],
-               [ 0.  ,  0.35,  0.7 ,  1.05,  1.4 ],
-               [ 0.  ,  0.4 ,  0.8 ,  1.2 ,  1.6 ],
-               [ 0.  ,  0.45,  0.9 ,  1.35,  1.8 ]])
-      'scale_set': DataArray[10]: scale_set
-        array([ 0. ,  0.1,  0.2,  0.3,  0.4,  0.5,  0.6,  0.7,  0.8,  0.9])
-      'index0': DataArray[10,5]: index0
-        array([[ 0.,  1.,  2.,  3.,  4.],
-               [ 0.,  1.,  2.,  3.,  4.],
-               [ 0.,  1.,  2.,  3.,  4.],
-               [ 0.,  1.,  2.,  3.,  4.],
-               [ 0.,  1.,  2.,  3.,  4.],
-               [ 0.,  1.,  2.,  3.,  4.],
-               [ 0.,  1.,  2.,  3.,  4.],
-               [ 0.,  1.,  2.,  3.,  4.],
-               [ 0.,  1.,  2.,  3.,  4.],
-               [ 0.,  1.,  2.,  3.,  4.]])
-    }
 
