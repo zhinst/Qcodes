@@ -1,0 +1,1100 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>qcodes.dataset.data_set &mdash; QCoDeS 0.1.11 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+    <link href="../../../_static/style.css" rel="stylesheet" type="text/css">
+
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> QCoDeS
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1.11
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../start/index.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../help.html">Get Help</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../user/index.html">User Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../community/index.html">Community Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dataset/index.html">DataSet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/index.html">Classes and Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/generated/qcodes.instrument_drivers.html">qcodes.instrument_drivers package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../roadmap.html">Qcodes project plan</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changes/index.html">Changelogs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/index.html">Examples of using QCoDeS</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">QCoDeS</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>qcodes.dataset.data_set</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for qcodes.dataset.data_set</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">functools</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Sized</span><span class="p">,</span> <span class="n">Callable</span>
+<span class="kn">from</span> <span class="nn">threading</span> <span class="k">import</span> <span class="n">Thread</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">uuid</span>
+<span class="kn">from</span> <span class="nn">queue</span> <span class="k">import</span> <span class="n">Queue</span><span class="p">,</span> <span class="n">Empty</span>
+
+<span class="kn">from</span> <span class="nn">qcodes.dataset.param_spec</span> <span class="k">import</span> <span class="n">ParamSpec</span>
+<span class="kn">from</span> <span class="nn">qcodes.instrument.parameter</span> <span class="k">import</span> <span class="n">_BaseParameter</span>
+<span class="kn">from</span> <span class="nn">qcodes.dataset.sqlite_base</span> <span class="k">import</span> <span class="p">(</span><span class="n">atomic</span><span class="p">,</span> <span class="n">atomic_transaction</span><span class="p">,</span>
+                                        <span class="n">transaction</span><span class="p">,</span> <span class="n">add_parameter</span><span class="p">,</span>
+                                        <span class="n">connect</span><span class="p">,</span> <span class="n">create_run</span><span class="p">,</span> <span class="n">completed</span><span class="p">,</span>
+                                        <span class="n">is_column_in_table</span><span class="p">,</span>
+                                        <span class="n">get_parameters</span><span class="p">,</span>
+                                        <span class="n">get_experiments</span><span class="p">,</span>
+                                        <span class="n">get_last_experiment</span><span class="p">,</span> <span class="n">select_one_where</span><span class="p">,</span>
+                                        <span class="n">length</span><span class="p">,</span> <span class="n">modify_values</span><span class="p">,</span>
+                                        <span class="n">add_meta_data</span><span class="p">,</span> <span class="n">mark_run_complete</span><span class="p">,</span>
+                                        <span class="n">modify_many_values</span><span class="p">,</span> <span class="n">insert_values</span><span class="p">,</span>
+                                        <span class="n">insert_many_values</span><span class="p">,</span>
+                                        <span class="n">VALUE</span><span class="p">,</span> <span class="n">VALUES</span><span class="p">,</span> <span class="n">get_data</span><span class="p">,</span>
+                                        <span class="n">get_values</span><span class="p">,</span>
+                                        <span class="n">get_setpoints</span><span class="p">,</span>
+                                        <span class="n">get_metadata</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span>
+                                        <span class="n">get_experiment_name_from_experiment_id</span><span class="p">,</span>
+                                        <span class="n">get_sample_name_from_experiment_id</span><span class="p">,</span>
+                                        <span class="n">get_guid_from_run_id</span><span class="p">,</span>
+                                        <span class="n">get_run_timestamp_from_run_id</span><span class="p">,</span>
+                                        <span class="n">get_completed_timestamp_from_run_id</span><span class="p">,</span>
+                                        <span class="n">update_run_description</span><span class="p">,</span>
+                                        <span class="n">run_exists</span><span class="p">)</span>
+
+<span class="kn">from</span> <span class="nn">qcodes.dataset.descriptions</span> <span class="k">import</span> <span class="n">RunDescriber</span>
+<span class="kn">from</span> <span class="nn">qcodes.dataset.dependencies</span> <span class="k">import</span> <span class="n">InterDependencies</span>
+<span class="kn">from</span> <span class="nn">qcodes.dataset.database</span> <span class="k">import</span> <span class="n">get_DB_location</span>
+<span class="kn">from</span> <span class="nn">qcodes.dataset.guids</span> <span class="k">import</span> <span class="n">generate_guid</span>
+<span class="kn">from</span> <span class="nn">qcodes.utils.deprecate</span> <span class="k">import</span> <span class="n">deprecate</span>
+
+<span class="c1"># TODO: as of now every time a result is inserted with add_result the db is</span>
+<span class="c1"># saved same for add_results. IS THIS THE BEHAVIOUR WE WANT?</span>
+
+<span class="c1"># TODO: storing parameters in separate table as an extension (dropping</span>
+<span class="c1"># the column parametenrs would be much nicer</span>
+
+<span class="c1"># TODO: metadata split between well known columns and maybe something else is</span>
+<span class="c1"># not such a good idea. The problem is if we allow for specific columns then</span>
+<span class="c1"># how do the user/us know which are metatadata?  I THINK the only sane solution</span>
+<span class="c1"># is to store JSON in a column called metadata</span>
+
+<span class="c1"># TODO: fixix  a subset of metadata that we define well known (and create them)</span>
+<span class="c1"># i.e. no dynamic creation of metadata columns, but add stuff to</span>
+<span class="c1"># a json inside a &#39;metadata&#39; column</span>
+
+
+<span class="n">SPECS</span> <span class="o">=</span> <span class="n">List</span><span class="p">[</span><span class="n">ParamSpec</span><span class="p">]</span>
+
+
+<span class="k">class</span> <span class="nc">CompletedError</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<span class="k">class</span> <span class="nc">_Subscriber</span><span class="p">(</span><span class="n">Thread</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class to add a subscriber to a DataSet. The subscriber gets called every</span>
+<span class="sd">    time an insert is made to the results_table.</span>
+
+<span class="sd">    The _Subscriber is not meant to be instantiated directly, but rather used</span>
+<span class="sd">    via the &#39;subscribe&#39; method of the DataSet.</span>
+
+<span class="sd">    NOTE: A subscriber should be added *after* all parameters have been added.</span>
+
+<span class="sd">    NOTE: Special care shall be taken when using the *state* object: it is the</span>
+<span class="sd">    user&#39;s responsibility to operate with it in a thread-safe way.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">dataSet</span><span class="p">:</span> <span class="s1">&#39;DataSet&#39;</span><span class="p">,</span>
+                 <span class="n">id_</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">callback</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">],</span>
+                 <span class="n">state</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">loop_sleep_time</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>  <span class="c1"># in milliseconds</span>
+                 <span class="n">min_queue_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+                 <span class="n">callback_kwargs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span><span class="o">=</span><span class="kc">None</span>
+                 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_id</span> <span class="o">=</span> <span class="n">id_</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">dataSet</span> <span class="o">=</span> <span class="n">dataSet</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span> <span class="o">=</span> <span class="n">dataSet</span><span class="o">.</span><span class="n">table_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data_set_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">dataSet</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">state</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_queue</span><span class="p">:</span> <span class="n">Queue</span> <span class="o">=</span> <span class="n">Queue</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_queue_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stop_signal</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_loop_sleep_time</span> <span class="o">=</span> <span class="n">loop_sleep_time</span> <span class="o">/</span> <span class="mi">1000</span>  <span class="c1"># convert milliseconds to seconds</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_queue_length</span> <span class="o">=</span> <span class="n">min_queue_length</span>
+
+        <span class="k">if</span> <span class="n">callback_kwargs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">callback</span> <span class="o">=</span> <span class="n">callback</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">callback</span> <span class="o">=</span> <span class="n">functools</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span><span class="n">callback</span><span class="p">,</span> <span class="o">**</span><span class="n">callback_kwargs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">callback_id</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;callback</span><span class="si">{self._id}</span><span class="s2">&quot;</span>
+
+        <span class="n">conn</span> <span class="o">=</span> <span class="n">dataSet</span><span class="o">.</span><span class="n">conn</span>
+
+        <span class="n">conn</span><span class="o">.</span><span class="n">create_function</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">callback_id</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache_data_to_queue</span><span class="p">)</span>
+
+        <span class="n">parameters</span> <span class="o">=</span> <span class="n">dataSet</span><span class="o">.</span><span class="n">get_parameters</span><span class="p">()</span>
+        <span class="n">sql_param_list</span> <span class="o">=</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">f</span><span class="s2">&quot;NEW.</span><span class="si">{p.name}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">parameters</span><span class="p">])</span>
+        <span class="n">sql_create_trigger_for_callback</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        CREATE TRIGGER sub</span><span class="si">{self._id}</span><span class="s2"></span>
+<span class="s2">            AFTER INSERT ON &#39;</span><span class="si">{self.table_name}</span><span class="s2">&#39;</span>
+<span class="s2">        BEGIN</span>
+<span class="s2">            SELECT </span><span class="si">{self.callback_id}</span><span class="s2">(</span><span class="si">{sql_param_list}</span><span class="s2">);</span>
+<span class="s2">        END;&quot;&quot;&quot;</span>
+        <span class="n">atomic_transaction</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="n">sql_create_trigger_for_callback</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;_Subscriber </span><span class="si">{self._id}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_cache_data_to_queue</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Args:</span><span class="si">{args}</span><span class="s2"> put into queue for </span><span class="si">{self.callback_id}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data_set_len</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_queue_length</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Starting subscriber&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_loop</span><span class="p">()</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_exhaust_queue</span><span class="p">(</span><span class="n">queue</span><span class="p">:</span> <span class="n">Queue</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">:</span>
+        <span class="n">result_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">result_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">queue</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">block</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+            <span class="k">except</span> <span class="n">Empty</span><span class="p">:</span>
+                <span class="k">break</span>
+        <span class="k">return</span> <span class="n">result_list</span>
+
+    <span class="k">def</span> <span class="nf">_call_callback_on_queue_data</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">result_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_exhaust_queue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_queue</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">callback</span><span class="p">(</span><span class="n">result_list</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data_set_len</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{self.callback}</span><span class="s2"> called with &quot;</span>
+                       <span class="n">f</span><span class="s2">&quot;result_list: </span><span class="si">{result_list}</span><span class="s2">.&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_loop</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stop_signal</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_clean_up</span><span class="p">()</span>
+                <span class="k">break</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_queue_length</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_queue_length</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_call_callback_on_queue_data</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_queue_length</span> <span class="o">=</span> <span class="mi">0</span>
+
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_loop_sleep_time</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataSet</span><span class="o">.</span><span class="n">completed</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_call_callback_on_queue_data</span><span class="p">()</span>
+                <span class="k">break</span>
+
+    <span class="k">def</span> <span class="nf">done_callback</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Done callback&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_call_callback_on_queue_data</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">schedule_stop</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stop_signal</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Scheduling stop&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_stop_signal</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">_clean_up</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Stopped subscriber&quot;</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">DataSet</span><span class="p">(</span><span class="n">Sized</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path_to_db</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">run_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">conn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">exp_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">specs</span><span class="p">:</span> <span class="n">SPECS</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">values</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">metadata</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a new DataSet object. The object can either hold a new run or</span>
+<span class="sd">        an already existing run. If a run_id is provided, then an old run is</span>
+<span class="sd">        looked up, else a new run is created.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            path_to_db: path to the sqlite file on disk. If not provided, the</span>
+<span class="sd">              path will be read from the config.</span>
+<span class="sd">            run_id: provide this when loading an existing run, leave it</span>
+<span class="sd">              as None when creating a new run</span>
+<span class="sd">            conn: connection to the DB; if provided and `path_to_db` is</span>
+<span class="sd">              provided as well, then a ValueError is raised (this is to</span>
+<span class="sd">              prevent the possibility of providing a connection to a DB</span>
+<span class="sd">              file that is different from `path_to_db`)</span>
+<span class="sd">            exp_id: the id of the experiment in which to create a new run.</span>
+<span class="sd">              Ignored if run_id is provided.</span>
+<span class="sd">            name: the name of the dataset. Ignored if run_id is provided.</span>
+<span class="sd">            specs: paramspecs belonging to the dataset. Ignored if run_id is</span>
+<span class="sd">              provided.</span>
+<span class="sd">            values: values to insert into the dataset. Ignored if run_id is</span>
+<span class="sd">              provided.</span>
+<span class="sd">            metadata: metadata to insert into the dataset. Ignored if run_id</span>
+<span class="sd">              is provided.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">path_to_db</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">conn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Both `path_to_db` and `conn` arguments have &quot;</span>
+                             <span class="s2">&quot;been passed together with non-None values. &quot;</span>
+                             <span class="s2">&quot;This is not allowed.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_path_to_db</span> <span class="o">=</span> <span class="n">path_to_db</span> <span class="ow">or</span> <span class="n">get_DB_location</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span> <span class="o">=</span> <span class="n">conn</span> <span class="ow">or</span> <span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path_to_db</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_run_id</span> <span class="o">=</span> <span class="n">run_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_debug</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subscribers</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">_Subscriber</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">if</span> <span class="n">run_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">run_exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="n">run_id</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Run with run_id </span><span class="si">{run_id}</span><span class="s2"> does not exist in &quot;</span>
+                                 <span class="n">f</span><span class="s2">&quot;the database&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_completed</span> <span class="o">=</span> <span class="n">completed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_started</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">number_of_results</span> <span class="o">&gt;</span> <span class="mi">0</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_description</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_run_description_from_db</span><span class="p">()</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Actually perform all the side effects needed for the creation</span>
+            <span class="c1"># of a new dataset</span>
+            <span class="k">if</span> <span class="n">exp_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">get_experiments</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">))</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">exp_id</span> <span class="o">=</span> <span class="n">get_last_experiment</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No experiments found.&quot;</span>
+                                     <span class="s2">&quot;You can start a new one with:&quot;</span>
+                                     <span class="s2">&quot; new_experiment(name, sample_name)&quot;</span><span class="p">)</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">name</span> <span class="ow">or</span> <span class="s2">&quot;dataset&quot;</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">run_id</span><span class="p">,</span> <span class="n">__</span> <span class="o">=</span> <span class="n">create_run</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="n">exp_id</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span>
+                                       <span class="n">generate_guid</span><span class="p">(),</span>
+                                       <span class="n">specs</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">metadata</span><span class="p">)</span>
+            <span class="c1"># this is really the UUID (an ever increasing count in the db)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_run_id</span> <span class="o">=</span> <span class="n">run_id</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_completed</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_started</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">specs</span> <span class="o">=</span> <span class="n">specs</span> <span class="ow">or</span> <span class="p">[]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_description</span> <span class="o">=</span> <span class="n">RunDescriber</span><span class="p">(</span><span class="n">InterDependencies</span><span class="p">(</span><span class="o">*</span><span class="n">specs</span><span class="p">))</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">run_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_id</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">path_to_db</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_path_to_db</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">select_one_where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="s2">&quot;runs&quot;</span><span class="p">,</span>
+                                <span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;run_id&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">table_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">select_one_where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="s2">&quot;runs&quot;</span><span class="p">,</span>
+                                <span class="s2">&quot;result_table_name&quot;</span><span class="p">,</span> <span class="s2">&quot;run_id&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">guid</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">get_guid_from_run_id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">snapshot</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Snapshot of the run as dictionary (or None)&quot;&quot;&quot;</span>
+        <span class="n">snapshot_json</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">snapshot_raw</span>
+        <span class="k">if</span> <span class="n">snapshot_json</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">snapshot_json</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">snapshot_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Snapshot of the run as a JSON-formatted string (or None)&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">is_column_in_table</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="s2">&quot;runs&quot;</span><span class="p">,</span> <span class="s2">&quot;snapshot&quot;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">select_one_where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="s2">&quot;runs&quot;</span><span class="p">,</span> <span class="s2">&quot;snapshot&quot;</span><span class="p">,</span>
+                                    <span class="s2">&quot;run_id&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">number_of_results</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">sql</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;SELECT COUNT(*) FROM &quot;</span><span class="si">{self.table_name}</span><span class="s1">&quot;&#39;</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="n">atomic_transaction</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="n">sql</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">one</span><span class="p">(</span><span class="n">cursor</span><span class="p">,</span> <span class="s1">&#39;COUNT(*)&#39;</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">counter</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">select_one_where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="s2">&quot;runs&quot;</span><span class="p">,</span>
+                                <span class="s2">&quot;result_counter&quot;</span><span class="p">,</span> <span class="s2">&quot;run_id&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">select_one_where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="s2">&quot;runs&quot;</span><span class="p">,</span>
+                                <span class="s2">&quot;parameters&quot;</span><span class="p">,</span> <span class="s2">&quot;run_id&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">paramspecs</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ParamSpec</span><span class="p">]:</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_parameters</span><span class="p">()</span>
+        <span class="n">param_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">params</span><span class="p">]</span>
+        <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">param_names</span><span class="p">,</span> <span class="n">params</span><span class="p">))</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">exp_id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">select_one_where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="s2">&quot;runs&quot;</span><span class="p">,</span>
+                                <span class="s2">&quot;exp_id&quot;</span><span class="p">,</span> <span class="s2">&quot;run_id&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">exp_name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">get_experiment_name_from_experiment_id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">exp_id</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">sample_name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">get_sample_name_from_experiment_id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">exp_id</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">run_timestamp_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns run timestamp as number of seconds since the Epoch</span>
+
+<span class="sd">        The run timestamp is the moment when the measurement for this run</span>
+<span class="sd">        started.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">get_run_timestamp_from_run_id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">description</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RunDescriber</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_description</span>
+
+    <span class="k">def</span> <span class="nf">run_timestamp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fmt</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2"> %H:%M:%S&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns run timestamp in a human-readable format</span>
+
+<span class="sd">        The run timestamp is the moment when the measurement for this run</span>
+<span class="sd">        started.</span>
+
+<span class="sd">        Consult with `time.strftime` for information about the format.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="n">fmt</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">localtime</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">run_timestamp_raw</span><span class="p">))</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">completed_timestamp_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns timestamp when measurement run was completed</span>
+<span class="sd">        as number of seconds since the Epoch</span>
+
+<span class="sd">        If the run (or the dataset) is not completed, then returns None.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">get_completed_timestamp_from_run_id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">completed_timestamp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                            <span class="n">fmt</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2"> %H:%M:%S&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns timestamp when measurement run was completed</span>
+<span class="sd">        in a human-readable format</span>
+
+<span class="sd">        If the run (or the dataset) is not completed, then returns None.</span>
+
+<span class="sd">        Consult with `time.strftime` for information about the format.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">completed_timestamp_raw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">completed_timestamp_raw</span>
+
+        <span class="k">if</span> <span class="n">completed_timestamp_raw</span><span class="p">:</span>
+            <span class="n">completed_timestamp</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span>
+                <span class="n">fmt</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">localtime</span><span class="p">(</span><span class="n">completed_timestamp_raw</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">completed_timestamp</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">return</span> <span class="n">completed_timestamp</span>
+
+    <span class="k">def</span> <span class="nf">_get_run_description_from_db</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RunDescriber</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Look up the run_description from the database</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">desc_str</span> <span class="o">=</span> <span class="n">select_one_where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="s2">&quot;runs&quot;</span><span class="p">,</span> <span class="s2">&quot;run_description&quot;</span><span class="p">,</span>
+                                    <span class="s2">&quot;run_id&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">RunDescriber</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="n">desc_str</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_perform_start_actions</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Perform the actions that must take place once the run has been started</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># So far it is only one action: write down the run_description</span>
+        <span class="n">update_run_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="o">.</span><span class="n">to_json</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">toggle_debug</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Toggle debug mode, if debug mode is on all the queries made are</span>
+<span class="sd">        echoed back.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_debug</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_debug</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span> <span class="o">=</span> <span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path_to_db</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_debug</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">add_parameter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">spec</span><span class="p">:</span> <span class="n">ParamSpec</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Add a parameter to the DataSet. To ensure sanity, parameters must be</span>
+<span class="sd">        added to the DataSet in a sequence matching their internal</span>
+<span class="sd">        dependencies, i.e. first independent parameters, next other</span>
+<span class="sd">        independent parameters inferred from the first ones, and finally</span>
+<span class="sd">        the dependent parameters</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">:</span>
+            <span class="n">old_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">old_params</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">if</span> <span class="n">spec</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="n">old_params</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Duplicate parameter name: </span><span class="si">{spec.name}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="n">inf_from</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">inferred_from</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;, &#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">inf_from</span> <span class="o">==</span> <span class="p">[</span><span class="s1">&#39;&#39;</span><span class="p">]:</span>
+            <span class="n">inf_from</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">ifrm</span> <span class="ow">in</span> <span class="n">inf_from</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">ifrm</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">old_params</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Can not infer parameter &#39;</span>
+                                 <span class="n">f</span><span class="s1">&#39;</span><span class="si">{spec.name}</span><span class="s1"> from </span><span class="si">{ifrm}</span><span class="s1">, &#39;</span>
+                                 <span class="s1">&#39;no such parameter in this DataSet&#39;</span><span class="p">)</span>
+
+        <span class="n">dep_on</span> <span class="o">=</span> <span class="n">spec</span><span class="o">.</span><span class="n">depends_on</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;, &#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">dep_on</span> <span class="o">==</span> <span class="p">[</span><span class="s1">&#39;&#39;</span><span class="p">]:</span>
+            <span class="n">dep_on</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">dp</span> <span class="ow">in</span> <span class="n">dep_on</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">dp</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">old_params</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Can not have parameter &#39;</span>
+                                 <span class="n">f</span><span class="s1">&#39;</span><span class="si">{spec.name}</span><span class="s1"> depend on </span><span class="si">{dp}</span><span class="s1">, &#39;</span>
+                                 <span class="s1">&#39;no such parameter in this DataSet&#39;</span><span class="p">)</span>
+
+        <span class="n">add_parameter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span> <span class="n">spec</span><span class="p">)</span>
+
+        <span class="n">desc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">description</span>
+        <span class="n">desc</span><span class="o">.</span><span class="n">interdeps</span> <span class="o">=</span> <span class="n">InterDependencies</span><span class="p">(</span><span class="o">*</span><span class="n">desc</span><span class="o">.</span><span class="n">interdeps</span><span class="o">.</span><span class="n">paramspecs</span><span class="p">,</span> <span class="n">spec</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_description</span> <span class="o">=</span> <span class="n">desc</span>
+
+    <span class="k">def</span> <span class="nf">get_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SPECS</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">get_parameters</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
+
+    <span class="nd">@deprecate</span><span class="p">(</span><span class="n">reason</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">alternative</span><span class="o">=</span><span class="s2">&quot;DataSet.add_parameter&quot;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">add_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">specs</span><span class="p">:</span> <span class="n">SPECS</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">add_parameter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span> <span class="o">*</span><span class="n">specs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">add_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tag</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">metadata</span><span class="p">:</span> <span class="n">Any</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Adds metadata to the DataSet. The metadata is stored under the</span>
+<span class="sd">        provided tag.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            tag: represents the key in the metadata dictionary</span>
+<span class="sd">            metadata: actual metadata</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">add_meta_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">,</span> <span class="p">{</span><span class="n">tag</span><span class="p">:</span> <span class="n">metadata</span><span class="p">})</span>
+        <span class="c1"># `add_meta_data` does not commit, hence we commit here:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">started</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_started</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">completed</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_completed</span>
+
+    <span class="nd">@completed</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">completed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_completed</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">if</span> <span class="n">value</span><span class="p">:</span>
+            <span class="n">mark_run_complete</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">mark_complete</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Mark dataset as complete and thus read only and notify the subscribers</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">completed</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">for</span> <span class="n">sub</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">subscribers</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">sub</span><span class="o">.</span><span class="n">done_callback</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">add_result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">results</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">VALUE</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Add a logically single result to existing parameters</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            results: dictionary with name of a parameter as the key and the</span>
+<span class="sd">                value to associate as the value.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            index in the DataSet that the result was stored at</span>
+
+<span class="sd">        If a parameter exist in the dataset and it&#39;s not in the results</span>
+<span class="sd">        dictionary, &quot;Null&quot; values are inserted.</span>
+
+<span class="sd">        It is an error to provide a value for a key or keyword that is not</span>
+<span class="sd">        the name of a parameter in this DataSet.</span>
+
+<span class="sd">        It is an error to add results to a completed DataSet.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">started</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_perform_start_actions</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_started</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="c1"># TODO: Make this check less fugly</span>
+        <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">results</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">paramspecs</span><span class="p">[</span><span class="n">param</span><span class="p">]</span><span class="o">.</span><span class="n">depends_on</span> <span class="o">!=</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
+                <span class="n">deps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">paramspecs</span><span class="p">[</span><span class="n">param</span><span class="p">]</span><span class="o">.</span><span class="n">depends_on</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;, &#39;</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">dep</span> <span class="ow">in</span> <span class="n">deps</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">dep</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">results</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Can not add result for </span><span class="si">{param}</span><span class="s1">, &#39;</span>
+                                         <span class="n">f</span><span class="s1">&#39;since this depends on </span><span class="si">{dep}</span><span class="s1">, &#39;</span>
+                                         <span class="s1">&#39;which is not being added.&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">completed</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">CompletedError</span>
+
+        <span class="n">index</span> <span class="o">=</span> <span class="n">insert_values</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span>
+                              <span class="nb">list</span><span class="p">(</span><span class="n">results</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span>
+                              <span class="nb">list</span><span class="p">(</span><span class="n">results</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+                              <span class="p">)</span>
+        <span class="k">return</span> <span class="n">index</span>
+
+    <span class="k">def</span> <span class="nf">add_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">results</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">VALUE</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Adds a sequence of results to the DataSet.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            results: list of name-value dictionaries where each dictionary</span>
+<span class="sd">                provides the values for the parameters in that result. If some</span>
+<span class="sd">                parameters are missing the corresponding values are assumed</span>
+<span class="sd">                to be None</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            the index in the DataSet that the **first** result was stored at</span>
+
+<span class="sd">        It is an error to provide a value for a key or keyword that is not</span>
+<span class="sd">        the name of a parameter in this DataSet.</span>
+
+<span class="sd">        It is an error to add results to a completed DataSet.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">started</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_perform_start_actions</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_started</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="n">expected_keys</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="o">.</span><span class="n">union</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="nb">frozenset</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">results</span><span class="p">])</span>
+        <span class="n">values</span> <span class="o">=</span> <span class="p">[[</span><span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">expected_keys</span><span class="p">]</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">results</span><span class="p">]</span>
+
+        <span class="n">len_before_add</span> <span class="o">=</span> <span class="n">length</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">)</span>
+
+        <span class="n">insert_many_values</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">expected_keys</span><span class="p">),</span>
+                           <span class="n">values</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">len_before_add</span>
+
+    <span class="k">def</span> <span class="nf">modify_result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">results</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">VALUES</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Modify a logically single result of existing parameters</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            index: zero-based index of the result to be modified.</span>
+<span class="sd">            results: dictionary of updates with name of a parameter as the</span>
+<span class="sd">               key and the value to associate as the value.</span>
+
+<span class="sd">        It is an error to modify a result at an index less than zero or</span>
+<span class="sd">        beyond the end of the DataSet.</span>
+
+<span class="sd">        It is an error to provide a value for a key or keyword that is not</span>
+<span class="sd">        the name of a parameter in this DataSet.</span>
+
+<span class="sd">        It is an error to modify a result in a completed DataSet.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">completed</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">CompletedError</span>
+
+        <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">results</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">param</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">paramspecs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;No such parameter: </span><span class="si">{param}</span><span class="s1">.&#39;</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="n">atomic</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">)</span> <span class="k">as</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">:</span>
+            <span class="n">modify_values</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span>
+                          <span class="nb">list</span><span class="p">(</span><span class="n">results</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span>
+                          <span class="nb">list</span><span class="p">(</span><span class="n">results</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+                          <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">modify_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start_index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+                       <span class="n">updates</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">VALUES</span><span class="p">]]):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Modify a sequence of results in the DataSet.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            index: zero-based index of the result to be modified.</span>
+<span class="sd">            results: sequence of dictionares of updates with name of a</span>
+<span class="sd">                parameter as the key and the value to associate as the value.</span>
+
+
+<span class="sd">        It is an error to modify a result at an index less than zero or</span>
+<span class="sd">        beyond the end of the DataSet.</span>
+
+<span class="sd">        It is an error to provide a value for a key or keyword that is not</span>
+<span class="sd">        the name of a parameter in this DataSet.</span>
+
+<span class="sd">        It is an error to modify a result in a completed DataSet.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">completed</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">CompletedError</span>
+
+        <span class="n">keys</span> <span class="o">=</span> <span class="p">[</span><span class="nb">list</span><span class="p">(</span><span class="n">val</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">updates</span><span class="p">]</span>
+        <span class="n">flattened_keys</span> <span class="o">=</span> <span class="p">[</span><span class="n">item</span> <span class="k">for</span> <span class="n">sublist</span> <span class="ow">in</span> <span class="n">keys</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">sublist</span><span class="p">]</span>
+
+        <span class="n">mod_params</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">flattened_keys</span><span class="p">)</span>
+        <span class="n">old_params</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">paramspecs</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">mod_params</span><span class="o">.</span><span class="n">issubset</span><span class="p">(</span><span class="n">old_params</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Can not modify values for parameter(s) &#39;</span>
+                             <span class="n">f</span><span class="s1">&#39;{mod_params.difference(old_params)}, &#39;</span>
+                             <span class="s1">&#39;no such parameter(s) in the dataset.&#39;</span><span class="p">)</span>
+
+        <span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="nb">list</span><span class="p">(</span><span class="n">val</span><span class="o">.</span><span class="n">values</span><span class="p">())</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">updates</span><span class="p">]</span>
+        <span class="n">flattened_values</span> <span class="o">=</span> <span class="p">[</span><span class="n">item</span> <span class="k">for</span> <span class="n">sublist</span> <span class="ow">in</span> <span class="n">values</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">sublist</span><span class="p">]</span>
+
+        <span class="k">with</span> <span class="n">atomic</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">)</span> <span class="k">as</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">:</span>
+            <span class="n">modify_many_values</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span>
+                               <span class="n">start_index</span><span class="p">,</span>
+                               <span class="n">flattened_keys</span><span class="p">,</span>
+                               <span class="n">flattened_values</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">add_parameter_values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">spec</span><span class="p">:</span> <span class="n">ParamSpec</span><span class="p">,</span> <span class="n">values</span><span class="p">:</span> <span class="n">VALUES</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Add a parameter to the DataSet and associates result values with the</span>
+<span class="sd">        new parameter.</span>
+
+<span class="sd">        If the DataSet is not empty, then the count of provided values must</span>
+<span class="sd">        equal the current count of results in the DataSet, or an error will</span>
+<span class="sd">        be raised.</span>
+
+<span class="sd">        It is an error to add parameters to a completed DataSet.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># first check that the len of values (if dataset is not empty)</span>
+        <span class="c1"># is the right size i.e. the same as the dataset</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Need to have </span><span class="si">{}</span><span class="s2"> values but got </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span>
+                    <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+                <span class="p">))</span>
+
+        <span class="k">with</span> <span class="n">atomic</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">)</span> <span class="k">as</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">:</span>
+            <span class="n">add_parameter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span> <span class="n">spec</span><span class="p">)</span>
+            <span class="c1"># now add values!</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="p">[{</span><span class="n">spec</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">value</span><span class="p">}</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">values</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_results</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="o">*</span><span class="n">params</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ParamSpec</span><span class="p">,</span> <span class="n">_BaseParameter</span><span class="p">],</span>
+                 <span class="n">start</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">end</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the values stored in the DataSet for the specified parameters.</span>
+<span class="sd">        The values are returned as a list of lists, SQL rows by SQL columns,</span>
+<span class="sd">        e.g. datapoints by parameters. The data type of each element is based</span>
+<span class="sd">        on the datatype provided when the DataSet was created. The parameter</span>
+<span class="sd">        list may contain a mix of string parameter names, QCoDeS Parameter</span>
+<span class="sd">        objects, and ParamSpec objects (as long as they have a `name` field).</span>
+
+<span class="sd">        If provided, the start and end arguments select a range of results</span>
+<span class="sd">        by result count (index). If the range is empty - that is, if the end is</span>
+<span class="sd">        less than or equal to the start, or if start is after the current end</span>
+<span class="sd">        of the DataSet – then a list of empty arrays is returned.</span>
+
+<span class="sd">        For a more type independent and easier to work with view of the data</span>
+<span class="sd">        you may want to consider using</span>
+<span class="sd">        :py:meth:`qcodes.dataset.data_export.get_data_by_id`</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            *params: string parameter names, QCoDeS Parameter objects, and</span>
+<span class="sd">                ParamSpec objects</span>
+<span class="sd">            start: start value of selection range (by result count); ignored</span>
+<span class="sd">                if None</span>
+<span class="sd">            end: end value of selection range (by results count); ignored if</span>
+<span class="sd">                None</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            list of lists SQL rows of data by SQL columns. Each SQL row is a</span>
+<span class="sd">            datapoint and each SQL column is a parameter. Each element will</span>
+<span class="sd">            be of the datatypes stored in the database (numeric, array or</span>
+<span class="sd">            string)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">valid_param_names</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">maybeParam</span> <span class="ow">in</span> <span class="n">params</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">maybeParam</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">valid_param_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">maybeParam</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">maybeParam</span> <span class="o">=</span> <span class="n">maybeParam</span><span class="o">.</span><span class="n">name</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="s2">&quot;This parameter does not have  a name&quot;</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span>
+            <span class="n">valid_param_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">maybeParam</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">get_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span> <span class="n">valid_param_names</span><span class="p">,</span>
+                        <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">data</span>
+
+    <span class="k">def</span> <span class="nf">get_values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the values (i.e. not NULLs) of the specified parameter</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">param_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Unknown parameter, not in this DataSet&#39;</span><span class="p">)</span>
+
+        <span class="n">values</span> <span class="o">=</span> <span class="n">get_values</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span> <span class="n">param_name</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">values</span>
+
+    <span class="k">def</span> <span class="nf">get_setpoints</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]]]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the setpoints for the specified parameter</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            param_name: The name of the parameter for which to get the</span>
+<span class="sd">                setpoints</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">param_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Unknown parameter, not in this DataSet&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">paramspecs</span><span class="p">[</span><span class="n">param_name</span><span class="p">]</span><span class="o">.</span><span class="n">depends_on</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Parameter </span><span class="si">{param_name}</span><span class="s1"> has no setpoints.&#39;</span><span class="p">)</span>
+
+        <span class="n">setpoints</span> <span class="o">=</span> <span class="n">get_setpoints</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span> <span class="n">param_name</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">setpoints</span>
+
+    <span class="k">def</span> <span class="nf">subscribe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                  <span class="n">callback</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Any</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]],</span> <span class="kc">None</span><span class="p">],</span>
+                  <span class="n">min_wait</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+                  <span class="n">min_count</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+                  <span class="n">state</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                  <span class="n">callback_kwargs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+                  <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="n">subscriber_id</span> <span class="o">=</span> <span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span>
+        <span class="n">subscriber</span> <span class="o">=</span> <span class="n">_Subscriber</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subscriber_id</span><span class="p">,</span> <span class="n">callback</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span>
+                                 <span class="n">min_wait</span><span class="p">,</span> <span class="n">min_count</span><span class="p">,</span> <span class="n">callback_kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subscribers</span><span class="p">[</span><span class="n">subscriber_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">subscriber</span>
+        <span class="n">subscriber</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">subscriber_id</span>
+
+    <span class="k">def</span> <span class="nf">unsubscribe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uuid</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Remove subscriber with the provided uuid</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="n">atomic</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">)</span> <span class="k">as</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_remove_trigger</span><span class="p">(</span><span class="n">uuid</span><span class="p">)</span>
+            <span class="n">sub</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subscribers</span><span class="p">[</span><span class="n">uuid</span><span class="p">]</span>
+            <span class="n">sub</span><span class="o">.</span><span class="n">schedule_stop</span><span class="p">()</span>
+            <span class="n">sub</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">subscribers</span><span class="p">[</span><span class="n">uuid</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">_remove_trigger</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="n">transaction</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="n">f</span><span class="s2">&quot;DROP TRIGGER IF EXISTS </span><span class="si">{name}</span><span class="s2">;&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">unsubscribe_all</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Remove all subscribers</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">sql</span> <span class="o">=</span> <span class="s2">&quot;select * from sqlite_master where type = &#39;trigger&#39;;&quot;</span>
+        <span class="n">triggers</span> <span class="o">=</span> <span class="n">atomic_transaction</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="n">sql</span><span class="p">)</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+        <span class="k">with</span> <span class="n">atomic</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">)</span> <span class="k">as</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">trigger</span> <span class="ow">in</span> <span class="n">triggers</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_remove_trigger</span><span class="p">(</span><span class="n">trigger</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">])</span>
+            <span class="k">for</span> <span class="n">sub</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">subscribers</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                <span class="n">sub</span><span class="o">.</span><span class="n">schedule_stop</span><span class="p">()</span>
+                <span class="n">sub</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">subscribers</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">get_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tag</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">get_metadata</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="n">tag</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">length</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">heading</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;</span><span class="si">{self.name}</span><span class="s2"> #</span><span class="si">{self.run_id}</span><span class="s2">@</span><span class="si">{self.path_to_db}</span><span class="s2">&quot;</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">heading</span><span class="p">)</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;-&quot;</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">heading</span><span class="p">))</span>
+        <span class="n">ps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_parameters</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ps</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">ps</span><span class="p">:</span>
+                <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{p.name}</span><span class="s2"> - </span><span class="si">{p.type}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+
+
+<span class="c1"># public api</span>
+<div class="viewcode-block" id="load_by_id"><a class="viewcode-back" href="../../../api/generated/qcodes.dataset.data_set.load_by_id.html#qcodes.dataset.data_set.load_by_id">[docs]</a><span class="k">def</span> <span class="nf">load_by_id</span><span class="p">(</span><span class="n">run_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataSet</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Load dataset by run id</span>
+
+<span class="sd">    Lookup is performed in the database file that is specified in the config.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        run_id: run id of the dataset</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        dataset with the given run id</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">run_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;run_id has to be a positive integer, not None.&#39;</span><span class="p">)</span>
+
+    <span class="n">d</span> <span class="o">=</span> <span class="n">DataSet</span><span class="p">(</span><span class="n">path_to_db</span><span class="o">=</span><span class="n">get_DB_location</span><span class="p">(),</span> <span class="n">run_id</span><span class="o">=</span><span class="n">run_id</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">d</span></div>
+
+
+<span class="k">def</span> <span class="nf">load_by_counter</span><span class="p">(</span><span class="n">counter</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">exp_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataSet</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Load a dataset given its counter in a given experiment</span>
+
+<span class="sd">    Lookup is performed in the database file that is specified in the config.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        counter: counter of the dataset within the given experiment</span>
+<span class="sd">        exp_id: id of the experiment where to look for the dataset</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        dataset of the given counter in the given experiment</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">conn</span> <span class="o">=</span> <span class="n">connect</span><span class="p">(</span><span class="n">get_DB_location</span><span class="p">())</span>
+    <span class="n">sql</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">    SELECT run_id</span>
+<span class="s2">    FROM</span>
+<span class="s2">      runs</span>
+<span class="s2">    WHERE</span>
+<span class="s2">      result_counter= ? AND</span>
+<span class="s2">      exp_id = ?</span>
+<span class="s2">    &quot;&quot;&quot;</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="n">transaction</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="n">sql</span><span class="p">,</span> <span class="n">counter</span><span class="p">,</span> <span class="n">exp_id</span><span class="p">)</span>
+    <span class="n">run_id</span> <span class="o">=</span> <span class="n">one</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="s1">&#39;run_id&#39;</span><span class="p">)</span>
+    <span class="n">conn</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="n">d</span> <span class="o">=</span> <span class="n">DataSet</span><span class="p">(</span><span class="n">get_DB_location</span><span class="p">(),</span> <span class="n">run_id</span><span class="o">=</span><span class="n">run_id</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">d</span>
+
+
+<span class="k">def</span> <span class="nf">new_data_set</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">exp_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">specs</span><span class="p">:</span> <span class="n">SPECS</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">metadata</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">conn</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataSet</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create a new dataset in the currently active/selected database.</span>
+
+<span class="sd">    If exp_id is not specified, the last experiment will be loaded by default.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name: the name of the new dataset</span>
+<span class="sd">        exp_id: the id of the experiments this dataset belongs to, defaults</span>
+<span class="sd">            to the last experiment</span>
+<span class="sd">        specs: list of parameters to create this dataset with</span>
+<span class="sd">        values: the values to associate with the parameters</span>
+<span class="sd">        metadata: the metadata to associate with the dataset</span>
+
+<span class="sd">    Return:</span>
+<span class="sd">        the newly created dataset</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># note that passing `conn` is a secret feature that is unfortunately used</span>
+    <span class="c1"># in `Runner` to pass a connection from an existing `Experiment`.</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">DataSet</span><span class="p">(</span><span class="n">path_to_db</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">run_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">conn</span><span class="o">=</span><span class="n">conn</span><span class="p">,</span>
+                <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">specs</span><span class="o">=</span><span class="n">specs</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
+                <span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span><span class="p">,</span> <span class="n">exp_id</span><span class="o">=</span><span class="n">exp_id</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">d</span>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    
+    
+      <script type="text/javascript">
+          var DOCUMENTATION_OPTIONS = {
+              URL_ROOT:'../../../',
+              VERSION:'0.1.11',
+              LANGUAGE:'None',
+              COLLAPSE_INDEX:false,
+              FILE_SUFFIX:'.html',
+              HAS_SOURCE:  true,
+              SOURCELINK_SUFFIX: '.txt'
+          };
+      </script>
+        <script type="text/javascript" src="../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    
+
+  
+
+  <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
