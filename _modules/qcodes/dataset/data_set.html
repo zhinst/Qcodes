@@ -161,6 +161,7 @@
 <span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Sized</span><span class="p">,</span> <span class="n">Callable</span>
 <span class="kn">from</span> <span class="nn">threading</span> <span class="k">import</span> <span class="n">Thread</span>
 <span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">importlib</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">uuid</span>
 <span class="kn">from</span> <span class="nn">queue</span> <span class="k">import</span> <span class="n">Queue</span><span class="p">,</span> <span class="n">Empty</span>
@@ -195,6 +196,7 @@
 <span class="kn">from</span> <span class="nn">qcodes.dataset.database</span> <span class="k">import</span> <span class="n">get_DB_location</span>
 <span class="kn">from</span> <span class="nn">qcodes.dataset.guids</span> <span class="k">import</span> <span class="n">generate_guid</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.deprecate</span> <span class="k">import</span> <span class="n">deprecate</span>
+<span class="kn">import</span> <span class="nn">qcodes.config</span>
 
 <span class="c1"># TODO: as of now every time a result is inserted with add_result the db is</span>
 <span class="c1"># saved same for add_results. IS THIS THE BEHAVIOUR WE WANT?</span>
@@ -257,7 +259,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_loop_sleep_time</span> <span class="o">=</span> <span class="n">loop_sleep_time</span> <span class="o">/</span> <span class="mi">1000</span>  <span class="c1"># convert milliseconds to seconds</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">min_queue_length</span> <span class="o">=</span> <span class="n">min_queue_length</span>
 
-        <span class="k">if</span> <span class="n">callback_kwargs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">callback_kwargs</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">callback_kwargs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">callback</span> <span class="o">=</span> <span class="n">callback</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">callback</span> <span class="o">=</span> <span class="n">functools</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span><span class="n">callback</span><span class="p">,</span> <span class="o">**</span><span class="n">callback_kwargs</span><span class="p">)</span>
@@ -913,6 +915,38 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">subscribers</span><span class="p">[</span><span class="n">subscriber_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">subscriber</span>
         <span class="n">subscriber</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">subscriber_id</span>
+
+    <span class="k">def</span> <span class="nf">subscribe_from_config</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Subscribe a subscriber defined in the `qcodesrc.json` config file to</span>
+<span class="sd">        the data of this `DataSet`. The definition can be found at</span>
+<span class="sd">        `subscription.subscribers`.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name: identifier of the subscriber. Equal to the key of the entry</span>
+<span class="sd">                in &#39;qcodesrc.json::subscription.subscribers&#39;.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">subscribers</span> <span class="o">=</span> <span class="n">qcodes</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">subscription</span><span class="o">.</span><span class="n">subscribers</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">subscriber_info</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">subscribers</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+        <span class="c1"># the dot dict behind the config does not convert the error and</span>
+        <span class="c1"># actually raises a `KeyError`</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">AttributeError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">):</span>
+            <span class="n">keys</span> <span class="o">=</span> <span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">subscribers</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="n">f</span><span class="s1">&#39;subscribe_from_config: failed to subscribe &quot;</span><span class="si">{name}</span><span class="s1">&quot; to DataSet &#39;</span>
+                <span class="n">f</span><span class="s1">&#39;from list of subscribers in `qcodesrc.json` (subscriptions.&#39;</span>
+                <span class="n">f</span><span class="s1">&#39;subscribers). Chose one of: </span><span class="si">{keys}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="c1"># get callback from string</span>
+        <span class="n">parts</span> <span class="o">=</span> <span class="n">subscriber_info</span><span class="o">.</span><span class="n">factory</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
+        <span class="n">import_path</span><span class="p">,</span> <span class="n">type_name</span> <span class="o">=</span> <span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parts</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]),</span> <span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">module</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="n">import_path</span><span class="p">)</span>
+        <span class="n">factory</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">type_name</span><span class="p">)</span>
+
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">subscriber_info</span><span class="o">.</span><span class="n">subscription_kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;callback&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">factory</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">subscriber_info</span><span class="o">.</span><span class="n">factory_kwargs</span><span class="p">)</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;state&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">unsubscribe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uuid</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
