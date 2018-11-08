@@ -157,6 +157,7 @@
             
   <h1>Source code for qcodes.instrument_drivers.Minicircuits.USB_SPDT</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Optional</span>
 
 <span class="c1"># QCoDeS imports</span>
 <span class="kn">from</span> <span class="nn">qcodes.instrument_drivers.Minicircuits.Base_SPDT</span> <span class="k">import</span> <span class="p">(</span>
@@ -184,16 +185,27 @@
 <span class="sd">    Mini-Circuits SPDT RF switch</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">            name (str): the name of the instrument</span>
-<span class="sd">            serial_number (str, optional): the serial number of the device</span>
+<span class="sd">            name: the name of the instrument</span>
+<span class="sd">            driver_path: path to the dll</span>
+<span class="sd">            serial_number: the serial number of the device</span>
 <span class="sd">               (printed on the sticker on the back side, without s/n)</span>
-<span class="sd">            kwargs (dict): kwargs to be passed to Instrument class.</span>
+<span class="sd">            kwargs: kwargs to be passed to Instrument class.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">CHANNEL_CLASS</span> <span class="o">=</span> <span class="n">SwitchChannelUSB</span>
     <span class="n">PATH_TO_DRIVER</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;mcl_RF_Switch_Controller64&#39;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">driver_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">serial_number</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">driver_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">serial_number</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="c1"># we are eventually overwriting this but since it&#39;s called</span>
+        <span class="c1"># in __getattr__ of `SPDT_Base` it&#39;s important that it&#39;s</span>
+        <span class="c1"># always set to something to avoid infinite recursion</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_deprecated_attributes</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="c1"># import .net exception so we can catch it below</span>
+        <span class="c1"># we keep this import local so that the module can be imported</span>
+        <span class="c1"># without a working .net install</span>
+        <span class="n">clr</span><span class="o">.</span><span class="n">AddReference</span><span class="p">(</span><span class="s1">&#39;System.IO&#39;</span><span class="p">)</span>
+        <span class="kn">from</span> <span class="nn">System.IO</span> <span class="k">import</span> <span class="n">FileNotFoundException</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">name</span> <span class="o">!=</span> <span class="s1">&#39;nt&#39;</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;This driver only works in Windows.&quot;&quot;&quot;</span><span class="p">)</span>
@@ -203,11 +215,11 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">clr</span><span class="o">.</span><span class="n">AddReference</span><span class="p">(</span><span class="n">driver_path</span><span class="p">)</span>
 
-        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">ImportError</span><span class="p">,</span> <span class="n">FileNotFoundException</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
                 <span class="sd">&quot;&quot;&quot;Load of mcl_RF_Switch_Controller64.dll not possible. Make sure</span>
 <span class="sd">                the dll file is not blocked by Windows. To unblock right-click</span>
-<span class="sd">                the dll to open proporties and check the &#39;unblock&#39; checkmark</span>
+<span class="sd">                the dll to open properties and check the &#39;unblock&#39; checkmark</span>
 <span class="sd">                in the bottom. Check that your python installation is 64bit.&quot;&quot;&quot;</span>
             <span class="p">)</span>
         <span class="kn">import</span> <span class="nn">mcl_RF_Switch_Controller64</span>
