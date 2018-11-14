@@ -182,7 +182,9 @@
                                         <span class="n">VALUE</span><span class="p">,</span> <span class="n">VALUES</span><span class="p">,</span> <span class="n">get_data</span><span class="p">,</span>
                                         <span class="n">get_values</span><span class="p">,</span>
                                         <span class="n">get_setpoints</span><span class="p">,</span>
-                                        <span class="n">get_metadata</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span>
+                                        <span class="n">get_metadata</span><span class="p">,</span>
+                                        <span class="n">get_metadata_from_run_id</span><span class="p">,</span>
+                                        <span class="n">one</span><span class="p">,</span>
                                         <span class="n">get_experiment_name_from_experiment_id</span><span class="p">,</span>
                                         <span class="n">get_sample_name_from_experiment_id</span><span class="p">,</span>
                                         <span class="n">get_guid_from_run_id</span><span class="p">,</span>
@@ -389,6 +391,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_completed</span> <span class="o">=</span> <span class="n">completed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_started</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">number_of_results</span> <span class="o">&gt;</span> <span class="mi">0</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_description</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_run_description_from_db</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_metadata</span> <span class="o">=</span> <span class="n">get_metadata_from_run_id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="n">run_id</span><span class="p">)</span>
 
         <span class="k">else</span><span class="p">:</span>
             <span class="c1"># Actually perform all the side effects needed for the creation</span>
@@ -410,6 +413,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_started</span> <span class="o">=</span> <span class="kc">False</span>
             <span class="n">specs</span> <span class="o">=</span> <span class="n">specs</span> <span class="ow">or</span> <span class="p">[]</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_description</span> <span class="o">=</span> <span class="n">RunDescriber</span><span class="p">(</span><span class="n">InterDependencies</span><span class="p">(</span><span class="o">*</span><span class="n">specs</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_metadata</span> <span class="o">=</span> <span class="n">get_metadata_from_run_id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">run_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -499,6 +503,10 @@
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">description</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RunDescriber</span><span class="p">:</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_description</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_metadata</span>
 
     <span class="k">def</span> <span class="nf">run_timestamp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fmt</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2"> %H:%M:%S&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -616,12 +624,14 @@
     <span class="k">def</span> <span class="nf">add_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tag</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">metadata</span><span class="p">:</span> <span class="n">Any</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Adds metadata to the DataSet. The metadata is stored under the</span>
-<span class="sd">        provided tag.</span>
+<span class="sd">        provided tag. Note that None is not allowed as a metadata value.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            tag: represents the key in the metadata dictionary</span>
 <span class="sd">            metadata: actual metadata</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_metadata</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span> <span class="o">=</span> <span class="n">metadata</span>
         <span class="n">add_meta_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">,</span> <span class="p">{</span><span class="n">tag</span><span class="p">:</span> <span class="n">metadata</span><span class="p">})</span>
         <span class="c1"># `add_meta_data` does not commit, hence we commit here:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
