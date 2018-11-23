@@ -172,52 +172,73 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        name (str): name of the instrument.</span>
-
 <span class="sd">        spi_rack (SPI_rack): instance of the SPI_rack class as defined in</span>
 <span class="sd">            the spirack package. This class manages communication with the</span>
 <span class="sd">            individual modules.</span>
-
 <span class="sd">        module (int): module number as set on the hardware.</span>
+<span class="sd">        frequency (float): RF frequency at startup, default is 41 MHz.</span>
+<span class="sd">        enable_output (bool): Switch device output on or off, default is True.</span>
+<span class="sd">        output_level (int): RF output level in dBm, default is 0 dBm.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">spi_rack</span><span class="p">,</span> <span class="n">module</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">spi_rack</span><span class="p">,</span> <span class="n">module</span><span class="p">,</span> <span class="n">frequency</span><span class="o">=</span><span class="mf">41e6</span><span class="p">,</span>
+                 <span class="n">enable_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">output_level</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">s5i</span> <span class="o">=</span> <span class="n">S5i_module</span><span class="p">(</span><span class="n">spi_rack</span><span class="p">,</span> <span class="n">module</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s5i</span> <span class="o">=</span> <span class="n">S5i_module</span><span class="p">(</span><span class="n">spi_rack</span><span class="p">,</span> <span class="n">module</span><span class="p">,</span> <span class="n">frequency</span><span class="o">=</span><span class="n">frequency</span><span class="p">,</span>
+                              <span class="n">enable_output</span><span class="o">=</span><span class="n">enable_output</span><span class="p">,</span>
+                              <span class="n">output_level</span><span class="o">=</span><span class="n">output_level</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;use_external_reference&#39;</span><span class="p">,</span>
-                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Use external reference&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_use_external_reference</span><span class="p">,</span>
-                           <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">s5i</span><span class="o">.</span><span class="n">use_external_reference</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">Bool</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;output_enabled&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;RF output enabled&#39;</span><span class="p">,</span>
+                           <span class="n">initial_value</span><span class="o">=</span><span class="n">enable_output</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">s5i</span><span class="o">.</span><span class="n">enable_output_soft</span><span class="p">,</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">Bool</span><span class="p">(),</span>
+                           <span class="n">docstring</span><span class="o">=</span><span class="s1">&#39;Switches output on/off&#39;</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;frequency_stepsize&#39;</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Frequency stepsize&#39;</span><span class="p">,</span>
                            <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_stepsize</span><span class="p">,</span>
                            <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">s5i</span><span class="o">.</span><span class="n">set_stepsize</span><span class="p">,</span>
-                           <span class="n">units</span><span class="o">=</span><span class="s1">&#39;Hz&#39;</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">())</span>
+                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;Hz&#39;</span><span class="p">,</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(),</span>
+                           <span class="n">docstring</span><span class="o">=</span><span class="s1">&#39;Set the optimal frequency stepsize for &#39;</span>
+                                     <span class="s1">&#39;a minimal phase noise&#39;</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;frequency&#39;</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Frequency&#39;</span><span class="p">,</span>
+                           <span class="n">initial_value</span><span class="o">=</span><span class="n">frequency</span><span class="p">,</span>
                            <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_rf_frequency</span><span class="p">,</span>
                            <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">s5i</span><span class="o">.</span><span class="n">set_frequency</span><span class="p">,</span>
-                           <span class="n">units</span><span class="o">=</span><span class="s1">&#39;Hz&#39;</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">())</span>
+                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;Hz&#39;</span><span class="p">,</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(</span><span class="mf">40e6</span><span class="p">,</span> <span class="mf">4e9</span><span class="p">),</span>
+                           <span class="n">docstring</span><span class="o">=</span><span class="s1">&#39;Set RF frequency&#39;</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_function</span><span class="p">(</span><span class="s1">&#39;optimize_for_frequency&#39;</span><span class="p">,</span> <span class="n">call_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_optimize</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;power&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Output Power&#39;</span><span class="p">,</span>
+                           <span class="n">initial_value</span><span class="o">=</span><span class="n">output_level</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">s5i</span><span class="o">.</span><span class="n">set_output_power</span><span class="p">,</span>
+                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;dBm&#39;</span><span class="p">,</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(</span><span class="o">-</span><span class="mi">14</span><span class="p">,</span> <span class="mi">20</span><span class="p">),</span>
+                           <span class="n">docstring</span><span class="o">=</span><span class="s1">&#39;Set output power&#39;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_use_external_reference</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">s5i</span><span class="o">.</span><span class="n">use_external</span>
+<div class="viewcode-block" id="S5i.optimize_for_frequency"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.QuTech.html#qcodes.instrument_drivers.QuTech.S5i.S5i.optimize_for_frequency">[docs]</a>    <span class="k">def</span> <span class="nf">optimize_for_frequency</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This method finds the optimum stepsize for the set frequency.</span>
+
+<span class="sd">        The stepsize affects the phase noise of the instrument. The smaller the</span>
+<span class="sd">        stepsize, the greater is the phase noise. So this method sets the</span>
+<span class="sd">        stepsize as large as possible for the current reference frequency.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">stepsize</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">s5i</span><span class="o">.</span><span class="n">get_optimal_stepsize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">s5i</span><span class="o">.</span><span class="n">rf_frequency</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s5i</span><span class="o">.</span><span class="n">set_stepsize</span><span class="p">(</span><span class="n">stepsize</span><span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">_get_stepsize</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">s5i</span><span class="o">.</span><span class="n">stepsize</span>
 
     <span class="k">def</span> <span class="nf">_get_rf_frequency</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">s5i</span><span class="o">.</span><span class="n">rf_frequency</span>
-
-    <span class="k">def</span> <span class="nf">_optimize</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">s5i</span><span class="o">.</span><span class="n">set_frequency_optimally</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">s5i</span><span class="o">.</span><span class="n">rf_frequency</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">s5i</span><span class="o">.</span><span class="n">rf_frequency</span></div>
 </pre></div>
 
            </div>
