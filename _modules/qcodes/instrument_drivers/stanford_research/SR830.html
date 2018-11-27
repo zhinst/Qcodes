@@ -163,6 +163,8 @@
 <span class="kn">from</span> <span class="nn">qcodes.instrument.parameter</span> <span class="k">import</span> <span class="n">ArrayParameter</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="k">import</span> <span class="n">Numbers</span><span class="p">,</span> <span class="n">Ints</span><span class="p">,</span> <span class="n">Enum</span><span class="p">,</span> <span class="n">Strings</span>
 
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Tuple</span>
+
 
 <div class="viewcode-block" id="ChannelBuffer"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.stanford_research.html#qcodes.instrument_drivers.stanford_research.SR830.ChannelBuffer">[docs]</a><span class="k">class</span> <span class="nc">ChannelBuffer</span><span class="p">(</span><span class="n">ArrayParameter</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -544,7 +546,7 @@
                            <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;OUTP? 4&#39;</span><span class="p">,</span>
                            <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
                            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;deg&#39;</span><span class="p">)</span>
-
+        
         <span class="c1"># Data buffer settings</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;buffer_SR&#39;</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Buffer sample rate&#39;</span><span class="p">,</span>
@@ -630,6 +632,79 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_buffer2_ready</span> <span class="o">=</span> <span class="kc">False</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">connect_message</span><span class="p">()</span>
+    
+    
+    <span class="n">SNAP_PARAMETERS</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="s1">&#39;1&#39;</span><span class="p">,</span>   
+            <span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="s1">&#39;2&#39;</span><span class="p">,</span>  
+            <span class="s1">&#39;r&#39;</span><span class="p">:</span> <span class="s1">&#39;3&#39;</span><span class="p">,</span> 
+            <span class="s1">&#39;p&#39;</span><span class="p">:</span> <span class="s1">&#39;4&#39;</span><span class="p">,</span>   
+        <span class="s1">&#39;phase&#39;</span><span class="p">:</span> <span class="s1">&#39;4&#39;</span><span class="p">,</span>  
+           <span class="s1">&#39;θ&#39;</span> <span class="p">:</span> <span class="s1">&#39;4&#39;</span><span class="p">,</span>
+         <span class="s1">&#39;aux1&#39;</span><span class="p">:</span> <span class="s1">&#39;5&#39;</span><span class="p">,</span>  
+         <span class="s1">&#39;aux2&#39;</span><span class="p">:</span> <span class="s1">&#39;6&#39;</span><span class="p">,</span>   
+         <span class="s1">&#39;aux3&#39;</span><span class="p">:</span> <span class="s1">&#39;7&#39;</span><span class="p">,</span>  
+         <span class="s1">&#39;aux4&#39;</span><span class="p">:</span> <span class="s1">&#39;8&#39;</span><span class="p">,</span>  
+         <span class="s1">&#39;freq&#39;</span><span class="p">:</span> <span class="s1">&#39;9&#39;</span><span class="p">,</span>   
+          <span class="s1">&#39;ch1&#39;</span><span class="p">:</span> <span class="s1">&#39;10&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;ch2&#39;</span><span class="p">:</span> <span class="s1">&#39;11&#39;</span>  
+    <span class="p">}</span>
+    
+<div class="viewcode-block" id="SR830.snap"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.stanford_research.html#qcodes.instrument_drivers.stanford_research.SR830.SR830.snap">[docs]</a>    <span class="k">def</span> <span class="nf">snap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">parameters</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="o">...</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get between 2 and 6 parameters at a single instant. This provides a </span>
+<span class="sd">        coherent snapshot of measured signals. Pick up to 6 from: X, Y, R, θ, </span>
+<span class="sd">        the aux inputs 1-4, frequency, or what is currently displayed on </span>
+<span class="sd">        channels 1 and 2.</span>
+
+<span class="sd">        Reading X and Y (or R and θ) gives a coherent snapshot of the signal.</span>
+<span class="sd">        Snap is important when the time constant is very short, a time constant</span>
+<span class="sd">        less than 100 ms.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            *parameters</span>
+<span class="sd">                From 2 to 6 strings of names of parameters for which the values</span>
+<span class="sd">                are requested. including: &#39;x&#39;, &#39;y&#39;, &#39;r&#39;, &#39;p&#39;, &#39;phase&#39; or &#39;θ&#39;,</span>
+<span class="sd">                &#39;aux1&#39;, &#39;aux2&#39;, &#39;aux3&#39;, &#39;aux4&#39;, &#39;freq&#39;, &#39;ch1&#39;, and &#39;ch2&#39;.</span>
+<span class="sd">            </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            A tuple of floating point values in the same order as requested.</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            lockin.snap(&#39;x&#39;,&#39;y&#39;) -&gt; tuple(x,y)</span>
+<span class="sd">            </span>
+<span class="sd">            lockin.snap(&#39;aux1&#39;,&#39;aux2&#39;,&#39;freq&#39;,&#39;phase&#39;) </span>
+<span class="sd">                -&gt; tuple(aux1,aux2,freq,phase)</span>
+
+<span class="sd">        Note:</span>
+<span class="sd">            Volts for x, y, r, and aux 1-4</span>
+<span class="sd">            Degrees for θ</span>
+<span class="sd">            Hertz for freq</span>
+<span class="sd">            Unknown for ch1 and ch2. It will depend on what was set.</span>
+
+<span class="sd">             - If X,Y,R and θ are all read, then the values of X,Y are recorded</span>
+<span class="sd">               approximately 10 µs apart from R,θ. Thus, the values of X and Y </span>
+<span class="sd">               may not yield the exact values of R and θ from a single snap.</span>
+<span class="sd">             - The values of the Aux Inputs may have an uncertainty of </span>
+<span class="sd">               up to 32 µs.</span>
+<span class="sd">             - The frequency is computed only every other period or 40 ms, </span>
+<span class="sd">               whichever is longer.  </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="mi">2</span> <span class="o">&lt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">6</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span>
+                <span class="s1">&#39;It is only possible to request values of 2 to 6 parameters&#39;</span>
+                <span class="s1">&#39; at a time.&#39;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">parameters</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">SNAP_PARAMETERS</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;</span><span class="si">{name}</span><span class="s1"> is an unknown parameter. Refer&#39;</span>
+                               <span class="n">f</span><span class="s1">&#39; to `SNAP_PARAMETERS` for a list of valid&#39;</span>
+                               <span class="n">f</span><span class="s1">&#39; parameter names&#39;</span><span class="p">)</span>
+
+        <span class="n">p_ids</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">SNAP_PARAMETERS</span><span class="p">[</span><span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">parameters</span><span class="p">]</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;SNAP? {&quot;,&quot;.join(p_ids)}&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">val</span><span class="p">)</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">output</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">))</span></div>
 
 <div class="viewcode-block" id="SR830.increment_sensitivity"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.stanford_research.html#qcodes.instrument_drivers.stanford_research.SR830.SR830.increment_sensitivity">[docs]</a>    <span class="k">def</span> <span class="nf">increment_sensitivity</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
