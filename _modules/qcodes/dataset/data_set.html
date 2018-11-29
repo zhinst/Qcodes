@@ -191,7 +191,9 @@
                                         <span class="n">get_run_timestamp_from_run_id</span><span class="p">,</span>
                                         <span class="n">get_completed_timestamp_from_run_id</span><span class="p">,</span>
                                         <span class="n">update_run_description</span><span class="p">,</span>
-                                        <span class="n">run_exists</span><span class="p">)</span>
+                                        <span class="n">run_exists</span><span class="p">,</span> <span class="n">remove_trigger</span><span class="p">,</span>
+                                        <span class="n">make_connection_plus_from</span><span class="p">,</span>
+                                        <span class="n">ConnectionPlus</span><span class="p">)</span>
 
 <span class="kn">from</span> <span class="nn">qcodes.dataset.descriptions</span> <span class="k">import</span> <span class="n">RunDescriber</span>
 <span class="kn">from</span> <span class="nn">qcodes.dataset.dependencies</span> <span class="k">import</span> <span class="n">InterDependencies</span>
@@ -267,6 +269,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">callback</span> <span class="o">=</span> <span class="n">functools</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span><span class="n">callback</span><span class="p">,</span> <span class="o">**</span><span class="n">callback_kwargs</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">callback_id</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;callback</span><span class="si">{self._id}</span><span class="s2">&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">trigger_id</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;sub</span><span class="si">{self._id}</span><span class="s2">&quot;</span>
 
         <span class="n">conn</span> <span class="o">=</span> <span class="n">dataSet</span><span class="o">.</span><span class="n">conn</span>
 
@@ -275,7 +278,7 @@
         <span class="n">parameters</span> <span class="o">=</span> <span class="n">dataSet</span><span class="o">.</span><span class="n">get_parameters</span><span class="p">()</span>
         <span class="n">sql_param_list</span> <span class="o">=</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">f</span><span class="s2">&quot;NEW.</span><span class="si">{p.name}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">parameters</span><span class="p">])</span>
         <span class="n">sql_create_trigger_for_callback</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;&quot;&quot;</span>
-<span class="s2">        CREATE TRIGGER sub</span><span class="si">{self._id}</span><span class="s2"></span>
+<span class="s2">        CREATE TRIGGER </span><span class="si">{self.trigger_id}</span><span class="s2"></span>
 <span class="s2">            AFTER INSERT ON &#39;</span><span class="si">{self.table_name}</span><span class="s2">&#39;</span>
 <span class="s2">        BEGIN</span>
 <span class="s2">            SELECT </span><span class="si">{self.callback_id}</span><span class="s2">(</span><span class="si">{sql_param_list}</span><span class="s2">);</span>
@@ -342,7 +345,7 @@
 <span class="k">class</span> <span class="nc">DataSet</span><span class="p">(</span><span class="n">Sized</span><span class="p">):</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path_to_db</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">run_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">conn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">conn</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ConnectionPlus</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">exp_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">specs</span><span class="p">:</span> <span class="n">SPECS</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -378,7 +381,8 @@
                              <span class="s2">&quot;This is not allowed.&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_path_to_db</span> <span class="o">=</span> <span class="n">path_to_db</span> <span class="ow">or</span> <span class="n">get_DB_location</span><span class="p">()</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span> <span class="o">=</span> <span class="n">conn</span> <span class="ow">or</span> <span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path_to_db</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span> <span class="o">=</span> <span class="n">make_connection_plus_from</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span> <span class="k">if</span> <span class="n">conn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> \
+            <span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path_to_db</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_run_id</span> <span class="o">=</span> <span class="n">run_id</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_debug</span> <span class="o">=</span> <span class="kc">False</span>
@@ -632,9 +636,9 @@
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_metadata</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span> <span class="o">=</span> <span class="n">metadata</span>
-        <span class="n">add_meta_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">,</span> <span class="p">{</span><span class="n">tag</span><span class="p">:</span> <span class="n">metadata</span><span class="p">})</span>
-        <span class="c1"># `add_meta_data` does not commit, hence we commit here:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        <span class="c1"># `add_meta_data` is not atomic by itself, hence using `atomic`</span>
+        <span class="k">with</span> <span class="n">atomic</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">)</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+            <span class="n">add_meta_data</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">,</span> <span class="p">{</span><span class="n">tag</span><span class="p">:</span> <span class="n">metadata</span><span class="p">})</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">started</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
@@ -733,6 +737,8 @@
                            <span class="n">values</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">len_before_add</span>
 
+    <span class="nd">@deprecate</span><span class="p">(</span><span class="n">reason</span><span class="o">=</span><span class="s1">&#39;it is an experimental functionality, and is likely &#39;</span>
+                      <span class="s1">&#39;to be removed soon.&#39;</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">modify_result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">results</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">VALUES</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Modify a logically single result of existing parameters</span>
@@ -757,12 +763,15 @@
             <span class="k">if</span> <span class="n">param</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">paramspecs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;No such parameter: </span><span class="si">{param}</span><span class="s1">.&#39;</span><span class="p">)</span>
 
-        <span class="k">with</span> <span class="n">atomic</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">)</span> <span class="k">as</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">:</span>
-            <span class="n">modify_values</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span>
+        <span class="k">with</span> <span class="n">atomic</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">)</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+            <span class="n">modify_values</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span>
                           <span class="nb">list</span><span class="p">(</span><span class="n">results</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span>
                           <span class="nb">list</span><span class="p">(</span><span class="n">results</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
                           <span class="p">)</span>
 
+    <span class="nd">@deprecate</span><span class="p">(</span><span class="n">reason</span><span class="o">=</span><span class="s1">&#39;it is an experimental functionality, and is likely &#39;</span>
+                      <span class="s1">&#39;to be removed soon.&#39;</span><span class="p">,</span>
+               <span class="n">alternative</span><span class="o">=</span><span class="s1">&#39;modify_result&#39;</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">modify_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start_index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
                        <span class="n">updates</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">VALUES</span><span class="p">]]):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -798,13 +807,16 @@
         <span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="nb">list</span><span class="p">(</span><span class="n">val</span><span class="o">.</span><span class="n">values</span><span class="p">())</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">updates</span><span class="p">]</span>
         <span class="n">flattened_values</span> <span class="o">=</span> <span class="p">[</span><span class="n">item</span> <span class="k">for</span> <span class="n">sublist</span> <span class="ow">in</span> <span class="n">values</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">sublist</span><span class="p">]</span>
 
-        <span class="k">with</span> <span class="n">atomic</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">)</span> <span class="k">as</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">:</span>
-            <span class="n">modify_many_values</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span>
+        <span class="k">with</span> <span class="n">atomic</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">)</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+            <span class="n">modify_many_values</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span>
                                <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span>
                                <span class="n">start_index</span><span class="p">,</span>
                                <span class="n">flattened_keys</span><span class="p">,</span>
                                <span class="n">flattened_values</span><span class="p">)</span>
 
+    <span class="nd">@deprecate</span><span class="p">(</span><span class="n">reason</span><span class="o">=</span><span class="s1">&#39;it is an experimental functionality, and is likely &#39;</span>
+                      <span class="s1">&#39;to be removed soon.&#39;</span><span class="p">,</span>
+               <span class="n">alternative</span><span class="o">=</span><span class="s1">&#39;add_parameter, add_result, add_results&#39;</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">add_parameter_values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">spec</span><span class="p">:</span> <span class="n">ParamSpec</span><span class="p">,</span> <span class="n">values</span><span class="p">:</span> <span class="n">VALUES</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Add a parameter to the DataSet and associates result values with the</span>
@@ -825,8 +837,8 @@
                     <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
                 <span class="p">))</span>
 
-        <span class="k">with</span> <span class="n">atomic</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">)</span> <span class="k">as</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">:</span>
-            <span class="n">add_parameter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span> <span class="n">spec</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">atomic</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">)</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+            <span class="n">add_parameter</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span> <span class="n">spec</span><span class="p">)</span>
             <span class="c1"># now add values!</span>
             <span class="n">results</span> <span class="o">=</span> <span class="p">[{</span><span class="n">spec</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">value</span><span class="p">}</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">values</span><span class="p">]</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">add_results</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
@@ -962,15 +974,12 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Remove subscriber with the provided uuid</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">with</span> <span class="n">atomic</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">)</span> <span class="k">as</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_remove_trigger</span><span class="p">(</span><span class="n">uuid</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">atomic</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">)</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
             <span class="n">sub</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subscribers</span><span class="p">[</span><span class="n">uuid</span><span class="p">]</span>
+            <span class="n">remove_trigger</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="n">sub</span><span class="o">.</span><span class="n">trigger_id</span><span class="p">)</span>
             <span class="n">sub</span><span class="o">.</span><span class="n">schedule_stop</span><span class="p">()</span>
             <span class="n">sub</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
             <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">subscribers</span><span class="p">[</span><span class="n">uuid</span><span class="p">]</span>
-
-    <span class="k">def</span> <span class="nf">_remove_trigger</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
-        <span class="n">transaction</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="n">f</span><span class="s2">&quot;DROP TRIGGER IF EXISTS </span><span class="si">{name}</span><span class="s2">;&quot;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">unsubscribe_all</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -978,9 +987,9 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">sql</span> <span class="o">=</span> <span class="s2">&quot;select * from sqlite_master where type = &#39;trigger&#39;;&quot;</span>
         <span class="n">triggers</span> <span class="o">=</span> <span class="n">atomic_transaction</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="n">sql</span><span class="p">)</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
-        <span class="k">with</span> <span class="n">atomic</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">)</span> <span class="k">as</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">atomic</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">)</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">trigger</span> <span class="ow">in</span> <span class="n">triggers</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_remove_trigger</span><span class="p">(</span><span class="n">trigger</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">])</span>
+                <span class="n">remove_trigger</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="n">trigger</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">])</span>
             <span class="k">for</span> <span class="n">sub</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">subscribers</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
                 <span class="n">sub</span><span class="o">.</span><span class="n">schedule_stop</span><span class="p">()</span>
                 <span class="n">sub</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
