@@ -170,7 +170,9 @@
                                         <span class="n">connect</span><span class="p">,</span> <span class="n">transaction</span><span class="p">,</span>
                                         <span class="n">get_last_experiment</span><span class="p">,</span> <span class="n">get_experiments</span><span class="p">,</span>
                                         <span class="n">get_experiment_name_from_experiment_id</span><span class="p">,</span>
-                                        <span class="n">get_sample_name_from_experiment_id</span><span class="p">)</span>
+                                        <span class="n">get_runid_from_expid_and_counter</span><span class="p">,</span>
+                                        <span class="n">get_sample_name_from_experiment_id</span><span class="p">,</span>
+                                        <span class="n">ConnectionPlus</span><span class="p">)</span>
 <span class="kn">from</span> <span class="nn">qcodes.dataset.sqlite_base</span> <span class="k">import</span> <span class="n">new_experiment</span> <span class="k">as</span> <span class="n">ne</span>
 <span class="kn">from</span> <span class="nn">qcodes.dataset.database</span> <span class="k">import</span> <span class="n">get_DB_location</span><span class="p">,</span> <span class="n">get_DB_debug</span>
 
@@ -183,13 +185,16 @@
                  <span class="n">exp_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">sample_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">format_string</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">-</span><span class="si">{}</span><span class="s2">-</span><span class="si">{}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+                 <span class="n">format_string</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">-</span><span class="si">{}</span><span class="s2">-</span><span class="si">{}</span><span class="s2">&quot;</span><span class="p">,</span>
+                 <span class="n">conn</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ConnectionPlus</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Create or load an experiment. If exp_id is None, a new experiment is</span>
 <span class="sd">        created. If exp_id is not None, an experiment is loaded.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            path_to_db: The path of the database file to create in/load from</span>
+<span class="sd">            path_to_db: The path of the database file to create in/load from.</span>
+<span class="sd">              If a conn is passed together with path_to_db, an exception is</span>
+<span class="sd">              raised</span>
 <span class="sd">            exp_id: The id of the experiment to load</span>
 <span class="sd">            name: The name of the experiment to create. Ignored if exp_id is</span>
 <span class="sd">              not None</span>
@@ -197,9 +202,18 @@
 <span class="sd">              is not None</span>
 <span class="sd">            format_string: The format string used to name result-tables.</span>
 <span class="sd">              Ignored if exp_id is not None.</span>
+<span class="sd">            conn: connection to the database. If not supplied, the constructor</span>
+<span class="sd">              first tries to use path_to_db to figure out where to connect to.</span>
+<span class="sd">              If path_to_db is not supplied either, a new connection</span>
+<span class="sd">              to the DB file specified in the config is made</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">path_to_db</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">conn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Received BOTH conn and path_to_db. Please &#39;</span>
+                             <span class="s1">&#39;provide only one or the other.&#39;</span><span class="p">)</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">_path_to_db</span> <span class="o">=</span> <span class="n">path_to_db</span> <span class="ow">or</span> <span class="n">get_DB_location</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span> <span class="o">=</span> <span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path_to_db</span><span class="p">,</span> <span class="n">get_DB_debug</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span> <span class="o">=</span> <span class="n">conn</span> <span class="ow">or</span> <span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path_to_db</span><span class="p">,</span> <span class="n">get_DB_debug</span><span class="p">())</span>
 
         <span class="n">max_id</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">get_experiments</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">))</span>
 
@@ -271,7 +285,8 @@
 <span class="sd">            values: the values to associate with the parameters</span>
 <span class="sd">            metadata: the metadata to associate with the dataset</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="n">new_data_set</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">exp_id</span><span class="p">,</span> <span class="n">specs</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">metadata</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="n">new_data_set</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">exp_id</span><span class="p">,</span> <span class="n">specs</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">metadata</span><span class="p">,</span>
+                            <span class="n">conn</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Experiment.data_set"><a class="viewcode-back" href="../../../api/generated/qcodes.dataset.experiment_container.Experiment.html#qcodes.dataset.experiment_container.Experiment.data_set">[docs]</a>    <span class="k">def</span> <span class="nf">data_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">counter</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataSet</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -283,14 +298,16 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            the dataset</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="n">load_by_counter</span><span class="p">(</span><span class="n">counter</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">exp_id</span><span class="p">)</span></div>
+        <span class="n">run_id</span> <span class="o">=</span> <span class="n">get_runid_from_expid_and_counter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">exp_id</span><span class="p">,</span>
+                                                  <span class="n">counter</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">DataSet</span><span class="p">(</span><span class="n">run_id</span><span class="o">=</span><span class="n">run_id</span><span class="p">,</span> <span class="n">conn</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Experiment.data_sets"><a class="viewcode-back" href="../../../api/generated/qcodes.dataset.experiment_container.Experiment.html#qcodes.dataset.experiment_container.Experiment.data_sets">[docs]</a>    <span class="k">def</span> <span class="nf">data_sets</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">DataSet</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;Get all the datasets of this experiment&quot;&quot;&quot;</span>
         <span class="n">runs</span> <span class="o">=</span> <span class="n">get_runs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">exp_id</span><span class="p">)</span>
         <span class="n">data_sets</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">run</span> <span class="ow">in</span> <span class="n">runs</span><span class="p">:</span>
-            <span class="n">data_sets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">load_by_id</span><span class="p">(</span><span class="n">run</span><span class="p">[</span><span class="s1">&#39;run_id&#39;</span><span class="p">]))</span>
+            <span class="n">data_sets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">load_by_id</span><span class="p">(</span><span class="n">run</span><span class="p">[</span><span class="s1">&#39;run_id&#39;</span><span class="p">],</span> <span class="n">conn</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">data_sets</span></div>
 
 <div class="viewcode-block" id="Experiment.last_data_set"><a class="viewcode-back" href="../../../api/generated/qcodes.dataset.experiment_container.Experiment.html#qcodes.dataset.experiment_container.Experiment.last_data_set">[docs]</a>    <span class="k">def</span> <span class="nf">last_data_set</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataSet</span><span class="p">:</span>
@@ -344,7 +361,8 @@
 
 <div class="viewcode-block" id="new_experiment"><a class="viewcode-back" href="../../../api/generated/qcodes.dataset.experiment_container.new_experiment.html#qcodes.dataset.experiment_container.new_experiment">[docs]</a><span class="k">def</span> <span class="nf">new_experiment</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                    <span class="n">sample_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-                   <span class="n">format_string</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">-</span><span class="si">{}</span><span class="s2">-</span><span class="si">{}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Experiment</span><span class="p">:</span>
+                   <span class="n">format_string</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">-</span><span class="si">{}</span><span class="s2">-</span><span class="si">{}</span><span class="s2">&quot;</span><span class="p">,</span>
+                   <span class="n">conn</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ConnectionPlus</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Experiment</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Create a new experiment (in the database file from config)</span>
 
@@ -353,11 +371,15 @@
 <span class="sd">        sample_name: the name of the current sample</span>
 <span class="sd">        format_string: basic format string for table-name</span>
 <span class="sd">            must contain 3 placeholders.</span>
+<span class="sd">        conn: connection to the database. If not supplied, a new connection</span>
+<span class="sd">          to the DB file specified in the config is made</span>
 <span class="sd">    Returns:</span>
 <span class="sd">        the new experiment</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">conn</span> <span class="o">=</span> <span class="n">conn</span> <span class="ow">or</span> <span class="n">connect</span><span class="p">(</span><span class="n">get_DB_location</span><span class="p">())</span>
     <span class="k">return</span> <span class="n">Experiment</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">sample_name</span><span class="o">=</span><span class="n">sample_name</span><span class="p">,</span>
-                      <span class="n">format_string</span><span class="o">=</span><span class="n">format_string</span><span class="p">)</span></div>
+                      <span class="n">format_string</span><span class="o">=</span><span class="n">format_string</span><span class="p">,</span>
+                      <span class="n">conn</span><span class="o">=</span><span class="n">conn</span><span class="p">)</span></div>
 
 
 <span class="k">def</span> <span class="nf">load_experiment</span><span class="p">(</span><span class="n">exp_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Experiment</span><span class="p">:</span>
@@ -389,7 +411,8 @@
 
 
 <div class="viewcode-block" id="load_experiment_by_name"><a class="viewcode-back" href="../../../api/generated/qcodes.dataset.experiment_container.load_experiment_by_name.html#qcodes.dataset.experiment_container.load_experiment_by_name">[docs]</a><span class="k">def</span> <span class="nf">load_experiment_by_name</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-                            <span class="n">sample</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Experiment</span><span class="p">:</span>
+                            <span class="n">sample</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                            <span class="n">conn</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ConnectionPlus</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Experiment</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Try to load experiment with the specified name.</span>
 
@@ -399,6 +422,8 @@
 <span class="sd">    Args:</span>
 <span class="sd">        name: the name of the experiment</span>
 <span class="sd">        sample: the name of the sample</span>
+<span class="sd">        conn: connection to the database. If not supplied, a new connection</span>
+<span class="sd">          to the DB file specified in the config is made</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        the requested experiment</span>
@@ -406,7 +431,8 @@
 <span class="sd">    Raises:</span>
 <span class="sd">        ValueError if the name is not unique and sample name is None.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">conn</span> <span class="o">=</span> <span class="n">connect</span><span class="p">(</span><span class="n">get_DB_location</span><span class="p">())</span>
+    <span class="n">conn</span> <span class="o">=</span> <span class="n">conn</span> <span class="ow">or</span> <span class="n">connect</span><span class="p">(</span><span class="n">get_DB_location</span><span class="p">())</span>
+
     <span class="k">if</span> <span class="n">sample</span><span class="p">:</span>
         <span class="n">sql</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
 <span class="s2">        SELECT</span>
@@ -441,31 +467,34 @@
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Many experiments matching your request&quot;</span>
                          <span class="n">f</span><span class="s2">&quot; found:</span><span class="se">\n</span><span class="si">{_repr_str}</span><span class="s2">&quot;</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="n">e</span> <span class="o">=</span> <span class="n">Experiment</span><span class="p">(</span><span class="n">exp_id</span><span class="o">=</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;exp_id&#39;</span><span class="p">])</span>
+        <span class="n">e</span> <span class="o">=</span> <span class="n">Experiment</span><span class="p">(</span><span class="n">exp_id</span><span class="o">=</span><span class="n">rows</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;exp_id&#39;</span><span class="p">],</span> <span class="n">conn</span><span class="o">=</span><span class="n">conn</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">e</span></div>
 
 
 <div class="viewcode-block" id="load_or_create_experiment"><a class="viewcode-back" href="../../../api/generated/qcodes.dataset.experiment_container.load_or_create_experiment.html#qcodes.dataset.experiment_container.load_or_create_experiment">[docs]</a><span class="k">def</span> <span class="nf">load_or_create_experiment</span><span class="p">(</span><span class="n">experiment_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-                              <span class="n">sample_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-                              <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Experiment</span><span class="p">:</span>
+                              <span class="n">sample_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                              <span class="n">conn</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ConnectionPlus</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span><span class="o">-&gt;</span><span class="n">Experiment</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Find and return an experiment with the given name and sample name,</span>
 <span class="sd">    or create one if not found.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        experiment_name</span>
-<span class="sd">            Name of the experiment to find or create</span>
-<span class="sd">        sample_name</span>
-<span class="sd">            Name of the sample</span>
+<span class="sd">        experiment_name: Name of the experiment to find or create</span>
+<span class="sd">        sample_name: Name of the sample</span>
+<span class="sd">        conn: Connection to the database. If not supplied, a new connection</span>
+<span class="sd">          to the DB file specified in the config is made</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        The found or created experiment</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">conn</span> <span class="o">=</span> <span class="n">conn</span> <span class="ow">or</span> <span class="n">connect</span><span class="p">(</span><span class="n">get_DB_location</span><span class="p">())</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="n">experiment</span> <span class="o">=</span> <span class="n">load_experiment_by_name</span><span class="p">(</span><span class="n">experiment_name</span><span class="p">,</span> <span class="n">sample_name</span><span class="p">)</span>
+        <span class="n">experiment</span> <span class="o">=</span> <span class="n">load_experiment_by_name</span><span class="p">(</span><span class="n">experiment_name</span><span class="p">,</span> <span class="n">sample_name</span><span class="p">,</span>
+                                             <span class="n">conn</span><span class="o">=</span><span class="n">conn</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">exception</span><span class="p">:</span>
         <span class="k">if</span> <span class="s2">&quot;Experiment not found&quot;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">exception</span><span class="p">):</span>
-            <span class="n">experiment</span> <span class="o">=</span> <span class="n">new_experiment</span><span class="p">(</span><span class="n">experiment_name</span><span class="p">,</span> <span class="n">sample_name</span><span class="p">)</span>
+            <span class="n">experiment</span> <span class="o">=</span> <span class="n">new_experiment</span><span class="p">(</span><span class="n">experiment_name</span><span class="p">,</span> <span class="n">sample_name</span><span class="p">,</span>
+                                        <span class="n">conn</span><span class="o">=</span><span class="n">conn</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">exception</span>
     <span class="k">return</span> <span class="n">experiment</span></div>

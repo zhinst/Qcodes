@@ -188,6 +188,7 @@
                                         <span class="n">get_experiment_name_from_experiment_id</span><span class="p">,</span>
                                         <span class="n">get_sample_name_from_experiment_id</span><span class="p">,</span>
                                         <span class="n">get_guid_from_run_id</span><span class="p">,</span>
+                                        <span class="n">get_runid_from_guid</span><span class="p">,</span>
                                         <span class="n">get_run_timestamp_from_run_id</span><span class="p">,</span>
                                         <span class="n">get_completed_timestamp_from_run_id</span><span class="p">,</span>
                                         <span class="n">update_run_description</span><span class="p">,</span>
@@ -201,6 +202,8 @@
 <span class="kn">from</span> <span class="nn">qcodes.dataset.guids</span> <span class="k">import</span> <span class="n">generate_guid</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.deprecate</span> <span class="k">import</span> <span class="n">deprecate</span>
 <span class="kn">import</span> <span class="nn">qcodes.config</span>
+
+<span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 <span class="c1"># TODO: as of now every time a result is inserted with add_result the db is</span>
 <span class="c1"># saved same for add_results. IS THIS THE BEHAVIOUR WE WANT?</span>
@@ -343,6 +346,15 @@
 
 
 <span class="k">class</span> <span class="nc">DataSet</span><span class="p">(</span><span class="n">Sized</span><span class="p">):</span>
+
+    <span class="c1"># the &quot;persistent traits&quot; are the attributes/properties of the DataSet</span>
+    <span class="c1"># that are NOT tied to the representation of the DataSet in any particular</span>
+    <span class="c1"># database</span>
+    <span class="n">persistent_traits</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="s1">&#39;guid&#39;</span><span class="p">,</span> <span class="s1">&#39;number_of_results&#39;</span><span class="p">,</span>
+                         <span class="s1">&#39;parameters&#39;</span><span class="p">,</span> <span class="s1">&#39;paramspecs&#39;</span><span class="p">,</span> <span class="s1">&#39;exp_name&#39;</span><span class="p">,</span> <span class="s1">&#39;sample_name&#39;</span><span class="p">,</span>
+                         <span class="s1">&#39;completed&#39;</span><span class="p">,</span> <span class="s1">&#39;snapshot&#39;</span><span class="p">,</span> <span class="s1">&#39;run_timestamp_raw&#39;</span><span class="p">,</span>
+                         <span class="s1">&#39;description&#39;</span><span class="p">,</span> <span class="s1">&#39;completed_timestamp_raw&#39;</span><span class="p">,</span> <span class="s1">&#39;metadata&#39;</span><span class="p">)</span>
+
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path_to_db</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">run_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">conn</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ConnectionPlus</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -512,6 +524,34 @@
     <span class="k">def</span> <span class="nf">metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_metadata</span>
 
+    <span class="k">def</span> <span class="nf">the_same_dataset_as</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="s1">&#39;DataSet&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check if two datasets correspond to the same run by comparing</span>
+<span class="sd">        all their persistent traits. Note that this method</span>
+<span class="sd">        does not compare the data itself.</span>
+
+<span class="sd">        This function raises if the GUIDs match but anything else doesn&#39;t</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            other: the dataset to compare self to</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">DataSet</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="n">guids_match</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">guid</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">guid</span>
+
+        <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">DataSet</span><span class="o">.</span><span class="n">persistent_traits</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">attr</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">guids_match</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Critical inconsistency detected! &#39;</span>
+                                       <span class="s1">&#39;The two datasets have the same GUID,&#39;</span>
+                                       <span class="n">f</span><span class="s1">&#39; but their &quot;</span><span class="si">{attr}</span><span class="s1">&quot; differ.&#39;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="k">return</span> <span class="kc">True</span>
+
     <span class="k">def</span> <span class="nf">run_timestamp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fmt</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2"> %H:%M:%S&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns run timestamp in a human-readable format</span>
@@ -639,6 +679,20 @@
         <span class="c1"># `add_meta_data` is not atomic by itself, hence using `atomic`</span>
         <span class="k">with</span> <span class="n">atomic</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">)</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
             <span class="n">add_meta_data</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">,</span> <span class="p">{</span><span class="n">tag</span><span class="p">:</span> <span class="n">metadata</span><span class="p">})</span>
+
+    <span class="k">def</span> <span class="nf">add_snapshot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">snapshot</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Adds a snapshot to this run</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            snapshot: the raw JSON dump of the snapshot</span>
+<span class="sd">            overwrite: force overwrite an existing snapshot</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">snapshot</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">overwrite</span><span class="p">:</span>
+            <span class="n">add_meta_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;snapshot&#39;</span><span class="p">:</span> <span class="n">snapshot</span><span class="p">})</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">snapshot</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">overwrite</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;This dataset already has a snapshot. Use overwrite&#39;</span>
+                        <span class="s1">&#39;=True to overwrite that&#39;</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">started</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
@@ -1015,14 +1069,16 @@
 
 
 <span class="c1"># public api</span>
-<div class="viewcode-block" id="load_by_id"><a class="viewcode-back" href="../../../api/generated/qcodes.dataset.data_set.load_by_id.html#qcodes.dataset.data_set.load_by_id">[docs]</a><span class="k">def</span> <span class="nf">load_by_id</span><span class="p">(</span><span class="n">run_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataSet</span><span class="p">:</span>
+<div class="viewcode-block" id="load_by_id"><a class="viewcode-back" href="../../../api/generated/qcodes.dataset.data_set.load_by_id.html#qcodes.dataset.data_set.load_by_id">[docs]</a><span class="k">def</span> <span class="nf">load_by_id</span><span class="p">(</span><span class="n">run_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">conn</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ConnectionPlus</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataSet</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load dataset by run id</span>
 
-<span class="sd">    Lookup is performed in the database file that is specified in the config.</span>
+<span class="sd">    If no connection is provided, lookup is performed in the database file that</span>
+<span class="sd">    is specified in the config.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        run_id: run id of the dataset</span>
+<span class="sd">        conn: connection to the database to load from</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        dataset with the given run id</span>
@@ -1030,11 +1086,43 @@
     <span class="k">if</span> <span class="n">run_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;run_id has to be a positive integer, not None.&#39;</span><span class="p">)</span>
 
-    <span class="n">d</span> <span class="o">=</span> <span class="n">DataSet</span><span class="p">(</span><span class="n">path_to_db</span><span class="o">=</span><span class="n">get_DB_location</span><span class="p">(),</span> <span class="n">run_id</span><span class="o">=</span><span class="n">run_id</span><span class="p">)</span>
+    <span class="n">conn</span> <span class="o">=</span> <span class="n">conn</span> <span class="ow">or</span> <span class="n">connect</span><span class="p">(</span><span class="n">get_DB_location</span><span class="p">())</span>
+
+    <span class="n">d</span> <span class="o">=</span> <span class="n">DataSet</span><span class="p">(</span><span class="n">conn</span><span class="o">=</span><span class="n">conn</span><span class="p">,</span> <span class="n">run_id</span><span class="o">=</span><span class="n">run_id</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">d</span></div>
 
 
-<span class="k">def</span> <span class="nf">load_by_counter</span><span class="p">(</span><span class="n">counter</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">exp_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataSet</span><span class="p">:</span>
+<span class="k">def</span> <span class="nf">load_by_guid</span><span class="p">(</span><span class="n">guid</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">conn</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ConnectionPlus</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataSet</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Load a dataset by its GUID</span>
+
+<span class="sd">    If no connection is provided, lookup is performed in the database file that</span>
+<span class="sd">    is specified in the config.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        guid: guid of the dataset</span>
+<span class="sd">        conn: connection to the database to load from</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        dataset with the given guid</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        NameError if no run with the given GUID exists in the database</span>
+<span class="sd">        RuntimeError if several runs with the given GUID are found</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">conn</span> <span class="o">=</span> <span class="n">conn</span> <span class="ow">or</span> <span class="n">connect</span><span class="p">(</span><span class="n">get_DB_location</span><span class="p">())</span>
+
+    <span class="c1"># this function raises a RuntimeError if more than one run matches the GUID</span>
+    <span class="n">run_id</span> <span class="o">=</span> <span class="n">get_runid_from_guid</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="n">guid</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">run_id</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;No run with GUID: </span><span class="si">{guid}</span><span class="s1"> found in database.&#39;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">DataSet</span><span class="p">(</span><span class="n">run_id</span><span class="o">=</span><span class="n">run_id</span><span class="p">,</span> <span class="n">conn</span><span class="o">=</span><span class="n">conn</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">load_by_counter</span><span class="p">(</span><span class="n">counter</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">exp_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+                    <span class="n">conn</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ConnectionPlus</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataSet</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Load a dataset given its counter in a given experiment</span>
 
@@ -1043,11 +1131,13 @@
 <span class="sd">    Args:</span>
 <span class="sd">        counter: counter of the dataset within the given experiment</span>
 <span class="sd">        exp_id: id of the experiment where to look for the dataset</span>
+<span class="sd">        conn: connection to the database to load from. If not provided, a</span>
+<span class="sd">          connection to the DB file specified in the config is made</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        dataset of the given counter in the given experiment</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">conn</span> <span class="o">=</span> <span class="n">connect</span><span class="p">(</span><span class="n">get_DB_location</span><span class="p">())</span>
+    <span class="n">conn</span> <span class="o">=</span> <span class="n">conn</span> <span class="ow">or</span> <span class="n">connect</span><span class="p">(</span><span class="n">get_DB_location</span><span class="p">())</span>
     <span class="n">sql</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
 <span class="s2">    SELECT run_id</span>
 <span class="s2">    FROM</span>
@@ -1058,9 +1148,8 @@
 <span class="s2">    &quot;&quot;&quot;</span>
     <span class="n">c</span> <span class="o">=</span> <span class="n">transaction</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="n">sql</span><span class="p">,</span> <span class="n">counter</span><span class="p">,</span> <span class="n">exp_id</span><span class="p">)</span>
     <span class="n">run_id</span> <span class="o">=</span> <span class="n">one</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="s1">&#39;run_id&#39;</span><span class="p">)</span>
-    <span class="n">conn</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 
-    <span class="n">d</span> <span class="o">=</span> <span class="n">DataSet</span><span class="p">(</span><span class="n">get_DB_location</span><span class="p">(),</span> <span class="n">run_id</span><span class="o">=</span><span class="n">run_id</span><span class="p">)</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">DataSet</span><span class="p">(</span><span class="n">conn</span><span class="o">=</span><span class="n">conn</span><span class="p">,</span> <span class="n">run_id</span><span class="o">=</span><span class="n">run_id</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">d</span>
 
 
