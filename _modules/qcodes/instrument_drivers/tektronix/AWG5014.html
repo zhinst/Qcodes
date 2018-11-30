@@ -159,6 +159,11 @@
 <span></span><span class="kn">import</span> <span class="nn">struct</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">namedtuple</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">defaultdict</span>
+
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Tuple</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">array</span> <span class="k">as</span> <span class="nn">arr</span>
@@ -171,6 +176,13 @@
 <span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="n">VisaInstrument</span><span class="p">,</span> <span class="n">validators</span> <span class="k">as</span> <span class="n">vals</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.deprecate</span> <span class="k">import</span> <span class="n">deprecate</span>
 <span class="kn">from</span> <span class="nn">pyvisa.errors</span> <span class="k">import</span> <span class="n">VisaIOError</span>
+
+<span class="c1"># conditionally import lomentum for support of lomentum type sequences</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">lomentum.tools</span> <span class="k">import</span> <span class="n">is_subsequence</span><span class="p">,</span> <span class="n">get_element_channel_ids</span>
+    <span class="n">USE_LOMENTUM</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">USE_LOMENTUM</span> <span class="o">=</span> <span class="kc">False</span>
 
 
 <span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
@@ -1062,7 +1074,7 @@
 <span class="sd">        been changed from their default value and put them in a</span>
 <span class="sd">        dictionary that can easily be written into an awg file, so as</span>
 <span class="sd">        to prevent said awg file from falling back to default values.</span>
-<span class="sd">        (See :meth:`~make_awg_file` and :meth:`qcodes.instrument_drivers.tektronix.AWG5014.Tektronix_AWG5014.AWG_FILE_FORMAT_CHANNEL`)</span>
+<span class="sd">        (See :meth:`~make_awg_file` and :meth:`~AWG_FILE_FORMAT_CHANNEL`)</span>
 <span class="sd">        NOTE: This only works for settings changed via the corresponding</span>
 <span class="sd">        QCoDeS parameter.</span>
 
@@ -1180,6 +1192,152 @@
                                         <span class="n">addinputs</span><span class="p">[</span><span class="n">chan</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]})</span>
 
         <span class="k">return</span> <span class="n">AWG_channel_cfg</span></div>
+
+<div class="viewcode-block" id="Tektronix_AWG5014.parse_marker_channel_name"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.AWG5014.Tektronix_AWG5014.parse_marker_channel_name">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">parse_marker_channel_name</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span><span class="o">-&gt;</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        returns from the channel index and marker index from a marker</span>
+<span class="sd">        descriptor string e.g. &#39;1M1&#39;-&gt;(1,1)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;^(?P&lt;channel&gt;\d+)M(?P&lt;marker&gt;\d+)$&#39;</span><span class="p">,</span>
+                       <span class="n">name</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">res</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="n">MarkerDescriptor</span> <span class="o">=</span> <span class="n">namedtuple</span><span class="p">(</span><span class="s1">&#39;MarkerDescriptor&#39;</span><span class="p">,</span>
+                                      <span class="p">(</span><span class="s1">&#39;marker&#39;</span><span class="p">,</span> <span class="s1">&#39;channel&#39;</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">MarkerDescriptor</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s1">&#39;marker&#39;</span><span class="p">)),</span>
+                                <span class="nb">int</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s1">&#39;channel&#39;</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="Tektronix_AWG5014.make_send_and_load_awg_file_from_forged_sequence"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.AWG5014.Tektronix_AWG5014.make_send_and_load_awg_file_from_forged_sequence">[docs]</a>    <span class="k">def</span> <span class="nf">make_send_and_load_awg_file_from_forged_sequence</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">seq</span><span class="p">,</span>
+            <span class="n">filename</span><span class="o">=</span><span class="s1">&#39;customawgfile.awg&#39;</span><span class="p">,</span>
+            <span class="n">preservechannelsettings</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Makes an awg file form a forged sequence as produced by</span>
+<span class="sd">        broadbean.sequence.Sequence.forge. The forged sequence is a dictionary</span>
+<span class="sd">        (see :attr:`fs_schmea &lt;broadbean.sequence.fs_schmema&gt;`) that does not</span>
+<span class="sd">        need to be created by broadbean.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            seq: the sequence dictionary</span>
+<span class="sd">            filename: filename of the uploaded awg file.</span>
+<span class="sd">                See :meth:`~make_send_and_load_awg_file`</span>
+<span class="sd">            preservechannelsettings: see :meth:`~make_send_and_load_awg_file`</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">USE_LOMENTUM</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s1">&#39;The method &quot;make_send_and_load_awg_file_from_forged_sequence&quot; is &#39;</span>
+                <span class="s1">&#39; only available with the `lomentum` module installed&#39;</span><span class="p">)</span>
+        <span class="n">n_channels</span> <span class="o">=</span> <span class="mi">4</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">available_waveform_channels</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">n_channels</span><span class="o">+</span><span class="mi">1</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">available_marker_channels</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">f</span><span class="s1">&#39;</span><span class="si">{c}</span><span class="s1">M</span><span class="si">{m}</span><span class="s1">&#39;</span>
+            <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">available_waveform_channels</span>
+            <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">available_channels</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">available_waveform_channels</span> <span class="o">+</span>
+                                   <span class="bp">self</span><span class="o">.</span><span class="n">available_marker_channels</span><span class="p">)</span>
+
+        <span class="n">waveforms</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">m1s</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">m2s</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># unfortunately the definitions of the sequence elements in terms of</span>
+        <span class="c1"># channel and step in :meth:`make_and_send_awg_file` and the forged</span>
+        <span class="c1"># sequence definition are transposed. Start by filling out after schema</span>
+        <span class="c1"># and transpose at the end.</span>
+        <span class="c1"># make...: [[wfm1ch1, wfm2ch1, ...], [wfm1ch2, wfm2ch2], ...]</span>
+        <span class="c1"># dict efectively: {elementid: {channelid: wfm}}</span>
+
+        <span class="n">nreps</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">trig_waits</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">goto_states</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">jump_tos</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># obtain list of channels defined in the first step</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">seq</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="c1"># TODO: better error</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Sequences need to have at least one element&#39;</span><span class="p">)</span>
+
+        <span class="c1"># assume that the channels are the same on every element</span>
+        <span class="n">provided_channels</span> <span class="o">=</span> <span class="n">get_element_channel_ids</span><span class="p">(</span><span class="n">seq</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">used_waveform_channels</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">provided_channels</span><span class="p">)</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span>
+            <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">available_waveform_channels</span><span class="p">)))</span>
+        <span class="n">used_marker_channels</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">provided_channels</span><span class="p">)</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span>
+                <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">available_marker_channels</span><span class="p">)))</span>
+        <span class="n">associated_marker_channels</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">parse_marker_channel_name</span><span class="p">(</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">channel</span>
+            <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">used_marker_channels</span><span class="p">]</span>
+        <span class="n">used_channels</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span>
+            <span class="nb">set</span><span class="p">(</span><span class="n">used_waveform_channels</span><span class="p">)</span><span class="o">.</span><span class="n">union</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">associated_marker_channels</span><span class="p">)))</span>
+
+        <span class="k">for</span> <span class="n">i_elem</span><span class="p">,</span> <span class="n">elem</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">seq</span><span class="p">):</span>
+            <span class="c1"># TODO: add support for subsequences</span>
+            <span class="k">assert</span> <span class="ow">not</span> <span class="n">is_subsequence</span><span class="p">(</span><span class="n">elem</span><span class="p">)</span>
+            <span class="n">datadict</span> <span class="o">=</span> <span class="n">elem</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">]</span>
+
+            <span class="c1"># Split up the dictionary into two, one for the markers the other</span>
+            <span class="c1"># for the waveforms</span>
+            <span class="n">step_waveforms</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">step_markers</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="kc">None</span><span class="p">),</span> <span class="n">defaultdict</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">channel</span><span class="p">,</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">datadict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">channel</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">available_marker_channels</span><span class="p">:</span>
+                    <span class="n">t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse_marker_channel_name</span><span class="p">(</span><span class="n">channel</span><span class="p">)</span>
+                    <span class="n">step_markers</span><span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">marker</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="n">t</span><span class="o">.</span><span class="n">channel</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span>
+                <span class="k">elif</span> <span class="n">channel</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">available_waveform_channels</span><span class="p">:</span>
+                    <span class="n">step_waveforms</span><span class="p">[</span><span class="n">channel</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                        <span class="n">f</span><span class="s1">&#39;The channel with name </span><span class="si">{channel}</span><span class="s1"> as defined in &#39;</span>
+                        <span class="n">f</span><span class="s1">&#39;the element with no. </span><span class="si">{i_elem}</span><span class="s1"> is not an available &#39;</span>
+                        <span class="n">f</span><span class="s1">&#39;marker channel or waveform channel.</span><span class="se">\n</span><span class="s1">&#39;</span>
+                        <span class="n">f</span><span class="s1">&#39;Available channels are: &#39;</span>
+                        <span class="n">f</span><span class="s1">&#39;</span><span class="si">{self.available_marker_channels}</span><span class="s1"> and &#39;</span>
+                        <span class="n">f</span><span class="s1">&#39;</span><span class="si">{self.available_waveform_channels}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+            <span class="c1"># create empty trace as template for filling traces with markers</span>
+            <span class="c1"># only and traces without markers</span>
+            <span class="n">n_samples</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">waveform_keys</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">step_waveforms</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+            <span class="n">marker_keys</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">step_markers</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">waveform_keys</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">n_samples</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">step_waveforms</span><span class="p">[</span><span class="n">waveform_keys</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">marker_keys</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">n_samples</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">step_markers</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">marker_keys</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">]])</span>
+                        <span class="k">break</span>
+            <span class="k">if</span> <span class="n">n_samples</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;It is not allowed to upload an element &#39;</span>
+                                   <span class="s1">&#39;without markers nor waveforms&#39;</span><span class="p">)</span>
+            <span class="n">blank_trace</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_samples</span><span class="p">)</span>
+
+            <span class="c1"># I think this does might add some traces dynamically if they are</span>
+            <span class="c1"># not the same in all elements. Add check in the beginning</span>
+            <span class="n">step_waveforms_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">step_waveforms</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">blank_trace</span><span class="p">)</span>
+                                   <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">used_channels</span><span class="p">]</span>
+            <span class="n">step_markers_list</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">([</span><span class="n">step_markers</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">blank_trace</span><span class="p">)</span>
+                                       <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">used_channels</span><span class="p">]</span>
+                                      <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
+
+            <span class="n">waveforms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">step_waveforms_list</span><span class="p">)</span>
+            <span class="n">m1s</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">step_markers_list</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">m2s</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">step_markers_list</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="c1"># sequencing</span>
+            <span class="n">seq_opts</span> <span class="o">=</span> <span class="n">elem</span><span class="p">[</span><span class="s1">&#39;sequencing&#39;</span><span class="p">]</span>
+            <span class="n">nreps</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">seq_opts</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;nrep&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+            <span class="n">trig_waits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">seq_opts</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;trig_wait&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+            <span class="n">goto_states</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">seq_opts</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;goto_state&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+            <span class="n">jump_tos</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">seq_opts</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;jump_to&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+        <span class="c1"># transpose list of lists</span>
+        <span class="n">waveforms</span> <span class="o">=</span> <span class="p">[</span><span class="nb">list</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">waveforms</span><span class="p">)]</span>
+        <span class="n">m1s</span> <span class="o">=</span> <span class="p">[</span><span class="nb">list</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">m1s</span><span class="p">)]</span>
+        <span class="n">m2s</span> <span class="o">=</span> <span class="p">[</span><span class="nb">list</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">m2s</span><span class="p">)]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">make_send_and_load_awg_file</span><span class="p">(</span><span class="n">waveforms</span><span class="p">,</span> <span class="n">m1s</span><span class="p">,</span> <span class="n">m2s</span><span class="p">,</span>
+                                         <span class="n">nreps</span><span class="p">,</span> <span class="n">trig_waits</span><span class="p">,</span>
+                                         <span class="n">goto_states</span><span class="p">,</span> <span class="n">jump_tos</span><span class="p">,</span>
+                                         <span class="n">channels</span><span class="o">=</span><span class="n">used_channels</span><span class="p">,</span>
+                                         <span class="n">filename</span><span class="o">=</span><span class="n">filename</span><span class="p">,</span>
+                                         <span class="n">preservechannelsettings</span><span class="o">=</span><span class="n">preservechannelsettings</span><span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">_generate_awg_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                            <span class="n">packed_waveforms</span><span class="p">,</span> <span class="n">wfname_l</span><span class="p">,</span> <span class="n">nrep</span><span class="p">,</span> <span class="n">trig_wait</span><span class="p">,</span>
@@ -1323,7 +1481,8 @@
         <span class="k">return</span> <span class="n">awg_file</span>
 
 <div class="viewcode-block" id="Tektronix_AWG5014.generate_awg_file"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.AWG5014.Tektronix_AWG5014.generate_awg_file">[docs]</a>    <span class="nd">@deprecate</span><span class="p">(</span><span class="n">alternative</span><span class="o">=</span><span class="s1">&#39;make_awg_file, _generate_awg_file&#39;</span><span class="p">)</span>
-    <span class="nd">@wraps</span><span class="p">(</span><span class="n">_generate_awg_file</span><span class="p">,</span> <span class="n">assigned</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">v</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">WRAPPER_ASSIGNMENTS</span> <span class="k">if</span> <span class="n">v</span> <span class="o">!=</span> <span class="s1">&#39;__name__&#39;</span><span class="p">))</span>
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">_generate_awg_file</span><span class="p">,</span> <span class="n">assigned</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">v</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">WRAPPER_ASSIGNMENTS</span>
+                                              <span class="k">if</span> <span class="n">v</span> <span class="o">!=</span> <span class="s1">&#39;__name__&#39;</span><span class="p">))</span>
     <span class="k">def</span> <span class="nf">generate_awg_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_awg_file</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
@@ -1640,7 +1799,8 @@
         <span class="k">return</span> <span class="n">packed_wf</span>
 
 <div class="viewcode-block" id="Tektronix_AWG5014.pack_waveform"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.AWG5014.Tektronix_AWG5014.pack_waveform">[docs]</a>    <span class="nd">@deprecate</span><span class="p">(</span><span class="n">reason</span><span class="o">=</span><span class="s1">&#39;this function is for private use only.&#39;</span><span class="p">)</span>
-    <span class="nd">@wraps</span><span class="p">(</span><span class="n">_pack_waveform</span><span class="p">,</span> <span class="n">assigned</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">v</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">WRAPPER_ASSIGNMENTS</span> <span class="k">if</span> <span class="n">v</span> <span class="o">!=</span> <span class="s1">&#39;__name__&#39;</span><span class="p">))</span>
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">_pack_waveform</span><span class="p">,</span> <span class="n">assigned</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">v</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">WRAPPER_ASSIGNMENTS</span>
+                                          <span class="k">if</span> <span class="n">v</span> <span class="o">!=</span> <span class="s1">&#39;__name__&#39;</span><span class="p">))</span>
     <span class="k">def</span> <span class="nf">pack_waveform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pack_waveform</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
