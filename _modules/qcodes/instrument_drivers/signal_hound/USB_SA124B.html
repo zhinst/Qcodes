@@ -303,7 +303,7 @@
                                <span class="s2">&quot;for &#39;SignalHound_USB_SA124B&#39;&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">instrument</span><span class="o">.</span><span class="n">_trace_updated</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;trace not updated, run configure to update&#39;</span><span class="p">)</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">_get_averaged_sweep_data</span><span class="p">()</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="o">.</span><span class="n">_get_sweep_data</span><span class="p">()</span>
         <span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">instrument</span><span class="o">.</span><span class="n">sleep_time</span><span class="o">.</span><span class="n">get</span><span class="p">())</span>
         <span class="k">return</span> <span class="n">data</span></div></div>
 
@@ -336,6 +336,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_trace_updated</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Initializing instrument SignalHound USB 124B&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">dll</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">CDLL</span><span class="p">(</span><span class="n">dll_path</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll_path</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_ctypes_argtypes</span><span class="p">()</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">hf</span> <span class="o">=</span> <span class="n">Constants</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;frequency&#39;</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Frequency&#39;</span><span class="p">,</span>
@@ -480,6 +483,45 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">connect_message</span><span class="p">()</span>
 
+    <span class="k">def</span> <span class="nf">_set_ctypes_argtypes</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set the expected argtypes for function calls in the sa_api dll</span>
+<span class="sd">        These should match the function signatures defined in the sa-api</span>
+<span class="sd">        header files included with the signal hound sdk</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saConfigCenterSpan</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="p">[</span><span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">,</span>
+                                                <span class="n">ct</span><span class="o">.</span><span class="n">c_double</span><span class="p">,</span>
+                                                <span class="n">ct</span><span class="o">.</span><span class="n">c_double</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saConfigAcquisition</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="p">[</span><span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">,</span>
+                                                 <span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">,</span>
+                                                 <span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saConfigLevel</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="p">[</span><span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">,</span>
+                                           <span class="n">ct</span><span class="o">.</span><span class="n">c_double</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saSetTimebase</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="p">[</span><span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">,</span>
+                                           <span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saConfigSweepCoupling</span><span class="o">.</span><span class="n">argypes</span> <span class="o">=</span> <span class="p">[</span><span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">,</span>
+                                                  <span class="n">ct</span><span class="o">.</span><span class="n">c_double</span><span class="p">,</span>
+                                                  <span class="n">ct</span><span class="o">.</span><span class="n">c_double</span><span class="p">,</span>
+                                                  <span class="n">ct</span><span class="o">.</span><span class="n">c_bool</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saInitiate</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="p">[</span><span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">,</span>
+                                        <span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">,</span>
+                                        <span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saOpenDevice</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="p">[</span><span class="n">ct</span><span class="o">.</span><span class="n">POINTER</span><span class="p">(</span><span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">)]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saCloseDevice</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="p">[</span><span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saPreset</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="p">[</span><span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saGetDeviceType</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="p">[</span><span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">,</span>
+                                             <span class="n">ct</span><span class="o">.</span><span class="n">POINTER</span><span class="p">(</span><span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">)]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saQuerySweepInfo</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="p">[</span><span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">,</span>
+                                              <span class="n">ct</span><span class="o">.</span><span class="n">POINTER</span><span class="p">(</span><span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">),</span>
+                                              <span class="n">ct</span><span class="o">.</span><span class="n">POINTER</span><span class="p">(</span><span class="n">ct</span><span class="o">.</span><span class="n">c_double</span><span class="p">),</span>
+                                              <span class="n">ct</span><span class="o">.</span><span class="n">POINTER</span><span class="p">(</span><span class="n">ct</span><span class="o">.</span><span class="n">c_double</span><span class="p">)]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saGetSweep_32f</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="p">[</span><span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">,</span> <span class="n">ct</span><span class="o">.</span><span class="n">POINTER</span><span class="p">(</span><span class="n">ct</span><span class="o">.</span><span class="n">c_float</span><span class="p">),</span>
+                                            <span class="n">ct</span><span class="o">.</span><span class="n">POINTER</span><span class="p">(</span><span class="n">ct</span><span class="o">.</span><span class="n">c_float</span><span class="p">)]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saGetSerialNumber</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="p">[</span><span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">,</span>
+                                               <span class="n">ct</span><span class="o">.</span><span class="n">POINTER</span><span class="p">(</span><span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">)]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saGetFirmwareString</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="p">[</span><span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">,</span>
+                                                 <span class="n">ct</span><span class="o">.</span><span class="n">c_char_p</span><span class="p">]</span>
+
     <span class="k">def</span> <span class="nf">_update_trace</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Private method to sync changes of the</span>
@@ -519,14 +561,14 @@
 
         <span class="c1"># 2. Acquisition configuration</span>
         <span class="n">detectorVals</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s1">&#39;min-max&#39;</span><span class="p">:</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_uint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_MIN_MAX</span><span class="p">),</span>
-            <span class="s1">&#39;average&#39;</span><span class="p">:</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_uint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_AVERAGE</span><span class="p">)</span>
+            <span class="s1">&#39;min-max&#39;</span><span class="p">:</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_MIN_MAX</span><span class="p">),</span>
+            <span class="s1">&#39;average&#39;</span><span class="p">:</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_AVERAGE</span><span class="p">)</span>
         <span class="p">}</span>
         <span class="n">scaleVals</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s1">&#39;log-scale&#39;</span><span class="p">:</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_uint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_LOG_SCALE</span><span class="p">),</span>
-            <span class="s1">&#39;lin-scale&#39;</span><span class="p">:</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_uint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_LIN_SCALE</span><span class="p">),</span>
-            <span class="s1">&#39;log-full-scale&#39;</span><span class="p">:</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_uint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_LOG_FULL_SCALE</span><span class="p">),</span>
-            <span class="s1">&#39;lin-full-scale&#39;</span><span class="p">:</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_uint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_LIN_FULL_SCALE</span><span class="p">)</span>
+            <span class="s1">&#39;log-scale&#39;</span><span class="p">:</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_LOG_SCALE</span><span class="p">),</span>
+            <span class="s1">&#39;lin-scale&#39;</span><span class="p">:</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_LIN_SCALE</span><span class="p">),</span>
+            <span class="s1">&#39;log-full-scale&#39;</span><span class="p">:</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_LOG_FULL_SCALE</span><span class="p">),</span>
+            <span class="s1">&#39;lin-full-scale&#39;</span><span class="p">:</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hf</span><span class="o">.</span><span class="n">sa_LIN_FULL_SCALE</span><span class="p">)</span>
         <span class="p">}</span>
         <span class="n">detector</span> <span class="o">=</span> <span class="n">detectorVals</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">acquisition_mode</span><span class="p">()]</span>
         <span class="n">scale</span> <span class="o">=</span> <span class="n">scaleVals</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">scale</span><span class="p">()]</span>
@@ -660,7 +702,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Querying device for model information&#39;</span><span class="p">)</span>
 
-        <span class="n">devType</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_uint</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">devType</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">c_int32</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
         <span class="n">devTypePnt</span> <span class="o">=</span> <span class="n">ct</span><span class="o">.</span><span class="n">pointer</span><span class="p">(</span><span class="n">devType</span><span class="p">)</span>
 
         <span class="n">err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saGetDeviceType</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span><span class="p">,</span> <span class="n">devTypePnt</span><span class="p">)</span>
@@ -714,38 +756,22 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">sync_parameters</span><span class="p">()</span>
         <span class="n">sweep_len</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">QuerySweep</span><span class="p">()</span>
 
-        <span class="n">minarr</span> <span class="o">=</span> <span class="p">(</span><span class="n">ct</span><span class="o">.</span><span class="n">c_float</span> <span class="o">*</span> <span class="n">sweep_len</span><span class="p">)()</span>
-        <span class="n">maxarr</span> <span class="o">=</span> <span class="p">(</span><span class="n">ct</span><span class="o">.</span><span class="n">c_float</span> <span class="o">*</span> <span class="n">sweep_len</span><span class="p">)()</span>
-        <span class="n">sleep_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sleep_time</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
-        <span class="n">sleep</span><span class="p">(</span><span class="n">sleep_time</span><span class="p">)</span>  <span class="c1"># Added extra sleep for updating issue</span>
-        <span class="n">err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saGetSweep_32f</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span><span class="p">,</span> <span class="n">minarr</span><span class="p">,</span> <span class="n">maxarr</span><span class="p">)</span>
-        <span class="n">sleep</span><span class="p">(</span><span class="n">sleep_time</span><span class="p">)</span>  <span class="c1"># Added extra sleep</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">err</span> <span class="o">==</span> <span class="n">saStatus</span><span class="o">.</span><span class="n">saNoError</span><span class="p">:</span>
-            <span class="c1"># if an error occurs tries preparing the device and then asks again</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Error raised in _get_sweep_data, &#39;</span>
-                        <span class="s1">&#39;trying to get data&#39;</span><span class="p">)</span>
-            <span class="n">sleep</span><span class="p">(</span><span class="n">sleep_time</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">sync_parameters</span><span class="p">()</span>
-            <span class="n">sleep</span><span class="p">(</span><span class="n">sleep_time</span><span class="p">)</span>
-            <span class="n">minarr</span> <span class="o">=</span> <span class="p">(</span><span class="n">ct</span><span class="o">.</span><span class="n">c_float</span> <span class="o">*</span> <span class="n">sweep_len</span><span class="p">)()</span>
-            <span class="n">maxarr</span> <span class="o">=</span> <span class="p">(</span><span class="n">ct</span><span class="o">.</span><span class="n">c_float</span> <span class="o">*</span> <span class="n">sweep_len</span><span class="p">)()</span>
-            <span class="n">err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saGetSweep_32f</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span><span class="p">,</span> <span class="n">minarr</span><span class="p">,</span> <span class="n">maxarr</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">check_for_error</span><span class="p">(</span><span class="n">err</span><span class="p">,</span> <span class="s1">&#39;saGetSweep_32f&#39;</span><span class="p">)</span>
 
-        <span class="n">datamin</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">minarr</span><span class="p">[</span><span class="n">elem</span><span class="p">]</span> <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">sweep_len</span><span class="p">)])</span>
-
-        <span class="k">return</span> <span class="n">datamin</span>
-
-    <span class="k">def</span> <span class="nf">_get_averaged_sweep_data</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Averages over SH.sweep Navg times</span>
-
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">sweep_len</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">QuerySweep</span><span class="p">()</span>
         <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">sweep_len</span><span class="p">)</span>
         <span class="n">Navg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">avg</span><span class="p">()</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">Navg</span><span class="p">):</span>
-            <span class="n">data</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_sweep_data</span><span class="p">()</span>
+
+            <span class="n">datamin</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">sweep_len</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+            <span class="n">datamax</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">sweep_len</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+            <span class="n">minarr</span> <span class="o">=</span> <span class="n">datamin</span><span class="o">.</span><span class="n">ctypes</span><span class="o">.</span><span class="n">data_as</span><span class="p">(</span><span class="n">ct</span><span class="o">.</span><span class="n">POINTER</span><span class="p">(</span><span class="n">ct</span><span class="o">.</span><span class="n">c_float</span><span class="p">))</span>
+            <span class="n">maxarr</span> <span class="o">=</span> <span class="n">datamax</span><span class="o">.</span><span class="n">ctypes</span><span class="o">.</span><span class="n">data_as</span><span class="p">(</span><span class="n">ct</span><span class="o">.</span><span class="n">POINTER</span><span class="p">(</span><span class="n">ct</span><span class="o">.</span><span class="n">c_float</span><span class="p">))</span>
+
+            <span class="n">sleep</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sleep_time</span><span class="o">.</span><span class="n">get</span><span class="p">())</span>  <span class="c1"># Added extra sleep for updating issue</span>
+            <span class="n">err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saGetSweep_32f</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span><span class="p">,</span> <span class="n">minarr</span><span class="p">,</span> <span class="n">maxarr</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">check_for_error</span><span class="p">(</span><span class="n">err</span><span class="p">,</span> <span class="s1">&#39;saGetSweep_32f&#39;</span><span class="p">)</span>
+            <span class="n">data</span> <span class="o">+=</span> <span class="n">datamin</span>
+
         <span class="k">return</span> <span class="n">data</span> <span class="o">/</span> <span class="n">Navg</span>
 
     <span class="k">def</span> <span class="nf">_get_power_at_freq</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
@@ -763,10 +789,10 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">rbw</span><span class="p">(</span><span class="mf">1e3</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parameters_synced</span><span class="p">:</span>
             <span class="c1"># call configure to update both</span>
-            <span class="c1"># the paramters on the device and the</span>
+            <span class="c1"># the parameters on the device and the</span>
             <span class="c1"># setpoints and units</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">configure</span><span class="p">()</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_averaged_sweep_data</span><span class="p">()</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_sweep_data</span><span class="p">()</span>
         <span class="n">max_power</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">needs_reset</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">span</span><span class="p">(</span><span class="n">original_span</span><span class="p">)</span>
