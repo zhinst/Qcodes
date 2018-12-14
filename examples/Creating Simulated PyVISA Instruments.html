@@ -247,18 +247,18 @@ div.nblast {
 
 /* input prompt */
 div.nbinput div.prompt pre {
-    color: #303F9F;
+    color: #307FC1;
 }
 
 /* output prompt */
 div.nboutput div.prompt pre {
-    color: #D84315;
+    color: #BF5B3D;
 }
 
 /* all prompts */
 div.nbinput div.prompt,
 div.nboutput div.prompt {
-    min-width: 8ex;
+    min-width: 5ex;
     padding-top: 0.4em;
     padding-right: 0.4em;
     text-align: right;
@@ -298,9 +298,9 @@ div.nboutput div.output_area {
 
 /* input area */
 div.nbinput div.input_area {
-    border: 1px solid #cfcfcf;
+    border: 1px solid #e0e0e0;
     border-radius: 2px;
-    background: #f7f7f7;
+    background: #f5f5f5;
 }
 
 /* override MathJax center alignment in output cells */
@@ -308,7 +308,7 @@ div.nboutput div[class*=MathJax] {
     text-align: left !important;
 }
 
-/* override sphinx.ext.pngmath center alignment in output cells */
+/* override sphinx.ext.imgmath center alignment in output cells */
 div.nboutput div.math p {
     text-align: left;
 }
@@ -358,6 +358,40 @@ div.nboutput div.output_area.stderr {
 .ansi-bold { font-weight: bold; }
 .ansi-underline { text-decoration: underline; }
 
+/* Some additional styling taken form the Jupyter notebook CSS */
+div.rendered_html table {
+  border: none;
+  border-collapse: collapse;
+  border-spacing: 0;
+  color: black;
+  font-size: 12px;
+  table-layout: fixed;
+}
+div.rendered_html thead {
+  border-bottom: 1px solid black;
+  vertical-align: bottom;
+}
+div.rendered_html tr,
+div.rendered_html th,
+div.rendered_html td {
+  text-align: right;
+  vertical-align: middle;
+  padding: 0.5em 0.5em;
+  line-height: normal;
+  white-space: normal;
+  max-width: none;
+  border: none;
+}
+div.rendered_html th {
+  font-weight: bold;
+}
+div.rendered_html tbody tr:nth-child(odd) {
+  background: #f5f5f5;
+}
+div.rendered_html tbody tr:hover {
+  background: rgba(66, 165, 245, 0.2);
+}
+
 /* CSS overrides for sphinx_rtd_theme */
 
 /* 24px margin */
@@ -374,39 +408,29 @@ div.nboutput div.output_area.stderr {
 .admonition > p:before {
     margin-right: 4px;  /* make room for the exclamation icon */
 }
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
 </style>
 <div class="section" id="Creating-Simulated-PyVISA-Instruments">
 <h1>Creating Simulated PyVISA Instruments<a class="headerlink" href="#Creating-Simulated-PyVISA-Instruments" title="Permalink to this headline">¶</a></h1>
-<p>When developing stuff in a large codebase like QCoDeS, it is often
-uncanningly easy to submit a change that breaks stuff. Therefore,
-<em>continuous integration</em> is performed in the form of automated tests
-that run before new code is allowed into the codebase. The many tests of
-QCoDeS can be found in <code class="docutils literal notranslate"><span class="pre">qcodes.tests</span></code>.</p>
-<p>But how about drivers? They constitute the majority of the codebase, but
-how can we test them? Wouldn’t that require a physical copy each
-instrument to be present on the California server where we run our
-tests? It used to be so, but not anymore! For drivers utilising PyVISA
-(i.e. <code class="docutils literal notranslate"><span class="pre">VisaInstrument</span></code> drivers), we may create simulated instruments
-to which the drivers may connect.</p>
+<p>When developing stuff in a large codebase like QCoDeS, it is often uncanningly easy to submit a change that breaks stuff. Therefore, <em>continuous integration</em> is performed in the form of automated tests that run before new code is allowed into the codebase. The many tests of QCoDeS can be found in <code class="docutils literal notranslate"><span class="pre">qcodes.tests</span></code>.</p>
+<p>But how about drivers? They constitute the majority of the codebase, but how can we test them? Wouldn’t that require a physical copy each instrument to be present on the California server where we run our tests? It used to be so, but not anymore! For drivers utilising PyVISA (i.e. <code class="docutils literal notranslate"><span class="pre">VisaInstrument</span></code> drivers), we may create simulated instruments to which the drivers may connect.</p>
 <div class="section" id="What?">
 <h2>What?<a class="headerlink" href="#What?" title="Permalink to this headline">¶</a></h2>
-<p>This way, we may instantiate drivers and run simple tests on them. Tests
-like:</p>
+<p>This way, we may instantiate drivers and run simple tests on them. Tests like:</p>
 <ul class="simple">
-<li>Can the driver even instantiate? This is very relevant when
-underlying APIs change.</li>
-<li>Is the drivers (e.g.) “voltage-to-bytecode” converter working
-properly?</li>
+<li>Can the driver even instantiate? This is very relevant when underlying APIs change.</li>
+<li>Is the drivers (e.g.) “voltage-to-bytecode” converter working properly?</li>
 </ul>
 </div>
 <div class="section" id="Not!">
 <h2>Not!<a class="headerlink" href="#Not!" title="Permalink to this headline">¶</a></h2>
-<p>It is not feasible to simulate any but the most trivial features of the
-instrument. Simulated instruments can not and should not perform tests
-like:</p>
+<p>It is not feasible to simulate any but the most trivial features of the instrument. Simulated instruments can not and should not perform tests like:</p>
 <ul class="simple">
-<li>Do we wait sufficiently long for this oscilloscope’s trace to be
-acquired?</li>
+<li>Do we wait sufficiently long for this oscilloscope’s trace to be acquired?</li>
 <li>Does our driver handle overlapping commands of this AWG correctly?</li>
 </ul>
 </div>
@@ -414,15 +438,9 @@ acquired?</li>
 <h2>How?<a class="headerlink" href="#How?" title="Permalink to this headline">¶</a></h2>
 <p>The basic scheme goes as follows:</p>
 <ul class="simple">
-<li>Write a <code class="docutils literal notranslate"><span class="pre">.yaml</span></code> file for the simulated instrument. The instructions
-for that may be found here:
-<a class="reference external" href="https://pyvisa-sim.readthedocs.io/en/latest/">https://pyvisa-sim.readthedocs.io/en/latest/</a> and specifically here:
-<a class="reference external" href="https://pyvisa-sim.readthedocs.io/en/latest/definitions.html#definitions">https://pyvisa-sim.readthedocs.io/en/latest/definitions.html#definitions</a></li>
-<li>Then write a test for your instrument and put it in
-<code class="docutils literal notranslate"><span class="pre">qcodes/tests/drivers</span></code>. The file should have the name
-<code class="docutils literal notranslate"><span class="pre">test_&lt;nameofyourdriver&gt;.py</span></code>.</li>
-<li>Check that all is well by running
-<code class="docutils literal notranslate"><span class="pre">$</span> <span class="pre">pytest</span> <span class="pre">test_&lt;nameofyourdriver&gt;.py</span></code>.</li>
+<li>Write a <code class="docutils literal notranslate"><span class="pre">.yaml</span></code> file for the simulated instrument. The instructions for that may be found here: <a class="reference external" href="https://pyvisa-sim.readthedocs.io/en/latest/">https://pyvisa-sim.readthedocs.io/en/latest/</a> and specifically here: <a class="reference external" href="https://pyvisa-sim.readthedocs.io/en/latest/definitions.html#definitions">https://pyvisa-sim.readthedocs.io/en/latest/definitions.html#definitions</a></li>
+<li>Then write a test for your instrument and put it in <code class="docutils literal notranslate"><span class="pre">qcodes/tests/drivers</span></code>. The file should have the name <code class="docutils literal notranslate"><span class="pre">test_&lt;nameofyourdriver&gt;.py</span></code>.</li>
+<li>Check that all is well by running <code class="docutils literal notranslate"><span class="pre">$</span> <span class="pre">pytest</span> <span class="pre">test_&lt;nameofyourdriver&gt;.py</span></code>.</li>
 </ul>
 <p>Below is an example.</p>
 </div>
@@ -430,8 +448,7 @@ for that may be found here:
 <h2>Example: Weinschel_8320<a class="headerlink" href="#Example:-Weinschel_8320" title="Permalink to this headline">¶</a></h2>
 <p>The Weinschel 8320 is a very simple driver.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre>
-<span></span>In [1]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -461,8 +478,7 @@ for that may be found here:
 </div>
 <div class="section" id="The-.yaml-file">
 <h3>The <code class="docutils literal notranslate"><span class="pre">.yaml</span></code> file<a class="headerlink" href="#The-.yaml-file" title="Permalink to this headline">¶</a></h3>
-<p>The simplest <code class="docutils literal notranslate"><span class="pre">.yaml</span></code> file that is still useful, reads, in all its
-glory:</p>
+<p>The simplest <code class="docutils literal notranslate"><span class="pre">.yaml</span></code> file that is still useful, reads, in all its glory:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">spec</span><span class="p">:</span> <span class="s2">&quot;1.0&quot;</span>
 <span class="n">devices</span><span class="p">:</span>
   <span class="n">device</span> <span class="mi">1</span><span class="p">:</span>
@@ -481,17 +497,11 @@ glory:</p>
     <span class="n">device</span><span class="p">:</span> <span class="n">device</span> <span class="mi">1</span>
 </pre></div>
 </div>
-<p>Note that since no physical connection is made, it doesn’t matter what
-interface we pretend to use (GPIB, USB, ethernet, serial, …). As a
-convention, we always write GPIB in the <code class="docutils literal notranslate"><span class="pre">.yaml</span></code> files.</p>
-<p>We save the above file as
-<code class="docutils literal notranslate"><span class="pre">qcodes/instrument/sims/Weinschel_8320.yaml</span></code>. This simulates an
-instrument with no settable parameter; only an <code class="docutils literal notranslate"><span class="pre">*IDN?</span></code> response. This
-is enough to instantiate the instrument.</p>
+<p>Note that since no physical connection is made, it doesn’t matter what interface we pretend to use (GPIB, USB, ethernet, serial, …). As a convention, we always write GPIB in the <code class="docutils literal notranslate"><span class="pre">.yaml</span></code> files.</p>
+<p>We save the above file as <code class="docutils literal notranslate"><span class="pre">qcodes/instrument/sims/Weinschel_8320.yaml</span></code>. This simulates an instrument with no settable parameter; only an <code class="docutils literal notranslate"><span class="pre">*IDN?</span></code> response. This is enough to instantiate the instrument.</p>
 <p>Then we may connect to the simulated instrument.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre>
-<span></span>In [2]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -519,8 +529,7 @@ Connected to: QCoDeS Weinschel 8320 (Simulated) (serial:1337, firmware:0.0.01) i
 <h3>The test<a class="headerlink" href="#The-test" title="Permalink to this headline">¶</a></h3>
 <p>Now we can write a useful test!</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre>
-<span></span>In [3]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -558,8 +567,7 @@ Connected to: QCoDeS Weinschel 8320 (Simulated) (serial:1337, firmware:0.0.01) i
 </div>
 </div>
 <p>Save the test as <code class="docutils literal notranslate"><span class="pre">qcodes/tests/drivers/test_weinschel_8320.py</span></code>.</p>
-<p>Open a command line/console/terminal, navigate to the
-<code class="docutils literal notranslate"><span class="pre">qcodes/tests/drivers/</span></code> folder and run</p>
+<p>Open a command line/console/terminal, navigate to the <code class="docutils literal notranslate"><span class="pre">qcodes/tests/drivers/</span></code> folder and run</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">&gt;&gt;</span> <span class="n">pytest</span> <span class="n">test_weinschel_8320</span><span class="o">.</span><span class="n">py</span>
 </pre></div>
 </div>
@@ -574,18 +582,9 @@ Connected to: QCoDeS Weinschel 8320 (Simulated) (serial:1337, firmware:0.0.01) i
 </div>
 <div class="section" id="Bonus-example:-including-parameters-in-the-simulated-instrument">
 <h2>Bonus example: including parameters in the simulated instrument<a class="headerlink" href="#Bonus-example:-including-parameters-in-the-simulated-instrument" title="Permalink to this headline">¶</a></h2>
-<p>It is also possible to add queriable parameters to the <code class="docutils literal notranslate"><span class="pre">.yaml</span></code> file,
-but testing that you can read those back is of limited value. You should
-only add them if your driver needs them to instantiate, e.g. if it
-checks that some range or impedance is configured correctly on startup,
-or - more generally - if a part of your driver code that you’d like to
-test needs it to run.</p>
-<p>For the sake of this example, let us add a test that the driver’s
-parameter’s validator will reject an attenuation of less than 0 dBm.
-Note that this concrete test is redundant, since we have separate tests
-for validators. It is, however, an excellent example to learn from.</p>
-<p>First we update the <code class="docutils literal notranslate"><span class="pre">.yaml</span></code> file to contain a property matching the
-parameter.</p>
+<p>It is also possible to add queriable parameters to the <code class="docutils literal notranslate"><span class="pre">.yaml</span></code> file, but testing that you can read those back is of limited value. You should only add them if your driver needs them to instantiate, e.g. if it checks that some range or impedance is configured correctly on startup, or - more generally - if a part of your driver code that you’d like to test needs it to run.</p>
+<p>For the sake of this example, let us add a test that the driver’s parameter’s validator will reject an attenuation of less than 0 dBm. Note that this concrete test is redundant, since we have separate tests for validators. It is, however, an excellent example to learn from.</p>
+<p>First we update the <code class="docutils literal notranslate"><span class="pre">.yaml</span></code> file to contain a property matching the parameter.</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">spec</span><span class="p">:</span> <span class="s2">&quot;1.0&quot;</span>
 <span class="n">devices</span><span class="p">:</span>
   <span class="n">device</span> <span class="mi">1</span><span class="p">:</span>
@@ -613,15 +612,10 @@ parameter.</p>
     <span class="n">device</span><span class="p">:</span> <span class="n">device</span> <span class="mi">1</span>
 </pre></div>
 </div>
-<p>Notice that we don’t include the the <code class="docutils literal notranslate"><span class="pre">r:</span> <span class="pre">OK</span></code> as the response of
-setting a property. This is in contrast to what
-<a class="reference external" href="https://pyvisa-sim.readthedocs.io/en/latest/definitions.html#properties">https://pyvisa-sim.readthedocs.io/en/latest/definitions.html#properties</a>
-does. The response of a successful setting of a parameter will not
-return ‘OK’.</p>
+<p>Notice that we don’t include the the <code class="docutils literal notranslate"><span class="pre">r:</span> <span class="pre">OK</span></code> as the response of setting a property. This is in contrast to what <a class="reference external" href="https://pyvisa-sim.readthedocs.io/en/latest/definitions.html#properties">https://pyvisa-sim.readthedocs.io/en/latest/definitions.html#properties</a> does. The response of a successful setting of a parameter will not return ‘OK’.</p>
 <p>Next we update the test script.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre>
-<span></span>In [4]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -670,8 +664,7 @@ return ‘OK’.</p>
 </pre></div>
 </div>
 </div>
-<p>Open a command line/console/terminal, navigate to the
-<code class="docutils literal notranslate"><span class="pre">qcodes/tests/drivers/</span></code> folder and run</p>
+<p>Open a command line/console/terminal, navigate to the <code class="docutils literal notranslate"><span class="pre">qcodes/tests/drivers/</span></code> folder and run</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">&gt;&gt;</span> <span class="n">pytest</span> <span class="n">test_weinschel_8320</span><span class="o">.</span><span class="n">py</span>
 </pre></div>
 </div>
