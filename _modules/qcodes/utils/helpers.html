@@ -204,6 +204,8 @@
 <span class="sd">        &quot;__dtype__&quot; containing value &quot;complex&quot;</span>
 <span class="sd">        * object with a `_JSONEncoder` method get converted the return value of</span>
 <span class="sd">        that method</span>
+<span class="sd">        * objects which support the pickle protocol get converted using the</span>
+<span class="sd">        data provided by that protocol</span>
 <span class="sd">        * other objects which cannot be serialized get converted to their</span>
 <span class="sd">        string representation (suing the `str` function)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -228,8 +230,16 @@
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">s</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">NumpyJSONEncoder</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">default</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
             <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
-                <span class="c1"># we cannot convert the object to JSON, just take a string</span>
-                <span class="n">s</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+                <span class="c1"># See if the object supports the pickle protocol.</span>
+                <span class="c1"># If so, we should be able to use that to serialize.</span>
+                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s1">&#39;__getnewargs__&#39;</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="p">{</span>
+                        <span class="s1">&#39;__class__&#39;</span><span class="p">:</span> <span class="nb">type</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+                        <span class="s1">&#39;__args__&#39;</span><span class="p">:</span> <span class="n">obj</span><span class="o">.</span><span class="n">__getnewargs__</span><span class="p">()</span>
+                    <span class="p">}</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># we cannot convert the object to JSON, just take a string</span>
+                    <span class="n">s</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">s</span></div></div>
 
 
