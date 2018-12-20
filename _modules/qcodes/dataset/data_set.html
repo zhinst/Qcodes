@@ -165,6 +165,7 @@
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">uuid</span>
 <span class="kn">from</span> <span class="nn">queue</span> <span class="k">import</span> <span class="n">Queue</span><span class="p">,</span> <span class="n">Empty</span>
+<span class="kn">import</span> <span class="nn">numpy</span>
 
 <span class="kn">from</span> <span class="nn">qcodes.dataset.param_spec</span> <span class="k">import</span> <span class="n">ParamSpec</span>
 <span class="kn">from</span> <span class="nn">qcodes.instrument.parameter</span> <span class="k">import</span> <span class="n">_BaseParameter</span>
@@ -180,6 +181,7 @@
                                         <span class="n">modify_many_values</span><span class="p">,</span> <span class="n">insert_values</span><span class="p">,</span>
                                         <span class="n">insert_many_values</span><span class="p">,</span>
                                         <span class="n">VALUE</span><span class="p">,</span> <span class="n">VALUES</span><span class="p">,</span> <span class="n">get_data</span><span class="p">,</span>
+                                        <span class="n">get_parameter_data</span><span class="p">,</span>
                                         <span class="n">get_values</span><span class="p">,</span>
                                         <span class="n">get_setpoints</span><span class="p">,</span>
                                         <span class="n">get_metadata</span><span class="p">,</span>
@@ -194,7 +196,8 @@
                                         <span class="n">update_run_description</span><span class="p">,</span>
                                         <span class="n">run_exists</span><span class="p">,</span> <span class="n">remove_trigger</span><span class="p">,</span>
                                         <span class="n">make_connection_plus_from</span><span class="p">,</span>
-                                        <span class="n">ConnectionPlus</span><span class="p">)</span>
+                                        <span class="n">ConnectionPlus</span><span class="p">,</span>
+                                        <span class="n">get_non_dependencies</span><span class="p">)</span>
 
 <span class="kn">from</span> <span class="nn">qcodes.dataset.descriptions</span> <span class="k">import</span> <span class="n">RunDescriber</span>
 <span class="kn">from</span> <span class="nn">qcodes.dataset.dependencies</span> <span class="k">import</span> <span class="n">InterDependencies</span>
@@ -897,6 +900,30 @@
             <span class="n">results</span> <span class="o">=</span> <span class="p">[{</span><span class="n">spec</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">value</span><span class="p">}</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">values</span><span class="p">]</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">add_results</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
 
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_validate_parameters</span><span class="p">(</span><span class="o">*</span><span class="n">params</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ParamSpec</span><span class="p">,</span> <span class="n">_BaseParameter</span><span class="p">]</span>
+                             <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Validate that the provided parameters have a name and return those</span>
+<span class="sd">        names as a list.</span>
+<span class="sd">        The Parameters may be a mix of strings, ParamSpecs or ordinary</span>
+<span class="sd">        QCoDeS parameters.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">valid_param_names</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">maybeParam</span> <span class="ow">in</span> <span class="n">params</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">maybeParam</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">valid_param_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">maybeParam</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">maybeParam</span> <span class="o">=</span> <span class="n">maybeParam</span><span class="o">.</span><span class="n">name</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="s2">&quot;This parameter does not have  a name&quot;</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span>
+                <span class="n">valid_param_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">maybeParam</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">valid_param_names</span>
+
     <span class="k">def</span> <span class="nf">get_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                  <span class="o">*</span><span class="n">params</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ParamSpec</span><span class="p">,</span> <span class="n">_BaseParameter</span><span class="p">],</span>
                  <span class="n">start</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -932,21 +959,55 @@
 <span class="sd">            be of the datatypes stored in the database (numeric, array or</span>
 <span class="sd">            string)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">valid_param_names</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">maybeParam</span> <span class="ow">in</span> <span class="n">params</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">maybeParam</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
-                <span class="n">valid_param_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">maybeParam</span><span class="p">)</span>
-                <span class="k">continue</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">try</span><span class="p">:</span>
-                    <span class="n">maybeParam</span> <span class="o">=</span> <span class="n">maybeParam</span><span class="o">.</span><span class="n">name</span>
-                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                        <span class="s2">&quot;This parameter does not have  a name&quot;</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span>
-            <span class="n">valid_param_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">maybeParam</span><span class="p">)</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="n">get_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span> <span class="n">valid_param_names</span><span class="p">,</span>
+        <span class="n">valid_param_names</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_parameters</span><span class="p">(</span><span class="o">*</span><span class="n">params</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">get_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span> <span class="n">valid_param_names</span><span class="p">,</span>
                         <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">data</span>
+
+    <span class="k">def</span> <span class="nf">get_parameter_data</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="o">*</span><span class="n">params</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ParamSpec</span><span class="p">,</span> <span class="n">_BaseParameter</span><span class="p">],</span>
+            <span class="n">start</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">end</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">numpy</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the values stored in the DataSet for the specified parameters</span>
+<span class="sd">        and their dependencies. If no paramerers are supplied the values will</span>
+<span class="sd">        be returned for all parameters that are not them self depdendencies.</span>
+
+<span class="sd">        The values are returned as a dictionary with names of the requested</span>
+<span class="sd">        parameters as keys and values consisting of dictionaries with the</span>
+<span class="sd">        names of the parameters and its dependencies as keys and numpy arrays</span>
+<span class="sd">        of the data as values. If some of the parameters are stored as</span>
+<span class="sd">        arrays the remaining parameters are expanded to the same shape as these.</span>
+<span class="sd">        Apart from this expansion the data returned by this method</span>
+<span class="sd">        is the transpose of the date returned by `get_data`.</span>
+
+<span class="sd">        If provided, the start and end arguments select a range of results</span>
+<span class="sd">        by result count (index). If the range is empty - that is, if the end is</span>
+<span class="sd">        less than or equal to the start, or if start is after the current end</span>
+<span class="sd">        of the DataSet – then a list of empty arrays is returned.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            *params: string parameter names, QCoDeS Parameter objects, and</span>
+<span class="sd">                ParamSpec objects. If no parameters are supplied data for</span>
+<span class="sd">                all parameters that are not a dependency of another</span>
+<span class="sd">                parameter will be returned.</span>
+<span class="sd">            start: start value of selection range (by result count); ignored</span>
+<span class="sd">                if None</span>
+<span class="sd">            end: end value of selection range (by results count); ignored if</span>
+<span class="sd">                None</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Dictionary from requested parameters to Dict of parameter names</span>
+<span class="sd">            to numpy arrays containing the data points of type numeric,</span>
+<span class="sd">            array or string.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">params</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">valid_param_names</span> <span class="o">=</span> <span class="n">get_non_dependencies</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span>
+                                                     <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">valid_param_names</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_parameters</span><span class="p">(</span><span class="o">*</span><span class="n">params</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">get_parameter_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span> <span class="n">valid_param_names</span><span class="p">,</span>
+                                  <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">get_values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
