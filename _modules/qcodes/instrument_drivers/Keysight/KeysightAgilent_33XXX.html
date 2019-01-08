@@ -163,6 +163,8 @@
 <span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="n">VisaInstrument</span><span class="p">,</span> <span class="n">validators</span> <span class="k">as</span> <span class="n">vals</span>
 <span class="kn">from</span> <span class="nn">qcodes.instrument.channel</span> <span class="k">import</span> <span class="n">InstrumentChannel</span>
 <span class="kn">from</span> <span class="nn">qcodes.instrument.base</span> <span class="k">import</span> <span class="n">Instrument</span>
+<span class="kn">from</span> <span class="nn">qcodes.instrument_drivers.Keysight.private.error_handling</span> <span class="k">import</span> \
+    <span class="n">KeysightErrorQueueMixin</span>
 
 <span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
@@ -431,7 +433,7 @@
                                <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span></div>
 
 
-<div class="viewcode-block" id="WaveformGenerator_33XXX"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.Keysight.html#qcodes.instrument_drivers.Keysight.KeysightAgilent_33XXX.WaveformGenerator_33XXX">[docs]</a><span class="k">class</span> <span class="nc">WaveformGenerator_33XXX</span><span class="p">(</span><span class="n">VisaInstrument</span><span class="p">):</span>
+<div class="viewcode-block" id="WaveformGenerator_33XXX"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.Keysight.html#qcodes.instrument_drivers.Keysight.KeysightAgilent_33XXX.WaveformGenerator_33XXX">[docs]</a><span class="k">class</span> <span class="nc">WaveformGenerator_33XXX</span><span class="p">(</span><span class="n">KeysightErrorQueueMixin</span><span class="p">,</span> <span class="n">VisaInstrument</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    QCoDeS driver for the Keysight/Agilent 33XXX series of</span>
 <span class="sd">    waveform generators</span>
@@ -470,21 +472,6 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">num_channels</span> <span class="o">=</span> <span class="n">no_of_channels</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">]</span>
 
-        <span class="k">def</span> <span class="nf">errorparser</span><span class="p">(</span><span class="n">rawmssg</span><span class="p">):</span>
-            <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">            Parses the error message.</span>
-
-<span class="sd">            Args:</span>
-<span class="sd">                rawmssg (str): The raw return value of &#39;SYSTem:ERRor?&#39;</span>
-
-<span class="sd">            Returns:</span>
-<span class="sd">                tuple (int, str): The error code and the error message.</span>
-<span class="sd">            &quot;&quot;&quot;</span>
-            <span class="n">code</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">rawmssg</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
-            <span class="n">mssg</span> <span class="o">=</span> <span class="n">rawmssg</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
-
-            <span class="k">return</span> <span class="n">code</span><span class="p">,</span> <span class="n">mssg</span>
-
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_channels</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
             <span class="n">channel</span> <span class="o">=</span> <span class="n">OutputChannel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;ch</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="n">i</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">add_submodule</span><span class="p">(</span><span class="s1">&#39;ch</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">),</span> <span class="n">channel</span><span class="p">)</span>
@@ -492,42 +479,12 @@
         <span class="n">sync</span> <span class="o">=</span> <span class="n">SyncChannel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;sync&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_submodule</span><span class="p">(</span><span class="s1">&#39;sync&#39;</span><span class="p">,</span> <span class="n">sync</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;error&#39;</span><span class="p">,</span>
-                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Error message&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;SYSTem:ERRor?&#39;</span><span class="p">,</span>
-                           <span class="n">get_parser</span><span class="o">=</span><span class="n">errorparser</span>
-                           <span class="p">)</span>
-
         <span class="bp">self</span><span class="o">.</span><span class="n">add_function</span><span class="p">(</span><span class="s1">&#39;force_trigger&#39;</span><span class="p">,</span> <span class="n">call_cmd</span><span class="o">=</span><span class="s1">&#39;*TRG&#39;</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">add_function</span><span class="p">(</span><span class="s1">&#39;sync_channel_phases&#39;</span><span class="p">,</span> <span class="n">call_cmd</span><span class="o">=</span><span class="s1">&#39;PHAS:SYNC&#39;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">silent</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">connect_message</span><span class="p">()</span>
-
-<div class="viewcode-block" id="WaveformGenerator_33XXX.flush_error_queue"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.Keysight.html#qcodes.instrument_drivers.Keysight.KeysightAgilent_33XXX.WaveformGenerator_33XXX.flush_error_queue">[docs]</a>    <span class="k">def</span> <span class="nf">flush_error_queue</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Clear the instrument error queue.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            verbose (Optional[bool]): If true, the error messages are printed.</span>
-<span class="sd">                Default: True.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-
-        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Flushing error queue...&#39;</span><span class="p">)</span>
-
-        <span class="n">err_code</span><span class="p">,</span> <span class="n">err_message</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">error</span><span class="p">()</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;    </span><span class="si">{}</span><span class="s1">, </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err_code</span><span class="p">,</span> <span class="n">err_message</span><span class="p">))</span>
-        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="n">err_code</span><span class="p">,</span> <span class="n">err_message</span><span class="p">)</span>
-
-        <span class="k">while</span> <span class="n">err_code</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">err_code</span><span class="p">,</span> <span class="n">err_message</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">error</span><span class="p">()</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;    </span><span class="si">{}</span><span class="s1">, </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err_code</span><span class="p">,</span> <span class="n">err_message</span><span class="p">))</span>
-            <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
-                <span class="nb">print</span><span class="p">(</span><span class="n">err_code</span><span class="p">,</span> <span class="n">err_message</span><span class="p">)</span>
-
-        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;...flushing complete&#39;</span><span class="p">)</span></div></div>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connect_message</span><span class="p">()</span></div>
 </pre></div>
 
            </div>
