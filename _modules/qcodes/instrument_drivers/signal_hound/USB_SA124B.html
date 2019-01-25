@@ -163,12 +163,14 @@
 <span class="kn">from</span> <span class="nn">enum</span> <span class="k">import</span> <span class="n">IntEnum</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Tuple</span>
 
-<span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="n">Instrument</span><span class="p">,</span> <span class="n">ArrayParameter</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">,</span> <span class="n">validators</span> <span class="k">as</span> <span class="n">vals</span>
+<span class="kn">from</span> <span class="nn">qcodes.instrument.base</span> <span class="k">import</span> <span class="n">Instrument</span>
+<span class="kn">import</span> <span class="nn">qcodes.utils.validators</span> <span class="k">as</span> <span class="nn">vals</span>
+<span class="kn">from</span> <span class="nn">qcodes.instrument.parameter</span> <span class="k">import</span> <span class="n">Parameter</span><span class="p">,</span> <span class="n">ArrayParameter</span><span class="p">,</span> \
+    <span class="n">ParameterWithSetpoints</span>
 
 <span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 <span class="n">number</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span>
-
 
 <div class="viewcode-block" id="TraceParameter"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.TraceParameter">[docs]</a><span class="k">class</span> <span class="nc">TraceParameter</span><span class="p">(</span><span class="n">Parameter</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -366,7 +368,7 @@
                            <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;npts&#39;</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Number of Points&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_npts</span><span class="p">,</span>
                            <span class="n">set_cmd</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                            <span class="n">docstring</span><span class="o">=</span><span class="s1">&#39;Number of points in frequency sweep.&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;avg&#39;</span><span class="p">,</span>
@@ -481,6 +483,25 @@
                            <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="s1">&#39;log-scale&#39;</span><span class="p">,</span> <span class="s1">&#39;lin-scale&#39;</span><span class="p">,</span>
                                           <span class="s1">&#39;log-full-scale&#39;</span><span class="p">,</span> <span class="s1">&#39;lin-full-scale&#39;</span><span class="p">),</span>
                            <span class="n">parameter_class</span><span class="o">=</span><span class="n">ScaleParameter</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;frequency_axis&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Frequency&#39;</span><span class="p">,</span>
+                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;Hz&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_freq_axis</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Arrays</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">npts</span><span class="p">,)),</span>
+                           <span class="n">snapshot_value</span><span class="o">=</span><span class="kc">False</span>
+                           <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;freq_sweep&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Power&#39;</span><span class="p">,</span>
+                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;depends on mode&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_sweep_data</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                           <span class="n">parameter_class</span><span class="o">=</span><span class="n">ParameterWithSetpoints</span><span class="p">,</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Arrays</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">npts</span><span class="p">,)),</span>
+                           <span class="n">setpoints</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frequency_axis</span><span class="p">,),</span>
+                           <span class="n">snapshot_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">openDevice</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">configure</span><span class="p">()</span>
 
@@ -524,6 +545,13 @@
                                                <span class="n">ct</span><span class="o">.</span><span class="n">POINTER</span><span class="p">(</span><span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">)]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saGetFirmwareString</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="p">[</span><span class="n">ct</span><span class="o">.</span><span class="n">c_int</span><span class="p">,</span>
                                                  <span class="n">ct</span><span class="o">.</span><span class="n">c_char_p</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">_get_npts</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parameters_synced</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sync_parameters</span><span class="p">()</span>
+        <span class="n">sweep_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">QuerySweep</span><span class="p">()</span>
+        <span class="n">sweep_len</span> <span class="o">=</span> <span class="n">sweep_info</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">sweep_len</span>
 
     <span class="k">def</span> <span class="nf">_update_trace</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -743,7 +771,6 @@
                                         <span class="n">ct</span><span class="o">.</span><span class="n">pointer</span><span class="p">(</span><span class="n">start_freq</span><span class="p">),</span>
                                         <span class="n">ct</span><span class="o">.</span><span class="n">pointer</span><span class="p">(</span><span class="n">stepsize</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">check_for_error</span><span class="p">(</span><span class="n">err</span><span class="p">,</span> <span class="s1">&#39;saQuerySweepInfo&#39;</span><span class="p">)</span>
-
         <span class="k">return</span> <span class="n">sweep_len</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">start_freq</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">stepsize</span><span class="o">.</span><span class="n">value</span></div>
 
     <span class="k">def</span> <span class="nf">_get_sweep_data</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
@@ -841,7 +868,15 @@
         <span class="n">err</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dll</span><span class="o">.</span><span class="n">saGetFirmwareString</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">deviceHandle</span><span class="p">,</span> <span class="n">fw_version</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">check_for_error</span><span class="p">(</span><span class="n">err</span><span class="p">,</span> <span class="s1">&#39;saGetFirmwareString&#39;</span><span class="p">)</span>
         <span class="n">output</span><span class="p">[</span><span class="s1">&#39;firmware&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">fw_version</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;ascii&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">output</span></div></div>
+        <span class="k">return</span> <span class="n">output</span></div>
+
+    <span class="k">def</span> <span class="nf">_get_freq_axis</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parameters_synced</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sync_parameters</span><span class="p">()</span>
+        <span class="n">sweep_len</span><span class="p">,</span> <span class="n">start_freq</span><span class="p">,</span> <span class="n">stepsize</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">QuerySweep</span><span class="p">()</span>
+        <span class="n">end_freq</span> <span class="o">=</span> <span class="n">start_freq</span> <span class="o">+</span> <span class="n">stepsize</span><span class="o">*</span><span class="p">(</span><span class="n">sweep_len</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">freq_points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">start_freq</span><span class="p">,</span> <span class="n">end_freq</span><span class="p">,</span> <span class="n">sweep_len</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">freq_points</span></div>
 
 
 <div class="viewcode-block" id="Constants"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.signal_hound.html#qcodes.instrument_drivers.signal_hound.USB_SA124B.Constants">[docs]</a><span class="k">class</span> <span class="nc">Constants</span><span class="p">:</span>

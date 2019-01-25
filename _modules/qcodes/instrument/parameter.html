@@ -220,7 +220,7 @@
 <span class="kn">import</span> <span class="nn">warnings</span>
 <span class="kn">import</span> <span class="nn">enum</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> \
-    <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Sized</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">cast</span><span class="p">,</span> <span class="n">Type</span>
+    <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Sized</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">cast</span><span class="p">,</span> <span class="n">Type</span><span class="p">,</span> <span class="n">Tuple</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="k">import</span> <span class="n">partial</span><span class="p">,</span> <span class="n">wraps</span>
 <span class="kn">import</span> <span class="nn">numpy</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.helpers</span> <span class="k">import</span> <span class="n">abstractmethod</span>
@@ -230,7 +230,7 @@
                                   <span class="n">warn_units</span><span class="p">)</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.metadata</span> <span class="k">import</span> <span class="n">Metadatable</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.command</span> <span class="k">import</span> <span class="n">Command</span>
-<span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="k">import</span> <span class="n">Validator</span><span class="p">,</span> <span class="n">Ints</span><span class="p">,</span> <span class="n">Strings</span><span class="p">,</span> <span class="n">Enum</span>
+<span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="k">import</span> <span class="n">Validator</span><span class="p">,</span> <span class="n">Ints</span><span class="p">,</span> <span class="n">Strings</span><span class="p">,</span> <span class="n">Enum</span><span class="p">,</span> <span class="n">Arrays</span>
 <span class="kn">from</span> <span class="nn">qcodes.instrument.sweep_values</span> <span class="k">import</span> <span class="n">SweepFixedValues</span>
 <span class="kn">from</span> <span class="nn">qcodes.data.data_array</span> <span class="k">import</span> <span class="n">DataArray</span>
 
@@ -238,7 +238,11 @@
     <span class="kn">from</span> <span class="nn">.base</span> <span class="k">import</span> <span class="n">Instrument</span><span class="p">,</span> <span class="n">InstrumentBase</span>
 
 <span class="n">Number</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span>
+<span class="c1"># for now the type the parameter may contain is not restricted at all</span>
+<span class="n">ParamDataType</span> <span class="o">=</span> <span class="n">Any</span>
 
+
+<span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 <span class="k">class</span> <span class="nc">_SetParamContext</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -270,16 +274,16 @@
 <span class="sd">    Note that ``CombinedParameter`` is not yet a subclass of ``_BaseParameter``</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        name (str): the local name of the parameter. Must be a valid</span>
+<span class="sd">        name: the local name of the parameter. Must be a valid</span>
 <span class="sd">            identifier, ie no spaces or special characters or starting with a</span>
 <span class="sd">            number. If this parameter is part of an Instrument or Station,</span>
 <span class="sd">            this should match how it will be referenced from that parent,</span>
 <span class="sd">            ie ``instrument.name`` or ``instrument.parameters[name]``</span>
 
-<span class="sd">        instrument (Optional[Instrument]): the instrument this parameter</span>
+<span class="sd">        instrument: the instrument this parameter</span>
 <span class="sd">            belongs to, if any</span>
 
-<span class="sd">        snapshot_get (Optional[bool]): False prevents any update to the</span>
+<span class="sd">        snapshot_get: False prevents any update to the</span>
 <span class="sd">            parameter during a snapshot, even if the snapshot was called with</span>
 <span class="sd">            ``update=True``, for example if it takes too long to update.</span>
 <span class="sd">            Default True.</span>
@@ -345,11 +349,11 @@
                  <span class="n">instrument</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;Instrument&#39;</span><span class="p">],</span>
                  <span class="n">snapshot_get</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                  <span class="n">metadata</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">step</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">step</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Number</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">scale</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Number</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">Number</span><span class="p">]]]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">offset</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Number</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">Number</span><span class="p">]]]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">inter_delay</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-                 <span class="n">post_delay</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                 <span class="n">inter_delay</span><span class="p">:</span> <span class="n">Number</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                 <span class="n">post_delay</span><span class="p">:</span> <span class="n">Number</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
                  <span class="n">val_mapping</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">get_parser</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">set_parser</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -395,7 +399,8 @@
         <span class="c1"># record of latest value and when it was set or measured</span>
         <span class="c1"># what exactly this means is different for different subclasses</span>
         <span class="c1"># but they all use the same attributes so snapshot is consistent.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_latest</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;raw_value&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_latest</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">ParamDataType</span><span class="p">,</span> <span class="n">datetime</span><span class="p">]]]</span> <span class="o">=</span> \
+            <span class="p">{</span><span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;raw_value&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">get_latest</span> <span class="o">=</span> <span class="n">GetLatest</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">max_val_age</span><span class="o">=</span><span class="n">max_val_age</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;get_raw&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_raw</span><span class="p">,</span> <span class="s1">&#39;__qcodes_is_abstract_method__&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
@@ -421,6 +426,10 @@
         <span class="c1"># Specify time of last set operation, used when comparing to delay to</span>
         <span class="c1"># check if additional waiting time is needed before next set</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_t_last_set</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+        <span class="c1"># should we call validate when getting data. default to False</span>
+        <span class="c1"># intended to be changed in a subclass if you want the subclass</span>
+        <span class="c1"># to perform a validation on get</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validate_on_get</span> <span class="o">=</span> <span class="kc">False</span>
 
     <span class="nd">@abstractmethod</span>
     <span class="k">def</span> <span class="nf">get_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -430,7 +439,7 @@
     <span class="k">def</span> <span class="nf">set_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 
-    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Include the instrument name with the Parameter name if possible.&quot;&quot;&quot;</span>
         <span class="n">inst_name</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">inst_name</span><span class="p">:</span>
@@ -438,7 +447,7 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
 
-    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">named_repr</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -455,8 +464,9 @@
                 <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;no set cmd found in&#39;</span> <span class="o">+</span>
                                           <span class="s1">&#39; Parameter </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
 
-    <span class="k">def</span> <span class="nf">snapshot_base</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                      <span class="n">params_to_skip_update</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+    <span class="k">def</span> <span class="nf">snapshot_base</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                      <span class="n">params_to_skip_update</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> \
+            <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        State of the parameter as a JSON-compatible dict.</span>
 
@@ -503,24 +513,25 @@
 
         <span class="k">return</span> <span class="n">state</span>
 
-    <span class="k">def</span> <span class="nf">_save_val</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_save_val</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">ParamDataType</span><span class="p">,</span> <span class="n">validate</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Update latest</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">validate</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
         <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_parser</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">set_parser</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">val_mapping</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">offset</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">):</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">raw_value</span> <span class="o">=</span> <span class="n">value</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">set_parser</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">val_mapping</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">offset</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">raw_value</span> <span class="o">=</span> <span class="n">value</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_latest</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="n">value</span><span class="p">,</span> <span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(),</span>
                         <span class="s1">&#39;raw_value&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw_value</span><span class="p">}</span>
 
-    <span class="k">def</span> <span class="nf">_wrap_get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">get_function</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_wrap_get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">get_function</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">ParamDataType</span><span class="p">])</span> <span class="o">-&gt;</span>\
+            <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">ParamDataType</span><span class="p">]:</span>
         <span class="nd">@wraps</span><span class="p">(</span><span class="n">get_function</span><span class="p">)</span>
-        <span class="k">def</span> <span class="nf">get_wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">get_wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ParamDataType</span><span class="p">:</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="c1"># There might be cases where a .get also has args/kwargs</span>
                 <span class="n">value</span> <span class="o">=</span> <span class="n">get_function</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
@@ -534,11 +545,11 @@
                     <span class="c1"># offset values</span>
                     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">offset</span><span class="p">,</span> <span class="n">collections</span><span class="o">.</span><span class="n">abc</span><span class="o">.</span><span class="n">Iterable</span><span class="p">):</span>
                         <span class="c1"># offset contains multiple elements, one for each value</span>
-                        <span class="n">value</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">value</span> <span class="o">-</span> <span class="n">offset</span> <span class="k">for</span> <span class="n">value</span><span class="p">,</span> <span class="n">offset</span>
+                        <span class="n">value</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">val</span> <span class="o">-</span> <span class="n">offset</span> <span class="k">for</span> <span class="n">val</span><span class="p">,</span> <span class="n">offset</span>
                                       <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">offset</span><span class="p">))</span>
                     <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">collections</span><span class="o">.</span><span class="n">abc</span><span class="o">.</span><span class="n">Iterable</span><span class="p">):</span>
                         <span class="c1"># Use single offset for all values</span>
-                        <span class="n">value</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">value</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">offset</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">value</span><span class="p">)</span>
+                        <span class="n">value</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">val</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">offset</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">value</span><span class="p">)</span>
                     <span class="k">else</span><span class="p">:</span>
                         <span class="n">value</span> <span class="o">-=</span> <span class="bp">self</span><span class="o">.</span><span class="n">offset</span>
 
@@ -547,15 +558,15 @@
                     <span class="c1"># Scale values</span>
                     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scale</span><span class="p">,</span> <span class="n">collections</span><span class="o">.</span><span class="n">abc</span><span class="o">.</span><span class="n">Iterable</span><span class="p">):</span>
                         <span class="c1"># Scale contains multiple elements, one for each value</span>
-                        <span class="n">value</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">value</span> <span class="o">/</span> <span class="n">scale</span> <span class="k">for</span> <span class="n">value</span><span class="p">,</span> <span class="n">scale</span>
+                        <span class="n">value</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">val</span> <span class="o">/</span> <span class="n">scale</span> <span class="k">for</span> <span class="n">val</span><span class="p">,</span> <span class="n">scale</span>
                                       <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span><span class="p">))</span>
                     <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">collections</span><span class="o">.</span><span class="n">abc</span><span class="o">.</span><span class="n">Iterable</span><span class="p">):</span>
                         <span class="c1"># Use single scale for all values</span>
-                        <span class="n">value</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">value</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">value</span><span class="p">)</span>
+                        <span class="n">value</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">val</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">value</span><span class="p">)</span>
                     <span class="k">else</span><span class="p">:</span>
                         <span class="n">value</span> <span class="o">/=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span>
 
-                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">val_mapping</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">inverse_val_mapping</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                     <span class="k">if</span> <span class="n">value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inverse_val_mapping</span><span class="p">:</span>
                         <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inverse_val_mapping</span><span class="p">[</span><span class="n">value</span><span class="p">]</span>
                     <span class="k">else</span><span class="p">:</span>
@@ -563,7 +574,7 @@
                             <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inverse_val_mapping</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">value</span><span class="p">)]</span>
                         <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">):</span>
                             <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s2">&quot;&#39;</span><span class="si">{}</span><span class="s2">&#39; not in val_mapping&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_save_val</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_save_val</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_validate_on_get</span><span class="p">)</span>
                 <span class="k">return</span> <span class="n">value</span>
             <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
                 <span class="n">e</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">args</span> <span class="o">+</span> <span class="p">(</span><span class="s1">&#39;getting </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="p">),)</span>
@@ -571,9 +582,10 @@
 
         <span class="k">return</span> <span class="n">get_wrapper</span>
 
-    <span class="k">def</span> <span class="nf">_wrap_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">set_function</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_wrap_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">set_function</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">])</span> <span class="o">-&gt;</span> \
+            <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">]:</span>
         <span class="nd">@wraps</span><span class="p">(</span><span class="n">set_function</span><span class="p">)</span>
-        <span class="k">def</span> <span class="nf">set_wrapper</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">set_wrapper</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">ParamDataType</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
 
@@ -649,9 +661,9 @@
         <span class="k">return</span> <span class="n">set_wrapper</span>
 
     <span class="k">def</span> <span class="nf">get_ramp_values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">Sized</span><span class="p">],</span>
-                        <span class="n">step</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span>
-                                                                    <span class="nb">int</span><span class="p">,</span>
-                                                                    <span class="n">Sized</span><span class="p">]]:</span>
+                        <span class="n">step</span><span class="p">:</span> <span class="n">Number</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span>
+                                                           <span class="nb">int</span><span class="p">,</span>
+                                                           <span class="n">Sized</span><span class="p">]]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Return values to sweep from current value to target value.</span>
 <span class="sd">        This method can be overridden to have a custom sweep behaviour.</span>
@@ -667,7 +679,8 @@
             <span class="k">return</span> <span class="p">[</span><span class="n">value</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">collections</span><span class="o">.</span><span class="n">abc</span><span class="o">.</span><span class="n">Sized</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Don&#39;t know how to step a parameter with more than one value&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Don&#39;t know how to step a parameter&quot;</span>
+                                   <span class="s2">&quot; with more than one value&quot;</span><span class="p">)</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_latest</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
             <span class="n">start_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_latest</span><span class="p">()</span>
@@ -678,14 +691,15 @@
                 <span class="c1"># isn&#39;t, even though it&#39;s valid.</span>
                 <span class="c1"># probably MultiType with a mix of numeric and non-numeric types</span>
                 <span class="c1"># just set the endpoint and move on</span>
-                <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;cannot sweep </span><span class="si">%s</span><span class="s1"> from </span><span class="si">%r</span><span class="s1"> to </span><span class="si">%r</span><span class="s1"> - jumping.&#39;</span><span class="p">,</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="s1">&#39;cannot sweep </span><span class="si">%s</span><span class="s1"> from </span><span class="si">%r</span><span class="s1"> to </span><span class="si">%r</span><span class="s1"> - jumping.&#39;</span><span class="p">,</span>
                                 <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">start_value</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
                 <span class="k">return</span> <span class="p">[]</span>
 
             <span class="c1"># drop the initial value, we&#39;re already there</span>
             <span class="k">return</span> <span class="n">permissive_range</span><span class="p">(</span><span class="n">start_value</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">step</span><span class="p">)[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">+</span> <span class="p">[</span><span class="n">value</span><span class="p">]</span>
 
-    <span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">ParamDataType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Validate value</span>
 
@@ -702,30 +716,31 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">vals</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="s1">&#39;Parameter: &#39;</span> <span class="o">+</span> <span class="n">context</span><span class="p">)</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">step</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">step</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Number</span><span class="p">]:</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_step</span>
 
     <span class="nd">@step</span><span class="o">.</span><span class="n">setter</span>
-    <span class="k">def</span> <span class="nf">step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">]):</span>
+    <span class="k">def</span> <span class="nf">step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Number</span><span class="p">]):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Configure whether this Parameter uses steps during set operations.</span>
 <span class="sd">        If step is a positive number, this is the maximum value change</span>
 <span class="sd">        allowed in one hardware call, so a single set can result in many</span>
 <span class="sd">        calls to the hardware if the starting value is far from the target.</span>
+<span class="sd">        If step is None stepping will not be used.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            step (Union[int, float]): A positive number, the largest change</span>
+<span class="sd">            step: A positive number or None, the largest change</span>
 <span class="sd">                allowed in one call. All but the final change will attempt to</span>
 <span class="sd">                change by +/- step exactly</span>
 
 <span class="sd">        Raises:</span>
-<span class="sd">            TypeError: if step is not numeric</span>
+<span class="sd">            TypeError: if step is not numeric or None</span>
 <span class="sd">            ValueError: if step is negative</span>
-<span class="sd">            TypeError:  if step is not integer for an integer parameter</span>
-<span class="sd">            TypeError: if step is not a number</span>
+<span class="sd">            TypeError:  if step is not integer or None for an integer parameter</span>
+<span class="sd">            TypeError: if step is not a number on None</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">step</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_step</span> <span class="o">=</span> <span class="n">step</span> <span class="c1"># type: Optional[Union[float, int]]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_step</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Number</span><span class="p">]</span> <span class="o">=</span> <span class="n">step</span>
         <span class="k">elif</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vals</span><span class="p">,</span> <span class="s1">&#39;is_numeric&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;you can only step numeric parameters&#39;</span><span class="p">)</span>
         <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)):</span>
@@ -740,12 +755,12 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_step</span> <span class="o">=</span> <span class="n">step</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">post_delay</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">post_delay</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Number</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Delay time after *start* of set operation, for each set&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_post_delay</span>
 
     <span class="nd">@post_delay</span><span class="o">.</span><span class="n">setter</span>
-    <span class="k">def</span> <span class="nf">post_delay</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">post_delay</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">post_delay</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">post_delay</span><span class="p">:</span> <span class="n">Number</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Configure this parameter with a delay after the *start* of every set</span>
 <span class="sd">        operation.</span>
@@ -775,12 +790,12 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_post_delay</span> <span class="o">=</span> <span class="n">post_delay</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">inter_delay</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">inter_delay</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Number</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Delay time between consecutive set operations&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inter_delay</span>
 
     <span class="nd">@inter_delay</span><span class="o">.</span><span class="n">setter</span>
-    <span class="k">def</span> <span class="nf">inter_delay</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inter_delay</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">inter_delay</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inter_delay</span><span class="p">:</span> <span class="n">Number</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Configure this parameter with a delay between set operations.</span>
 
@@ -806,7 +821,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_inter_delay</span> <span class="o">=</span> <span class="n">inter_delay</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">full_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">full_name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="k">return</span> <span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name_parts</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">set_validator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vals</span><span class="p">):</span>
@@ -1084,6 +1099,110 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">SweepFixedValues</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="n">start</span><span class="p">,</span> <span class="n">stop</span><span class="o">=</span><span class="n">stop</span><span class="p">,</span>
                                 <span class="n">step</span><span class="o">=</span><span class="n">step</span><span class="p">,</span> <span class="n">num</span><span class="o">=</span><span class="n">num</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="ParameterWithSetpoints"><a class="viewcode-back" href="../../../api/generated/qcodes.ParameterWithSetpoints.html#qcodes.ParameterWithSetpoints">[docs]</a><span class="k">class</span> <span class="nc">ParameterWithSetpoints</span><span class="p">(</span><span class="n">Parameter</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A parameter that has associated setpoints. The setpoints is nothing</span>
+<span class="sd">    more than a list of other parameters that describe the values, names</span>
+<span class="sd">    and units of the setpoint axis for this parameter.</span>
+
+<span class="sd">    In most cases this will probably be a parameter that returns an array.</span>
+<span class="sd">    It is expected that the setpoint arrays are 1D arrays such that the</span>
+<span class="sd">    combined shape of the parameter e.g. if parameter is of shape (m,n)</span>
+<span class="sd">    `setpoints` is a list of parameters of shape (m,) and (n,)</span>
+
+<span class="sd">    In all other ways this is identical to  :class:`Parameter` See the</span>
+<span class="sd">    documentation of :class:`Parameter` for more details.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="ParameterWithSetpoints.__init__"><a class="viewcode-back" href="../../../api/generated/qcodes.ParameterWithSetpoints.html#qcodes.ParameterWithSetpoints.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span>
+                 <span class="n">vals</span><span class="p">:</span> <span class="n">Validator</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">setpoints</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="n">_BaseParameter</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">snapshot_get</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="n">snapshot_value</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">vals</span><span class="p">,</span> <span class="n">Arrays</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;A ParameterWithSetpoints must have an Arrays &quot;</span>
+                             <span class="n">f</span><span class="s2">&quot;validator got {type(vals)}&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">vals</span><span class="o">.</span><span class="n">shape_unevaluated</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;A ParameterWithSetpoints must have a shape &quot;</span>
+                               <span class="s2">&quot;defined for its validator.&quot;</span><span class="p">)</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="p">,</span> <span class="n">snapshot_get</span><span class="o">=</span><span class="n">snapshot_get</span><span class="p">,</span>
+                         <span class="n">snapshot_value</span><span class="o">=</span><span class="n">snapshot_value</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">setpoints</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">setpoints</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">_BaseParameter</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">setpoints</span> <span class="o">=</span> <span class="n">setpoints</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validate_on_get</span> <span class="o">=</span> <span class="kc">True</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">setpoints</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">_BaseParameter</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_setpoints</span>
+
+    <span class="nd">@setpoints</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">setpoints</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">setpoints</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">_BaseParameter</span><span class="p">]):</span>
+        <span class="k">for</span> <span class="n">setpointarray</span> <span class="ow">in</span> <span class="n">setpoints</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">setpointarray</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Setpoints is of type {type(setpointarray)}&quot;</span>
+                                <span class="n">f</span><span class="s2">&quot; expcected a QCoDeS parameter&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_setpoints</span> <span class="o">=</span> <span class="n">setpoints</span>
+
+<div class="viewcode-block" id="ParameterWithSetpoints.validate_consistent_shape"><a class="viewcode-back" href="../../../api/generated/qcodes.ParameterWithSetpoints.html#qcodes.ParameterWithSetpoints.validate_consistent_shape">[docs]</a>    <span class="k">def</span> <span class="nf">validate_consistent_shape</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Verifies that the shape of the Array Validator of the parameter</span>
+<span class="sd">        is consistent with the Validator of the Setpoints. This requires that</span>
+<span class="sd">        both the setpoints and the actual parameters have validators</span>
+<span class="sd">        of type Arrays with a defined shape.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vals</span><span class="p">,</span> <span class="n">Arrays</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Can only validate shapes for parameters &quot;</span>
+                             <span class="n">f</span><span class="s2">&quot;with Arrays validator. </span><span class="si">{self.name}</span><span class="s2"> does &quot;</span>
+                             <span class="n">f</span><span class="s2">&quot;not have an Arrays validator.&quot;</span><span class="p">)</span>
+        <span class="n">output_shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vals</span><span class="o">.</span><span class="n">shape_unevaluated</span>
+        <span class="n">setpoints_shape_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="nb">int</span><span class="p">]]]]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">sp</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">setpoints</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sp</span><span class="o">.</span><span class="n">vals</span><span class="p">,</span> <span class="n">Arrays</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Can only validate shapes for parameters &quot;</span>
+                                 <span class="n">f</span><span class="s2">&quot;with Arrays validator. </span><span class="si">{sp.name}</span><span class="s2"> is &quot;</span>
+                                 <span class="n">f</span><span class="s2">&quot;a setpoint vector but does not have an &quot;</span>
+                                 <span class="n">f</span><span class="s2">&quot;Arrays validator&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">sp</span><span class="o">.</span><span class="n">vals</span><span class="o">.</span><span class="n">shape_unevaluated</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">setpoints_shape_list</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">sp</span><span class="o">.</span><span class="n">vals</span><span class="o">.</span><span class="n">shape_unevaluated</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">setpoints_shape_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sp</span><span class="o">.</span><span class="n">vals</span><span class="o">.</span><span class="n">shape_unevaluated</span><span class="p">)</span>
+        <span class="n">setpoints_shape</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">setpoints_shape_list</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">output_shape</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Trying to validate shape but parameter &quot;</span>
+                             <span class="n">f</span><span class="s2">&quot;</span><span class="si">{self.name}</span><span class="s2"> does not define a shape&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="kc">None</span> <span class="ow">in</span> <span class="n">output_shape</span> <span class="ow">or</span> <span class="kc">None</span> <span class="ow">in</span> <span class="n">setpoints_shape</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;One or more dimensions have unknown shape &quot;</span>
+                             <span class="n">f</span><span class="s2">&quot;when comparing output: </span><span class="si">{output_shape}</span><span class="s2"> to &quot;</span>
+                             <span class="n">f</span><span class="s2">&quot;setpoints: </span><span class="si">{setpoints_shape}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">output_shape</span> <span class="o">!=</span> <span class="n">setpoints_shape</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Shape of output is not consistent with &quot;</span>
+                             <span class="n">f</span><span class="s2">&quot;setpoints. Output is shape </span><span class="si">{output_shape}</span><span class="s2"> and &quot;</span>
+                             <span class="n">f</span><span class="s2">&quot;setpoints are shape </span><span class="si">{setpoints_shape}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;For parameter </span><span class="si">{self.full_name}</span><span class="s2"> verified &quot;</span>
+                 <span class="n">f</span><span class="s2">&quot;that </span><span class="si">{output_shape}</span><span class="s2"> matches </span><span class="si">{setpoints_shape}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ParameterWithSetpoints.validate"><a class="viewcode-back" href="../../../api/generated/qcodes.ParameterWithSetpoints.html#qcodes.ParameterWithSetpoints.validate">[docs]</a>    <span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">ParamDataType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Overwrites the standard `validate` to also check the</span>
+<span class="sd">        the parameter has consistent shape with it&#39;s setpoints.</span>
+<span class="sd">        This only makes sense if the parameter has an Arrays validator</span>
+
+<span class="sd">        Arguments are passed to the super method</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vals</span><span class="p">,</span> <span class="n">Arrays</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">validate_consistent_shape</span><span class="p">()</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div></div>
 
 
 <div class="viewcode-block" id="ArrayParameter"><a class="viewcode-back" href="../../../api/generated/qcodes.ArrayParameter.html#qcodes.ArrayParameter">[docs]</a><span class="k">class</span> <span class="nc">ArrayParameter</span><span class="p">(</span><span class="n">_BaseParameter</span><span class="p">):</span>
@@ -1437,8 +1556,8 @@
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">short_names</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        short_names is indentical to names i.e. the names of the paramter parts</span>
-<span class="sd">        but does not add the intrument name.</span>
+<span class="sd">        short_names is identical to names i.e. the names of the parameter</span>
+<span class="sd">        parts but does not add the instrument name.</span>
 
 <span class="sd">        It exists for consistency with instruments and other parameters.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -1743,8 +1862,8 @@
 
 
 <span class="c1"># Deprecated parameters</span>
-<div class="viewcode-block" id="StandardParameter"><a class="viewcode-back" href="../../../api/generated/qcodes.StandardParameter.html#qcodes.StandardParameter">[docs]</a><span class="k">class</span> <span class="nc">StandardParameter</span><span class="p">(</span><span class="n">Parameter</span><span class="p">):</span>
-<div class="viewcode-block" id="StandardParameter.__init__"><a class="viewcode-back" href="../../../api/generated/qcodes.StandardParameter.html#qcodes.StandardParameter.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">instrument</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<span class="k">class</span> <span class="nc">StandardParameter</span><span class="p">(</span><span class="n">Parameter</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">instrument</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">get_cmd</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">get_parser</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">set_cmd</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">set_parser</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">delay</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">max_delay</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_val_age</span><span class="o">=</span><span class="mi">3600</span><span class="p">,</span>
@@ -1755,7 +1874,7 @@
                          <span class="n">post_delay</span><span class="o">=</span><span class="n">delay</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="n">step</span><span class="p">,</span> <span class="n">max_val_age</span><span class="o">=</span><span class="n">max_val_age</span><span class="p">,</span>
                          <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="p">,</span> <span class="n">val_mapping</span><span class="o">=</span><span class="n">val_mapping</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;`StandardParameter` is deprecated, &#39;</span>
-                        <span class="s1">&#39;use `Parameter` instead. </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span></div></div>
+                        <span class="s1">&#39;use `Parameter` instead. </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
 
 
 <div class="viewcode-block" id="ManualParameter"><a class="viewcode-back" href="../../../api/generated/qcodes.ManualParameter.html#qcodes.ManualParameter">[docs]</a><span class="k">class</span> <span class="nc">ManualParameter</span><span class="p">(</span><span class="n">Parameter</span><span class="p">):</span>
@@ -1958,6 +2077,38 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_save_val</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_wrapped_parameter</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">instrument_value</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="expand_setpoints_helper"><a class="viewcode-back" href="../../../api/generated/qcodes.instrument.parameter.expand_setpoints_helper.html#qcodes.expand_setpoints_helper">[docs]</a><span class="k">def</span> <span class="nf">expand_setpoints_helper</span><span class="p">(</span><span class="n">parameter</span><span class="p">:</span> <span class="n">ParameterWithSetpoints</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span>
+        <span class="n">Tuple</span><span class="p">[</span><span class="n">_BaseParameter</span><span class="p">,</span> <span class="n">numpy</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]]:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A helper function that takes a :class:`.ParameterWithSetpoints` and</span>
+<span class="sd">    acquires the parameter along with it&#39;s setpoints. The data is returned</span>
+<span class="sd">    in a format prepared to insert into the dataset.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        parameter: A ParameterWithSetpoints to be acquired and expanded</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A list of tuples of parameters and values for the specified parameter</span>
+<span class="sd">        and its setpoints.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">parameter</span><span class="p">,</span> <span class="n">ParameterWithSetpoints</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="n">f</span><span class="s2">&quot;Expanding setpoints only works for ParameterWithSetpoints. &quot;</span>
+            <span class="n">f</span><span class="s2">&quot;Supplied a {type(parameter)}&quot;</span><span class="p">)</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">setpoint_params</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">setpoint_data</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">setpointparam</span> <span class="ow">in</span> <span class="n">parameter</span><span class="o">.</span><span class="n">setpoints</span><span class="p">:</span>
+        <span class="n">these_setpoints</span> <span class="o">=</span> <span class="n">setpointparam</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="n">setpoint_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">setpointparam</span><span class="p">)</span>
+        <span class="n">setpoint_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">these_setpoints</span><span class="p">)</span>
+    <span class="n">output_grids</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="o">*</span><span class="n">setpoint_data</span><span class="p">,</span> <span class="n">indexing</span><span class="o">=</span><span class="s1">&#39;ij&#39;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">param</span><span class="p">,</span> <span class="n">grid</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">setpoint_params</span><span class="p">,</span> <span class="n">output_grids</span><span class="p">):</span>
+        <span class="n">res</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">param</span><span class="p">,</span> <span class="n">grid</span><span class="p">))</span>
+    <span class="n">res</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">parameter</span><span class="p">,</span> <span class="n">parameter</span><span class="o">.</span><span class="n">get</span><span class="p">()))</span>
+    <span class="k">return</span> <span class="n">res</span></div>
 </pre></div>
 
            </div>
