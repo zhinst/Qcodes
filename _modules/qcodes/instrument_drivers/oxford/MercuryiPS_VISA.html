@@ -439,8 +439,26 @@
 
             <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">f</span><span class="s1">&#39;</span><span class="si">{coord}</span><span class="s1">_measured&#39;</span><span class="p">,</span>
                                <span class="n">label</span><span class="o">=</span><span class="n">f</span><span class="s1">&#39;{coord.upper()} measured field&#39;</span><span class="p">,</span>
-                               <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span><span class="p">,</span>
+                               <span class="n">unit</span><span class="o">=</span><span class="n">unit</span><span class="p">,</span>
                                <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_measured</span><span class="p">,</span> <span class="p">[</span><span class="n">coord</span><span class="p">]))</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">f</span><span class="s1">&#39;</span><span class="si">{coord}</span><span class="s1">_ramp&#39;</span><span class="p">,</span>
+                               <span class="n">label</span><span class="o">=</span><span class="n">f</span><span class="s1">&#39;{coord.upper()} ramp field&#39;</span><span class="p">,</span>
+                               <span class="n">unit</span><span class="o">=</span><span class="n">unit</span><span class="p">,</span>
+                               <span class="n">docstring</span><span class="o">=</span><span class="s1">&#39;A safe ramp for each coordinate&#39;</span><span class="p">,</span>
+                               <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_component</span><span class="p">,</span> <span class="n">coord</span><span class="p">),</span>
+                               <span class="n">set_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_target_and_ramp</span><span class="p">,</span> 
+                                               <span class="n">coord</span><span class="p">,</span> <span class="s1">&#39;safe&#39;</span><span class="p">))</span>
+            
+            <span class="k">if</span> <span class="n">coord</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="s1">&#39;theta&#39;</span><span class="p">,</span> <span class="s1">&#39;phi&#39;</span><span class="p">,</span> <span class="s1">&#39;rho&#39;</span><span class="p">]:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">f</span><span class="s1">&#39;</span><span class="si">{coord}</span><span class="s1">_simulramp&#39;</span><span class="p">,</span>
+                                   <span class="n">label</span><span class="o">=</span><span class="n">f</span><span class="s1">&#39;{coord.upper()} ramp field&#39;</span><span class="p">,</span>
+                                   <span class="n">unit</span><span class="o">=</span><span class="n">unit</span><span class="p">,</span>
+                                   <span class="n">docstring</span><span class="o">=</span><span class="s1">&#39;A simultaneous blocking ramp for a &#39;</span>
+                                             <span class="s1">&#39;combined coordinate&#39;</span><span class="p">,</span>
+                                   <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_component</span><span class="p">,</span> <span class="n">coord</span><span class="p">),</span>
+                                   <span class="n">set_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_target_and_ramp</span><span class="p">,</span> 
+                                                   <span class="n">coord</span><span class="p">,</span> <span class="s1">&#39;simul_block&#39;</span><span class="p">))</span>
 
         <span class="c1"># FieldVector-valued parameters #</span>
 
@@ -558,6 +576,21 @@
         <span class="k">for</span> <span class="n">slave</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">submodules</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
             <span class="n">slave</span><span class="o">.</span><span class="n">ramp_to_target</span><span class="p">()</span>
 
+    <span class="k">def</span> <span class="nf">_ramp_simultaneously_blocking</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Ramp all three fields to their target simultaneously at their given</span>
+<span class="sd">        ramp rates. NOTE: there is NO guarantee that this does not take you</span>
+<span class="sd">        out of your safe region. Use with care. This function is BLOCKING.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ramp_simultaneously</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">slave</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">submodules</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="c1"># wait for the ramp to finish, we don&#39;t care about the order</span>
+            <span class="k">while</span> <span class="n">slave</span><span class="o">.</span><span class="n">ramp_status</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;TO SET&#39;</span><span class="p">:</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_field</span><span class="p">()</span>
+
     <span class="k">def</span> <span class="nf">_ramp_safely</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Ramp all three fields to their target using the &#39;first-down-then-up&#39;</span>
@@ -576,6 +609,16 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">while</span> <span class="n">slave</span><span class="o">.</span><span class="n">ramp_status</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;TO SET&#39;</span><span class="p">:</span>
                     <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_field</span><span class="p">()</span>
+
+<div class="viewcode-block" id="MercuryiPS.update_field"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.oxford.html#qcodes.instrument_drivers.oxford.MercuryiPS_VISA.MercuryiPS.update_field">[docs]</a>    <span class="k">def</span> <span class="nf">update_field</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Update all the field components.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="s1">&#39;theta&#39;</span><span class="p">,</span> <span class="s1">&#39;phi&#39;</span><span class="p">,</span> <span class="s1">&#39;rho&#39;</span><span class="p">]</span>
+        <span class="n">meas_field</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_field</span><span class="p">()</span>
+        <span class="p">[</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">f</span><span class="s1">&#39;</span><span class="si">{i}</span><span class="s1">_measured&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">()</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">coords</span><span class="p">]</span></div>
 
 <div class="viewcode-block" id="MercuryiPS.is_ramping"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.oxford.html#qcodes.instrument_drivers.oxford.MercuryiPS_VISA.MercuryiPS.is_ramping">[docs]</a>    <span class="k">def</span> <span class="nf">is_ramping</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -611,16 +654,17 @@
 <span class="sd">        Ramp the fields to their present target value</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            mode: how to ramp, either &#39;simul&#39; or &#39;safe&#39;. In &#39;simul&#39; mode,</span>
-<span class="sd">              the fields are ramping simultaneously in a non-blocking mode.</span>
-<span class="sd">              There is no safety check that the safe zone is not exceeded. In</span>
-<span class="sd">              &#39;safe&#39; mode, the fields are ramped one-by-one in a blocking way</span>
-<span class="sd">              that ensures that the total field stays within the safe region</span>
-<span class="sd">              (provided that this region is convex).</span>
+<span class="sd">            mode: how to ramp, either &#39;simul&#39;, &#39;simul-block&#39; or &#39;safe&#39;. In</span>
+<span class="sd">              &#39;simul&#39; and &#39;simul-block&#39; mode, the fields are ramping</span>
+<span class="sd">              simultaneously in a non-blocking mode and blocking mode,</span>
+<span class="sd">              respectively. There is no safety check that the safe zone is not</span>
+<span class="sd">              exceeded. In &#39;safe&#39; mode, the fields are ramped one-by-one in a</span>
+<span class="sd">              blocking way that ensures that the total field stays within the</span>
+<span class="sd">              safe region (provided that this region is convex).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="n">mode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;simul&#39;</span><span class="p">,</span> <span class="s1">&#39;safe&#39;</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">mode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;simul&#39;</span><span class="p">,</span> <span class="s1">&#39;safe&#39;</span><span class="p">,</span> <span class="s1">&#39;simul_block&#39;</span><span class="p">]:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Invalid ramp mode. Please provide either &quot;simul&quot;&#39;</span>
-                             <span class="s1">&#39; or &quot;safe&quot;.&#39;</span><span class="p">)</span>
+                                <span class="s1">&#39;,&quot;safe&quot; or &quot;simul_block&quot;.&#39;</span><span class="p">)</span>
 
         <span class="n">meas_vals</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_measured</span><span class="p">([</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">])</span>
         <span class="c1"># we asked for three coordinates, so we know that we got a list</span>
@@ -630,12 +674,18 @@
             <span class="k">if</span> <span class="n">slave</span><span class="o">.</span><span class="n">field_target</span><span class="p">()</span> <span class="o">!=</span> <span class="n">cur</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">slave</span><span class="o">.</span><span class="n">field_ramp_rate</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
                     <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Can not ramp </span><span class="si">{slave}</span><span class="s1">; ramp rate set to&#39;</span>
-                                     <span class="s1">&#39; zero!&#39;</span><span class="p">)</span>
+                                        <span class="s1">&#39; zero!&#39;</span><span class="p">)</span>
 
         <span class="c1"># then the actual ramp</span>
         <span class="p">{</span><span class="s1">&#39;simul&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ramp_simultaneously</span><span class="p">,</span>
-         <span class="s1">&#39;safe&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ramp_safely</span><span class="p">}[</span><span class="n">mode</span><span class="p">]()</span></div>
+        <span class="s1">&#39;safe&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ramp_safely</span><span class="p">,</span>
+        <span class="s1">&#39;simul_block&#39;</span><span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">_ramp_simultaneously_blocking</span><span class="p">}[</span><span class="n">mode</span><span class="p">]()</span></div>
 
+    <span class="k">def</span> <span class="nf">_set_target_and_ramp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coordinate</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Convenient method to combine setting target and ramping&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_target</span><span class="p">(</span><span class="n">coordinate</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ramp</span><span class="p">(</span><span class="n">mode</span><span class="p">)</span>
+    
 <div class="viewcode-block" id="MercuryiPS.ask"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.oxford.html#qcodes.instrument_drivers.oxford.MercuryiPS_VISA.MercuryiPS.ask">[docs]</a>    <span class="k">def</span> <span class="nf">ask</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cmd</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Since Oxford Instruments implement their own version of a SCPI-like</span>
