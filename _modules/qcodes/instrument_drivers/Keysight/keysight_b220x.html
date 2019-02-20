@@ -166,9 +166,10 @@
 
 <span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="n">VisaInstrument</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="k">import</span> <span class="n">MultiType</span><span class="p">,</span> <span class="n">Ints</span><span class="p">,</span> <span class="n">Enum</span><span class="p">,</span> <span class="n">Lists</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Callable</span>
 
 
-<div class="viewcode-block" id="post_execution_status_poll"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.Keysight.html#qcodes.instrument_drivers.Keysight.keysight_b220x.post_execution_status_poll">[docs]</a><span class="k">def</span> <span class="nf">post_execution_status_poll</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+<div class="viewcode-block" id="post_execution_status_poll"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.Keysight.html#qcodes.instrument_drivers.Keysight.keysight_b220x.post_execution_status_poll">[docs]</a><span class="k">def</span> <span class="nf">post_execution_status_poll</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Generates a decorator that clears the instrument&#39;s status registers</span>
 <span class="sd">    before executing the actual call and reads the status register after the</span>
@@ -351,6 +352,16 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;:CLOS (@</span><span class="si">{self._card:01d}{input_ch:02d}{output_ch:02d}</span><span class="s2">)&quot;</span><span class="p">)</span></div>
 
+<div class="viewcode-block" id="KeysightB220X.connect_paths"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.Keysight.html#qcodes.instrument_drivers.Keysight.keysight_b220x.KeysightB220X.connect_paths">[docs]</a>    <span class="nd">@post_execution_status_poll</span>
+    <span class="k">def</span> <span class="nf">connect_paths</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">paths</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]):</span>
+        <span class="n">channel_list_str</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_channel_list</span><span class="p">(</span><span class="n">paths</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;:CLOS </span><span class="si">{channel_list_str}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="KeysightB220X.disconnect_paths"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.Keysight.html#qcodes.instrument_drivers.Keysight.keysight_b220x.KeysightB220X.disconnect_paths">[docs]</a>    <span class="nd">@post_execution_status_poll</span>
+    <span class="k">def</span> <span class="nf">disconnect_paths</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">paths</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]):</span>
+        <span class="n">channel_list_str</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_channel_list</span><span class="p">(</span><span class="n">paths</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;:OPEN </span><span class="si">{channel_list_str}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
 <div class="viewcode-block" id="KeysightB220X.disconnect"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.Keysight.html#qcodes.instrument_drivers.Keysight.keysight_b220x.KeysightB220X.disconnect">[docs]</a>    <span class="nd">@post_execution_status_poll</span>
     <span class="k">def</span> <span class="nf">disconnect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_ch</span><span class="p">,</span> <span class="n">output_ch</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Disconnect given Input/Output pair.</span>
@@ -499,7 +510,12 @@
         <span class="n">pattern</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;(?P&lt;card&gt;\d{0,1}?)(?P&lt;input&gt;\d{1,2})(?P&lt;output&gt;\d</span><span class="si">{2}</span><span class="s1">)(?=(&#39;</span> \
                   <span class="sa">r</span><span class="s1">&#39;?:[,\)\r\n]|$))&#39;</span>
         <span class="k">return</span> <span class="p">{(</span><span class="nb">int</span><span class="p">(</span><span class="n">match</span><span class="p">[</span><span class="s1">&#39;input&#39;</span><span class="p">]),</span> <span class="nb">int</span><span class="p">(</span><span class="n">match</span><span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">]))</span> <span class="k">for</span> <span class="n">match</span> <span class="ow">in</span>
-                <span class="n">re</span><span class="o">.</span><span class="n">finditer</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">channel_list</span><span class="p">)}</span></div></div>
+                <span class="n">re</span><span class="o">.</span><span class="n">finditer</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">channel_list</span><span class="p">)}</span></div>
+
+<div class="viewcode-block" id="KeysightB220X.to_channel_list"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.Keysight.html#qcodes.instrument_drivers.Keysight.keysight_b220x.KeysightB220X.to_channel_list">[docs]</a>    <span class="k">def</span> <span class="nf">to_channel_list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">paths</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]):</span>
+        <span class="n">l</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span><span class="s1">&#39;</span><span class="si">{self._card:01d}{i:02d}{o:02d}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">]</span>
+        <span class="n">channel_list</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;(@{&#39;,&#39;.join(l)})&quot;</span>
+        <span class="k">return</span> <span class="n">channel_list</span></div></div>
 </pre></div>
 
            </div>
