@@ -161,52 +161,62 @@
             
   <h1>Source code for qcodes.instrument.parameter</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">Measured and/or controlled parameters</span>
+<span class="sd">The Parameter module implements Parameter interface</span>
+<span class="sd">that are the basis of measurements and control within QCoDeS.</span>
 
 <span class="sd">Anything that you want to either measure or control within QCoDeS should</span>
 <span class="sd">satisfy the Parameter interface. Most of the time that is easiest to do</span>
 <span class="sd">by either using or subclassing one of the classes defined here, but you can</span>
 <span class="sd">also use any class with the right attributes.</span>
 
-<span class="sd">All parameter classes are subclassed from _BaseParameter (except</span>
+<span class="sd">All parameter classes are subclassed from :class:`._BaseParameter` (except</span>
 <span class="sd">CombinedParameter). The _BaseParameter provides functionality that is common</span>
 <span class="sd">to all parameter types, such as ramping and scaling of values, adding delays</span>
 <span class="sd">(see documentation for details).</span>
 
-<span class="sd">This file defines four classes of parameters:</span>
+<span class="sd">This module defines four classes of parameters as well as some more specialized</span>
+<span class="sd">ones:</span>
 
-<span class="sd">- ``Parameter`` is the base class for scalar-valued parameters.</span>
+<span class="sd">- :class:`.Parameter` is the base class for scalar-valued parameters.</span>
 <span class="sd">    Two primary ways in which it can be used:</span>
 
-<span class="sd">    1. As an ``Instrument`` parameter that sends/receives commands. Provides a</span>
-<span class="sd">       standardized interface to construct strings to pass to the</span>
-<span class="sd">       instrument&#39;s ``write`` and ``ask`` methods</span>
+<span class="sd">    1. As an :class:`.Instrument` parameter that sends/receives commands.</span>
+<span class="sd">       Provides a standardized interface to construct strings to pass to the</span>
+<span class="sd">       :meth:`.Instrument.write` and :meth:`.Instrument.ask` methods</span>
 <span class="sd">    2. As a variable that stores and returns a value. For instance, for storing</span>
 <span class="sd">       of values you want to keep track of but cannot set or get electronically.</span>
 
-<span class="sd">    Provides ``sweep`` and ``__getitem__`` (slice notation) methods to use a</span>
-<span class="sd">    settable parameter as the swept variable in a ``Loop``.</span>
-<span class="sd">    The get/set functionality can be modified.</span>
+<span class="sd">- :class:`.ParameterWithSetpoints` is intended for array-values parameters.</span>
+<span class="sd">    This Parameter class is intended for anything where a call to the instrument</span>
+<span class="sd">    returns an array of values.</span>
+<span class="sd">    `This notebook &lt;../examples/writing_drivers/Simple-Example-of-ParameterWithSetpoints.ipynb&gt;`_.</span>
+<span class="sd">    gives more detailed examples of how this parameter can be used.</span>
+<span class="sd">    :class:`.ParameterWithSetpoints` is supported in a</span>
+<span class="sd">    :class:`qcodes.dataset.measurements.Measurement` but is not supported by the</span>
+<span class="sd">    legacy :class:`qcodes.loops.Loop` and :class:`qcodes.measure.Measure`</span>
+<span class="sd">    measurement types.</span>
 
-<span class="sd">- ``ArrayParameter`` is a base class for array-valued parameters, ie anything</span>
-<span class="sd">    for which each ``get`` call returns an array of values that all have the</span>
-<span class="sd">    same type and meaning. Currently not settable, only gettable. Can be used</span>
-<span class="sd">    in ``Measure``, or in ``Loop`` - in which case these arrays are nested</span>
-<span class="sd">    inside the loop&#39;s setpoint array. To use, provide a ``get`` method that</span>
-<span class="sd">    returns an array or regularly-shaped sequence, and describe that array in</span>
-<span class="sd">    ``super().__init__``.</span>
+<span class="sd">- :class:`.ArrayParameter` is an older base class for array-valued parameters.</span>
+<span class="sd">    For any new driver we strongly recommend using</span>
+<span class="sd">    :class:`.ParameterWithSetpoints` which is both more flexible and</span>
+<span class="sd">    significantly easier to use. This Parameter is intended for anything for</span>
+<span class="sd">    which each ``get`` call returns an array of values that all have the same</span>
+<span class="sd">    type and meaning. Currently not settable, only gettable. Can be used in a</span>
+<span class="sd">    :class:`qcodes.dataset.measurements.Measurement`</span>
+<span class="sd">    as well as in the legacy :class:`qcodes.loops.Loop`</span>
+<span class="sd">    and :class:`qcodes.measure.Measure` measurements - in which case</span>
+<span class="sd">    these arrays are nested inside the loop&#39;s setpoint array. To use, provide a</span>
+<span class="sd">    ``get`` method that returns an array or regularly-shaped sequence, and</span>
+<span class="sd">    describe that array in ``super().__init__``.</span>
 
-<span class="sd">- ``MultiParameter`` is the base class for multi-valued parameters. Currently</span>
-<span class="sd">    not settable, only gettable, but can return an arbitrary collection of</span>
-<span class="sd">    scalar and array values and can be used in ``Measure`` or ``Loop`` to</span>
-<span class="sd">    feed data to a ``DataSet``. To use, provide a ``get`` method</span>
+<span class="sd">- :class:`.MultiParameter` is the base class for multi-valued parameters.</span>
+<span class="sd">    Currently not settable, only gettable, but can return an arbitrary</span>
+<span class="sd">    collection of scalar and array values and can be used in</span>
+<span class="sd">    :class:`qcodes.dataset.measurements.Measurement` as well as the</span>
+<span class="sd">    legacy :class:`qcodes.loops.Loop` and :class:`qcodes.measure.Measure`</span>
+<span class="sd">    measurements. To use, provide a ``get`` method</span>
 <span class="sd">    that returns a sequence of values, and describe those values in</span>
 <span class="sd">    ``super().__init__``.</span>
-
-<span class="sd">    ``CombinedParameter`` Combines several parameters into a ``MultiParameter``.</span>
-<span class="sd">    can be easily used via the ``combine`` function.</span>
-<span class="sd">    Note that it is not yet a subclass of BaseParameter.</span>
-
 
 <span class="sd">&quot;&quot;&quot;</span>
 
@@ -248,16 +258,19 @@
 
 <span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
+
 <span class="k">class</span> <span class="nc">_SetParamContext</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    This class is returned by the set method of parameters</span>
+<span class="sd">    This class is returned by the ``set_to`` method of parameters</span>
 
 <span class="sd">    Example usage:</span>
+
 <span class="sd">    &gt;&gt;&gt; v = dac.voltage()</span>
 <span class="sd">    &gt;&gt;&gt; with dac.voltage.set_to(-1):</span>
 <span class="sd">        ...     # Do stuff with the DAC output set to -1 V.</span>
 <span class="sd">        ...</span>
 <span class="sd">    &gt;&gt;&gt; assert abs(dac.voltage() - v) &lt;= tolerance</span>
+
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameter</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_parameter</span> <span class="o">=</span> <span class="n">parameter</span>
@@ -446,10 +459,28 @@
 
     <span class="nd">@abstractmethod</span>
     <span class="k">def</span> <span class="nf">get_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        ``get_raw`` is called to perform the actual data acquisition from the</span>
+<span class="sd">        instrument. This method should either be overwritten to perform the</span>
+<span class="sd">        desired operation or alternatively for :class:`.Parameter` a</span>
+<span class="sd">        suitable method is automatically generated if ``get_cmd`` is supplied</span>
+<span class="sd">        to the parameter constructor.</span>
+<span class="sd">        The method is automatically wrapped to</span>
+<span class="sd">        provide a ``get`` method on the parameter instance.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 
     <span class="nd">@abstractmethod</span>
     <span class="k">def</span> <span class="nf">set_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        ``set_raw`` is called to perform the actual setting of a parameter on</span>
+<span class="sd">        the instrument. This method should either be overwritten to perform the</span>
+<span class="sd">        desired operation or alternatively for :class:`.Parameter` a</span>
+<span class="sd">        suitable method is automatically generated if ``set_cmd`` is supplied</span>
+<span class="sd">        to the parameter constructor.</span>
+<span class="sd">        The method is automatically wrapped to</span>
+<span class="sd">        provide a ``set`` method on the parameter instance.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 
     <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
@@ -681,6 +712,7 @@
 <span class="sd">        Return values to sweep from current value to target value.</span>
 <span class="sd">        This method can be overridden to have a custom sweep behaviour.</span>
 <span class="sd">        It can even be overridden by a generator.</span>
+
 <span class="sd">        Args:</span>
 <span class="sd">            value: target value</span>
 <span class="sd">            step: maximum step size</span>
@@ -714,11 +746,15 @@
 
     <span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">ParamDataType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Validate value</span>
+<span class="sd">        Validate the value supplied.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            value (any): value to validate</span>
+<span class="sd">            value: value to validate</span>
 
+<span class="sd">        Raises:</span>
+<span class="sd">            TypeError: If the value is of the wrong type.</span>
+<span class="sd">            ValueError: If the value is outside the bounds specified by the</span>
+<span class="sd">               validator.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="p">:</span>
             <span class="n">context</span> <span class="o">=</span> <span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_instrument</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="ow">or</span>
@@ -730,6 +766,23 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">step</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Number</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Stepsize that this Parameter uses during set operation.</span>
+<span class="sd">        Stepsize must be a positive number or None.</span>
+<span class="sd">        If step is a positive number, this is the maximum value change</span>
+<span class="sd">        allowed in one hardware call, so a single set can result in many</span>
+<span class="sd">        calls to the hardware if the starting value is far from the target.</span>
+<span class="sd">        If step is None stepping will not be used.</span>
+
+<span class="sd">        :getter: Returns the current stepsize.</span>
+<span class="sd">        :setter: Sets the value of the step.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            TypeError: if step is set to not numeric or None</span>
+<span class="sd">            ValueError: if step is set to negative</span>
+<span class="sd">            TypeError:  if step is set to not integer or None for an integer parameter</span>
+<span class="sd">            TypeError: if step is set to not a number on None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_step</span>
 
     <span class="nd">@step</span><span class="o">.</span><span class="n">setter</span>
@@ -835,13 +888,21 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">full_name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Name of the parameter including the name of the instrument and</span>
+<span class="sd">        submodule that the parameter may be bound to. The names are separated</span>
+<span class="sd">        by underscores, like this: ``instrument_submodule_parameter``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name_parts</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">set_validator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vals</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">            Deprecated Set a validator `vals` for this parameter.</span>
-<span class="sd">                Args:</span>
-<span class="sd">                    vals (Validator):  validator to set</span>
+<span class="sd">        (Deprecated) Set a validator `vals` for this parameter.</span>
+
+<span class="sd">        Deprecated - reassign the `vals` attribute directly instead.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            vals (Validator):  validator to set</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
@@ -891,6 +952,9 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">name_parts</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        List of the parts that make up the full name of this parameter</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">instrument</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">name_parts</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">instrument</span><span class="p">,</span> <span class="s1">&#39;name_parts&#39;</span><span class="p">,</span> <span class="p">[])</span>
             <span class="k">if</span> <span class="n">name_parts</span> <span class="o">==</span> <span class="p">[]:</span>
@@ -925,9 +989,10 @@
 <span class="sd">          and stores a value for ``set_cmd``</span>
 <span class="sd">       d. False, in which case trying to get/set will raise an error.</span>
 
-<span class="sd">    2. Creating a subclass with an explicit ``get_raw``/``set_raw`` method.</span>
-<span class="sd">       This enables more advanced functionality. The ``get_raw`` and</span>
-<span class="sd">       ``set_raw`` methods are automatically wrapped to provide ``get`` and</span>
+<span class="sd">    2. Creating a subclass with an explicit :meth:`get_raw`/:meth:`set_raw` method.</span>
+
+<span class="sd">       This enables more advanced functionality. The :meth:`get_raw` and</span>
+<span class="sd">       :meth:`set_raw` methods are automatically wrapped to provide ``get`` and</span>
 <span class="sd">       ``set``.</span>
 
 <span class="sd">    Parameters have a ``.get_latest`` method that simply returns the most</span>
@@ -1100,7 +1165,7 @@
 
 <span class="sd">        Returns:</span>
 <span class="sd">            SweepFixedValues: collection of parameter values to be</span>
-<span class="sd">                iterated over</span>
+<span class="sd">            iterated over</span>
 
 <span class="sd">        Examples:</span>
 <span class="sd">            &gt;&gt;&gt; sweep(0, 10, num=5)</span>
@@ -1154,6 +1219,14 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">setpoints</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">_BaseParameter</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sequence of parameters to use as setpoints for this parameter.</span>
+
+<span class="sd">        :getter: Returns a list of parameters currently used for setpoints.</span>
+<span class="sd">        :setter: Sets the parameters to be used as setpoints from a sequence.</span>
+<span class="sd">            The combined shape of the parameters supplied must be consistent</span>
+<span class="sd">            with the data shape of the data returned from get on the parameter.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_setpoints</span>
 
     <span class="nd">@setpoints</span><span class="o">.</span><span class="n">setter</span>
@@ -1207,9 +1280,10 @@
 
 <div class="viewcode-block" id="ParameterWithSetpoints.validate"><a class="viewcode-back" href="../../../api/generated/qcodes.ParameterWithSetpoints.html#qcodes.ParameterWithSetpoints.validate">[docs]</a>    <span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">ParamDataType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Overwrites the standard `validate` to also check the</span>
-<span class="sd">        the parameter has consistent shape with it&#39;s setpoints.</span>
-<span class="sd">        This only makes sense if the parameter has an Arrays validator</span>
+<span class="sd">        Overwrites the standard ``validate`` method to also check the the</span>
+<span class="sd">        parameter has consistent shape with its setpoints. This only makes</span>
+<span class="sd">        sense if the parameter has an Arrays</span>
+<span class="sd">        validator</span>
 
 <span class="sd">        Arguments are passed to the super method</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -1223,8 +1297,18 @@
 <span class="sd">    A gettable parameter that returns an array of values.</span>
 <span class="sd">    Not necessarily part of an instrument.</span>
 
+<span class="sd">    For new driver we strongly recommend using</span>
+<span class="sd">    :class:`.ParameterWithSetpoints` which is both more flexible and</span>
+<span class="sd">    significantly easier to use</span>
+
 <span class="sd">    Subclasses should define a ``.get_raw`` method, which returns an array.</span>
-<span class="sd">    This method is automatically wrapped to provide a ``.get``` method.</span>
+<span class="sd">    This method is automatically wrapped to provide a ``.get`` method.</span>
+
+<span class="sd">    ArrayParameter can be used in both a</span>
+<span class="sd">    :class:`qcodes.dataset.measurements.Measurement`</span>
+<span class="sd">    as well as in the legacy :class:`qcodes.loops.Loop`</span>
+<span class="sd">    and :class:`qcodes.measure.Measure` measurements</span>
+
 <span class="sd">    When used in a ``Loop`` or ``Measure`` operation, this will be entered</span>
 <span class="sd">    into a single ``DataArray``, with extra dimensions added by the ``Loop``.</span>
 <span class="sd">    The constructor args describe the array we expect from each ``.get`` call</span>
@@ -1233,9 +1317,6 @@
 <span class="sd">    For now you must specify upfront the array shape, and this cannot change</span>
 <span class="sd">    from one call to the next. Later we intend to require only that you specify</span>
 <span class="sd">    the dimension, and the size of each dimension can vary from call to call.</span>
-
-<span class="sd">    Note: If you want ``.get`` to save the measurement for ``.get_latest``,</span>
-<span class="sd">    you must explicitly call ``self._save_val(items)`` inside ``.get_raw``.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        name (str): the local name of the parameter. Should be a valid</span>
@@ -1414,7 +1495,7 @@
 <span class="sd">    Not necessarily part of an instrument.</span>
 
 <span class="sd">    Subclasses should define a ``.get_raw`` method, which returns a sequence of</span>
-<span class="sd">    values. This method is automatically wrapped to provide a ``.get``` method.</span>
+<span class="sd">    values. This method is automatically wrapped to provide a ``.get`` method.</span>
 <span class="sd">    When used in a ``Loop`` or ``Measure`` operation, each of these</span>
 <span class="sd">    values will be entered into a different ``DataArray``. The constructor</span>
 <span class="sd">    args describe what data we expect from each ``.get`` call and how it</span>
@@ -1425,9 +1506,6 @@
 <span class="sd">    ``.get_raw``, and this cannot change from one call to the next. Later we</span>
 <span class="sd">    intend to require only that you specify the dimension of each item returned,</span>
 <span class="sd">    and the size of each dimension can vary from call to call.</span>
-
-<span class="sd">    Note: If you want ``.get`` to save the measurement for ``.get_latest``,</span>
-<span class="sd">    you must explicitly call ``self._save_val(items)`` inside ``.get_raw``.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        name (str): the local name of the whole parameter. Should be a valid</span>
@@ -1579,7 +1657,11 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">full_names</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Include the instrument name with the Parameter names if possible.&quot;&quot;&quot;</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Names of the parameter components including the name of the instrument</span>
+<span class="sd">        and submodule that the parameter may be bound to. The name parts are</span>
+<span class="sd">        separated by underscores, like this: ``instrument_submodule_parameter``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">inst_name</span> <span class="o">=</span> <span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name_parts</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
         <span class="k">if</span> <span class="n">inst_name</span> <span class="o">!=</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">[</span><span class="n">inst_name</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="n">name</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="p">]</span>
@@ -1943,7 +2025,6 @@
     <span class="k">class</span> <span class="nc">Role</span><span class="p">(</span><span class="n">enum</span><span class="o">.</span><span class="n">Enum</span><span class="p">):</span>
         <span class="n">GAIN</span> <span class="o">=</span> <span class="n">enum</span><span class="o">.</span><span class="n">auto</span><span class="p">()</span>
         <span class="n">DIVISION</span> <span class="o">=</span> <span class="n">enum</span><span class="o">.</span><span class="n">auto</span><span class="p">()</span>
-
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                  <span class="n">output</span><span class="p">:</span> <span class="n">Parameter</span><span class="p">,</span>
