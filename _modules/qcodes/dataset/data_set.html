@@ -197,12 +197,14 @@
                                         <span class="n">get_guid_from_run_id</span><span class="p">,</span>
                                         <span class="n">get_runid_from_guid</span><span class="p">,</span>
                                         <span class="n">get_run_timestamp_from_run_id</span><span class="p">,</span>
+                                        <span class="n">get_run_description</span><span class="p">,</span>
                                         <span class="n">get_completed_timestamp_from_run_id</span><span class="p">,</span>
                                         <span class="n">update_run_description</span><span class="p">,</span>
                                         <span class="n">run_exists</span><span class="p">,</span> <span class="n">remove_trigger</span><span class="p">,</span>
                                         <span class="n">make_connection_plus_from</span><span class="p">,</span>
                                         <span class="n">ConnectionPlus</span><span class="p">,</span>
-                                        <span class="n">get_non_dependencies</span><span class="p">)</span>
+                                        <span class="n">get_non_dependencies</span><span class="p">,</span>
+                                        <span class="n">set_run_timestamp</span><span class="p">)</span>
 
 <span class="kn">from</span> <span class="nn">qcodes.dataset.descriptions</span> <span class="k">import</span> <span class="n">RunDescriber</span>
 <span class="kn">from</span> <span class="nn">qcodes.dataset.dependencies</span> <span class="k">import</span> <span class="n">InterDependencies</span>
@@ -212,6 +214,7 @@
 <span class="kn">import</span> <span class="nn">qcodes.config</span>
 
 <span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
 
 <span class="c1"># TODO: as of now every time a result is inserted with add_result the db is</span>
 <span class="c1"># saved same for add_results. IS THIS THE BEHAVIOUR WE WANT?</span>
@@ -413,13 +416,15 @@
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Run with run_id </span><span class="si">{run_id}</span><span class="s2"> does not exist in &quot;</span>
                                  <span class="n">f</span><span class="s2">&quot;the database&quot;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_completed</span> <span class="o">=</span> <span class="n">completed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_started</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">number_of_results</span> <span class="o">&gt;</span> <span class="mi">0</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_description</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_run_description_from_db</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_metadata</span> <span class="o">=</span> <span class="n">get_metadata_from_run_id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="n">run_id</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_started</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_timestamp_raw</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
 
         <span class="k">else</span><span class="p">:</span>
             <span class="c1"># Actually perform all the side effects needed for the creation</span>
-            <span class="c1"># of a new dataset</span>
+            <span class="c1"># of a new dataset. Note that a dataset is created (in the DB)</span>
+            <span class="c1"># with no parameters; they are written to disk when the dataset</span>
+            <span class="c1"># is marked as started</span>
             <span class="k">if</span> <span class="n">exp_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">get_experiments</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">))</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
                     <span class="n">exp_id</span> <span class="o">=</span> <span class="n">get_last_experiment</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">)</span>
@@ -430,7 +435,9 @@
             <span class="n">name</span> <span class="o">=</span> <span class="n">name</span> <span class="ow">or</span> <span class="s2">&quot;dataset&quot;</span>
             <span class="n">_</span><span class="p">,</span> <span class="n">run_id</span><span class="p">,</span> <span class="n">__</span> <span class="o">=</span> <span class="n">create_run</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="n">exp_id</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span>
                                        <span class="n">generate_guid</span><span class="p">(),</span>
-                                       <span class="n">specs</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">metadata</span><span class="p">)</span>
+                                       <span class="n">parameters</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                       <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
+                                       <span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span><span class="p">)</span>
             <span class="c1"># this is really the UUID (an ever increasing count in the db)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_run_id</span> <span class="o">=</span> <span class="n">run_id</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_completed</span> <span class="o">=</span> <span class="kc">False</span>
@@ -492,14 +499,23 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">select_one_where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="s2">&quot;runs&quot;</span><span class="p">,</span>
-                                <span class="s2">&quot;parameters&quot;</span><span class="p">,</span> <span class="s2">&quot;run_id&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pristine</span><span class="p">:</span>
+            <span class="n">psnames</span> <span class="o">=</span> <span class="p">[</span><span class="n">ps</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">ps</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="o">.</span><span class="n">interdeps</span><span class="o">.</span><span class="n">paramspecs</span><span class="p">]</span>
+            <span class="k">return</span> <span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">psnames</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">select_one_where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="s2">&quot;runs&quot;</span><span class="p">,</span>
+                                    <span class="s2">&quot;parameters&quot;</span><span class="p">,</span> <span class="s2">&quot;run_id&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">paramspecs</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ParamSpec</span><span class="p">]:</span>
-        <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_parameters</span><span class="p">()</span>
-        <span class="n">param_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">params</span><span class="p">]</span>
-        <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">param_names</span><span class="p">,</span> <span class="n">params</span><span class="p">))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pristine</span><span class="p">:</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="o">.</span><span class="n">interdeps</span><span class="o">.</span><span class="n">paramspecs</span>
+            <span class="n">param_names</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">ps</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">ps</span> <span class="ow">in</span> <span class="n">params</span><span class="p">)</span>
+            <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">param_names</span><span class="p">,</span> <span class="n">params</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_parameters</span><span class="p">())</span>
+            <span class="n">param_names</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">params</span><span class="p">)</span>
+            <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">param_names</span><span class="p">,</span> <span class="n">params</span><span class="p">))</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">exp_id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
@@ -515,7 +531,7 @@
         <span class="k">return</span> <span class="n">get_sample_name_from_experiment_id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">exp_id</span><span class="p">)</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">run_timestamp_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">run_timestamp_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns run timestamp as number of seconds since the Epoch</span>
 
@@ -605,17 +621,8 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Look up the run_description from the database</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">desc_str</span> <span class="o">=</span> <span class="n">select_one_where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="s2">&quot;runs&quot;</span><span class="p">,</span> <span class="s2">&quot;run_description&quot;</span><span class="p">,</span>
-                                    <span class="s2">&quot;run_id&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
+        <span class="n">desc_str</span> <span class="o">=</span> <span class="n">get_run_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">RunDescriber</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="n">desc_str</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">_perform_start_actions</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Perform the actions that must take place once the run has been started</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># So far it is only one action: write down the run_description</span>
-        <span class="n">update_run_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">,</span>
-                               <span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="o">.</span><span class="n">to_json</span><span class="p">())</span>
 
 <div class="viewcode-block" id="DataSet.toggle_debug"><a class="viewcode-back" href="../../../api/generated/qcodes.dataset.data_set.DataSet.html#qcodes.dataset.data_set.DataSet.toggle_debug">[docs]</a>    <span class="k">def</span> <span class="nf">toggle_debug</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -632,8 +639,14 @@
 <span class="sd">        added to the DataSet in a sequence matching their internal</span>
 <span class="sd">        dependencies, i.e. first independent parameters, next other</span>
 <span class="sd">        independent parameters inferred from the first ones, and finally</span>
-<span class="sd">        the dependent parameters</span>
+<span class="sd">        the dependent parameters. Note that adding parameters to the DataSet</span>
+<span class="sd">        does not reflect in the DB file until the DataSet is marked as started</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">pristine</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Can not add parameters to a DataSet that has &#39;</span>
+                               <span class="s1">&#39;been started.&#39;</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">:</span>
             <span class="n">old_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
@@ -660,18 +673,12 @@
                                  <span class="n">f</span><span class="s1">&#39;</span><span class="si">{spec.name}</span><span class="s1"> depend on </span><span class="si">{dp}</span><span class="s1">, &#39;</span>
                                  <span class="s1">&#39;no such parameter in this DataSet&#39;</span><span class="p">)</span>
 
-        <span class="n">add_parameter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span> <span class="n">spec</span><span class="p">)</span>
-
         <span class="n">desc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">description</span>
         <span class="n">desc</span><span class="o">.</span><span class="n">interdeps</span> <span class="o">=</span> <span class="n">InterDependencies</span><span class="p">(</span><span class="o">*</span><span class="n">desc</span><span class="o">.</span><span class="n">interdeps</span><span class="o">.</span><span class="n">paramspecs</span><span class="p">,</span> <span class="n">spec</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_description</span> <span class="o">=</span> <span class="n">desc</span></div>
 
 <div class="viewcode-block" id="DataSet.get_parameters"><a class="viewcode-back" href="../../../api/generated/qcodes.dataset.data_set.DataSet.html#qcodes.dataset.data_set.DataSet.get_parameters">[docs]</a>    <span class="k">def</span> <span class="nf">get_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SPECS</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">get_parameters</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span></div>
-
-<div class="viewcode-block" id="DataSet.add_parameters"><a class="viewcode-back" href="../../../api/generated/qcodes.dataset.data_set.DataSet.html#qcodes.dataset.data_set.DataSet.add_parameters">[docs]</a>    <span class="nd">@deprecate</span><span class="p">(</span><span class="n">reason</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">alternative</span><span class="o">=</span><span class="s2">&quot;DataSet.add_parameter&quot;</span><span class="p">)</span>
-    <span class="k">def</span> <span class="nf">add_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">specs</span><span class="p">:</span> <span class="n">SPECS</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">add_parameter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span> <span class="o">*</span><span class="n">specs</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="DataSet.add_metadata"><a class="viewcode-back" href="../../../api/generated/qcodes.dataset.data_set.DataSet.html#qcodes.dataset.data_set.DataSet.add_metadata">[docs]</a>    <span class="k">def</span> <span class="nf">add_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tag</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">metadata</span><span class="p">:</span> <span class="n">Any</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -703,11 +710,36 @@
                         <span class="s1">&#39;=True to overwrite that&#39;</span><span class="p">)</span></div>
 
     <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">pristine</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Is this DataSet pristine? A pristine DataSet has not yet been started,</span>
+<span class="sd">        meaning that parameters can still be added and removed, but results</span>
+<span class="sd">        can not be added.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="ow">not</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_started</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_completed</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">running</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Is this DataSet currently running? A running DataSet has been started,</span>
+<span class="sd">        but not yet completed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_started</span> <span class="ow">and</span> <span class="ow">not</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_completed</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">started</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Has this DataSet been started? A DataSet not started can not have any</span>
+<span class="sd">        results added to it.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_started</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">completed</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Is this DataSet completed? A completed DataSet may not be modified in</span>
+<span class="sd">        any way.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_completed</span>
 
     <span class="nd">@completed</span><span class="o">.</span><span class="n">setter</span>
@@ -716,10 +748,37 @@
         <span class="k">if</span> <span class="n">value</span><span class="p">:</span>
             <span class="n">mark_run_complete</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
 
+<div class="viewcode-block" id="DataSet.mark_started"><a class="viewcode-back" href="../../../api/generated/qcodes.dataset.data_set.DataSet.html#qcodes.dataset.data_set.DataSet.mark_started">[docs]</a>    <span class="k">def</span> <span class="nf">mark_started</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Mark this dataset as started. A dataset that has been started can not</span>
+<span class="sd">        have its parameters modified.</span>
+
+<span class="sd">        Calling this on an already started DataSet is a NOOP.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_started</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_perform_start_actions</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_started</span> <span class="o">=</span> <span class="kc">True</span></div>
+
+    <span class="k">def</span> <span class="nf">_perform_start_actions</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Perform the actions that must take place once the run has been started</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">for</span> <span class="n">spec</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="o">.</span><span class="n">interdeps</span><span class="o">.</span><span class="n">paramspecs</span><span class="p">:</span>
+            <span class="n">add_parameter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span> <span class="n">spec</span><span class="p">)</span>
+
+        <span class="n">update_run_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">,</span>
+                               <span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="o">.</span><span class="n">to_json</span><span class="p">())</span>
+
+        <span class="n">set_run_timestamp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
+
 <div class="viewcode-block" id="DataSet.mark_complete"><a class="viewcode-back" href="../../../api/generated/qcodes.dataset.data_set.DataSet.html#qcodes.dataset.data_set.DataSet.mark_complete">[docs]</a>    <span class="k">def</span> <span class="nf">mark_complete</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Mark dataset as complete and thus read only and notify the subscribers</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pristine</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Can not mark DataSet as complete before it &#39;</span>
+                               <span class="s1">&#39;has been marked as started.&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">completed</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="k">for</span> <span class="n">sub</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">subscribers</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
             <span class="n">sub</span><span class="o">.</span><span class="n">done_callback</span><span class="p">()</span></div>
@@ -744,9 +803,14 @@
 <span class="sd">        It is an error to add results to a completed DataSet.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">started</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_perform_start_actions</span><span class="p">()</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_started</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pristine</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;This DataSet has not been marked as started. &#39;</span>
+                               <span class="s1">&#39;Please mark the DataSet as started before &#39;</span>
+                               <span class="s1">&#39;adding results to it.&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">completed</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">CompletedError</span><span class="p">(</span><span class="s1">&#39;This DataSet is complete, no further &#39;</span>
+                                 <span class="s1">&#39;results can be added to it.&#39;</span><span class="p">)</span>
 
         <span class="c1"># TODO: Make this check less fugly</span>
         <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">results</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
@@ -757,9 +821,6 @@
                         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Can not add result for </span><span class="si">{param}</span><span class="s1">, &#39;</span>
                                          <span class="n">f</span><span class="s1">&#39;since this depends on </span><span class="si">{dep}</span><span class="s1">, &#39;</span>
                                          <span class="s1">&#39;which is not being added.&#39;</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">completed</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">CompletedError</span>
 
         <span class="n">index</span> <span class="o">=</span> <span class="n">insert_values</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span>
                               <span class="nb">list</span><span class="p">(</span><span class="n">results</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span>
@@ -786,9 +847,15 @@
 <span class="sd">        It is an error to add results to a completed DataSet.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">started</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_perform_start_actions</span><span class="p">()</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_started</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pristine</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;This DataSet has not been marked as started. &#39;</span>
+                               <span class="s1">&#39;Please mark the DataSet as started before &#39;</span>
+                               <span class="s1">&#39;adding results to it.&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">completed</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">CompletedError</span><span class="p">(</span><span class="s1">&#39;This DataSet is complete, no further &#39;</span>
+                                 <span class="s1">&#39;results can be added to it.&#39;</span><span class="p">)</span>
+
 
         <span class="n">expected_keys</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="o">.</span><span class="n">union</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="nb">frozenset</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">results</span><span class="p">])</span>
         <span class="n">values</span> <span class="o">=</span> <span class="p">[[</span><span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">expected_keys</span><span class="p">]</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">results</span><span class="p">]</span>
@@ -798,112 +865,6 @@
         <span class="n">insert_many_values</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">expected_keys</span><span class="p">),</span>
                            <span class="n">values</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">len_before_add</span></div>
-
-<div class="viewcode-block" id="DataSet.modify_result"><a class="viewcode-back" href="../../../api/generated/qcodes.dataset.data_set.DataSet.html#qcodes.dataset.data_set.DataSet.modify_result">[docs]</a>    <span class="nd">@deprecate</span><span class="p">(</span><span class="n">reason</span><span class="o">=</span><span class="s1">&#39;it is an experimental functionality, and is likely &#39;</span>
-                      <span class="s1">&#39;to be removed soon.&#39;</span><span class="p">)</span>
-    <span class="k">def</span> <span class="nf">modify_result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">results</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">VALUES</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Modify a logically single result of existing parameters</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            index: zero-based index of the result to be modified.</span>
-<span class="sd">            results: dictionary of updates with name of a parameter as the</span>
-<span class="sd">               key and the value to associate as the value.</span>
-
-<span class="sd">        It is an error to modify a result at an index less than zero or</span>
-<span class="sd">        beyond the end of the DataSet.</span>
-
-<span class="sd">        It is an error to provide a value for a key or keyword that is not</span>
-<span class="sd">        the name of a parameter in this DataSet.</span>
-
-<span class="sd">        It is an error to modify a result in a completed DataSet.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">completed</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">CompletedError</span>
-
-        <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">results</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-            <span class="k">if</span> <span class="n">param</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">paramspecs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;No such parameter: </span><span class="si">{param}</span><span class="s1">.&#39;</span><span class="p">)</span>
-
-        <span class="k">with</span> <span class="n">atomic</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">)</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
-            <span class="n">modify_values</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span>
-                          <span class="nb">list</span><span class="p">(</span><span class="n">results</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span>
-                          <span class="nb">list</span><span class="p">(</span><span class="n">results</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
-                          <span class="p">)</span></div>
-
-<div class="viewcode-block" id="DataSet.modify_results"><a class="viewcode-back" href="../../../api/generated/qcodes.dataset.data_set.DataSet.html#qcodes.dataset.data_set.DataSet.modify_results">[docs]</a>    <span class="nd">@deprecate</span><span class="p">(</span><span class="n">reason</span><span class="o">=</span><span class="s1">&#39;it is an experimental functionality, and is likely &#39;</span>
-                      <span class="s1">&#39;to be removed soon.&#39;</span><span class="p">,</span>
-               <span class="n">alternative</span><span class="o">=</span><span class="s1">&#39;modify_result&#39;</span><span class="p">)</span>
-    <span class="k">def</span> <span class="nf">modify_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start_index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-                       <span class="n">updates</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">VALUES</span><span class="p">]]):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Modify a sequence of results in the DataSet.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            index: zero-based index of the result to be modified.</span>
-<span class="sd">            results: sequence of dictionares of updates with name of a</span>
-<span class="sd">                parameter as the key and the value to associate as the value.</span>
-
-
-<span class="sd">        It is an error to modify a result at an index less than zero or</span>
-<span class="sd">        beyond the end of the DataSet.</span>
-
-<span class="sd">        It is an error to provide a value for a key or keyword that is not</span>
-<span class="sd">        the name of a parameter in this DataSet.</span>
-
-<span class="sd">        It is an error to modify a result in a completed DataSet.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">completed</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">CompletedError</span>
-
-        <span class="n">keys</span> <span class="o">=</span> <span class="p">[</span><span class="nb">list</span><span class="p">(</span><span class="n">val</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">updates</span><span class="p">]</span>
-        <span class="n">flattened_keys</span> <span class="o">=</span> <span class="p">[</span><span class="n">item</span> <span class="k">for</span> <span class="n">sublist</span> <span class="ow">in</span> <span class="n">keys</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">sublist</span><span class="p">]</span>
-
-        <span class="n">mod_params</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">flattened_keys</span><span class="p">)</span>
-        <span class="n">old_params</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">paramspecs</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">mod_params</span><span class="o">.</span><span class="n">issubset</span><span class="p">(</span><span class="n">old_params</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Can not modify values for parameter(s) &#39;</span>
-                             <span class="n">f</span><span class="s1">&#39;{mod_params.difference(old_params)}, &#39;</span>
-                             <span class="s1">&#39;no such parameter(s) in the dataset.&#39;</span><span class="p">)</span>
-
-        <span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="nb">list</span><span class="p">(</span><span class="n">val</span><span class="o">.</span><span class="n">values</span><span class="p">())</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">updates</span><span class="p">]</span>
-        <span class="n">flattened_values</span> <span class="o">=</span> <span class="p">[</span><span class="n">item</span> <span class="k">for</span> <span class="n">sublist</span> <span class="ow">in</span> <span class="n">values</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">sublist</span><span class="p">]</span>
-
-        <span class="k">with</span> <span class="n">atomic</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">)</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
-            <span class="n">modify_many_values</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span>
-                               <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span>
-                               <span class="n">start_index</span><span class="p">,</span>
-                               <span class="n">flattened_keys</span><span class="p">,</span>
-                               <span class="n">flattened_values</span><span class="p">)</span></div>
-
-<div class="viewcode-block" id="DataSet.add_parameter_values"><a class="viewcode-back" href="../../../api/generated/qcodes.dataset.data_set.DataSet.html#qcodes.dataset.data_set.DataSet.add_parameter_values">[docs]</a>    <span class="nd">@deprecate</span><span class="p">(</span><span class="n">reason</span><span class="o">=</span><span class="s1">&#39;it is an experimental functionality, and is likely &#39;</span>
-                      <span class="s1">&#39;to be removed soon.&#39;</span><span class="p">,</span>
-               <span class="n">alternative</span><span class="o">=</span><span class="s1">&#39;add_parameter, add_result, add_results&#39;</span><span class="p">)</span>
-    <span class="k">def</span> <span class="nf">add_parameter_values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">spec</span><span class="p">:</span> <span class="n">ParamSpec</span><span class="p">,</span> <span class="n">values</span><span class="p">:</span> <span class="n">VALUES</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Add a parameter to the DataSet and associates result values with the</span>
-<span class="sd">        new parameter.</span>
-
-<span class="sd">        If the DataSet is not empty, then the count of provided values must</span>
-<span class="sd">        equal the current count of results in the DataSet, or an error will</span>
-<span class="sd">        be raised.</span>
-
-<span class="sd">        It is an error to add parameters to a completed DataSet.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># first check that the len of values (if dataset is not empty)</span>
-        <span class="c1"># is the right size i.e. the same as the dataset</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Need to have </span><span class="si">{}</span><span class="s2"> values but got </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-                    <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span>
-                    <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
-                <span class="p">))</span>
-
-        <span class="k">with</span> <span class="n">atomic</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">)</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
-            <span class="n">add_parameter</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span> <span class="n">spec</span><span class="p">)</span>
-            <span class="c1"># now add values!</span>
-            <span class="n">results</span> <span class="o">=</span> <span class="p">[{</span><span class="n">spec</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">value</span><span class="p">}</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">values</span><span class="p">]</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">add_results</span><span class="p">(</span><span class="n">results</span><span class="p">)</span></div>
 
     <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">_validate_parameters</span><span class="p">(</span><span class="o">*</span><span class="n">params</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ParamSpec</span><span class="p">,</span> <span class="n">_BaseParameter</span><span class="p">]</span>
