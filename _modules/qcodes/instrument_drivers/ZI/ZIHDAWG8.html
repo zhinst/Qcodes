@@ -162,6 +162,7 @@
 <span></span><span class="kn">import</span> <span class="nn">csv</span>
 <span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
 <span class="kn">import</span> <span class="nn">textwrap</span>
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="k">import</span> <span class="n">partial</span>
@@ -172,6 +173,19 @@
 <span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="n">Instrument</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils</span> <span class="k">import</span> <span class="n">validators</span> <span class="k">as</span> <span class="n">validators</span>
 
+<span class="n">WARNING_CLIPPING</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;^Warning \(line: [0-9]+\): [a-zA-Z0-9_]+ has a higher &quot;</span> \
+                   <span class="sa">r</span><span class="s2">&quot;amplitude than 1.0, waveform amplitude will be limited &quot;</span> \
+                   <span class="sa">r</span><span class="s2">&quot;to 1.0$&quot;</span>
+<span class="n">WARNING_TRUNCATING</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;^Warning \(line: [0-9]+\): waveform \S+ cut &quot;</span> \
+                     <span class="sa">r</span><span class="s2">&quot;down to playable length from [0-9]+ to [0-9]+ samples &quot;</span> \
+                     <span class="sa">r</span><span class="s2">&quot;\(should be a multiple of 8 samples for single channel&quot;</span> \
+                     <span class="sa">r</span><span class="s2">&quot; or 4 samples for dual channel waveforms\)$&quot;</span>
+<span class="n">WARNING_ANY</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;^Warning \(line: [0-9]+\):.*$&quot;</span>
+
+
+<div class="viewcode-block" id="CompilerError"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.ZI.html#qcodes.instrument_drivers.ZI.ZIHDAWG8.CompilerError">[docs]</a><span class="k">class</span> <span class="nc">CompilerError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Errors that occur during compilation of sequence programs.&quot;&quot;&quot;</span></div>
+
 
 <div class="viewcode-block" id="ZIHDAWG8"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.ZI.html#qcodes.instrument_drivers.ZI.ZIHDAWG8.ZIHDAWG8">[docs]</a><span class="k">class</span> <span class="nc">ZIHDAWG8</span><span class="p">(</span><span class="n">Instrument</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -180,6 +194,13 @@
 <span class="sd">    (tested using LabOne 18.05.54618 and firmware 53866).</span>
 <span class="sd">    Furthermore, the Data Server and Web Server must be running and a connection</span>
 <span class="sd">    between the two must be made.</span>
+
+<span class="sd">    Compiler warnings, when uploading and compiling a sequence program, can</span>
+<span class="sd">    be treated as errors. This is desirable if the user of the driver does</span>
+<span class="sd">    not want clipping or truncating of waveform to happen silently by the</span>
+<span class="sd">    compiler. Warnings are constants on the module level and can be added to the</span>
+<span class="sd">    drivers attribute ``warnings_as_errors``. If warning are added, they</span>
+<span class="sd">    will raise a CompilerError.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">device_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -200,6 +221,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">awg_module</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
         <span class="n">node_tree</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">download_device_node_tree</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">create_parameters_from_node_tree</span><span class="p">(</span><span class="n">node_tree</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">warnings_as_errors</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_compiler_sleep_time</span> <span class="o">=</span> <span class="mf">0.01</span>
 
 <div class="viewcode-block" id="ZIHDAWG8.snapshot_base"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.ZI.html#qcodes.instrument_drivers.ZI.ZIHDAWG8.ZIHDAWG8.snapshot_base">[docs]</a>    <span class="k">def</span> <span class="nf">snapshot_base</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
                       <span class="n">params_to_skip_update</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
@@ -338,20 +361,40 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            0 is Compilation was successful with no warnings.</span>
 <span class="sd">            2 if Compilation was successful but with warnings.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            CompilerError: If error occurs during compilation of the sequence</span>
+<span class="sd">            program, or if a warning is elevated to an error.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">awg_module</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;awgModule/index&#39;</span><span class="p">,</span> <span class="n">awg_number</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">awg_module</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;awgModule/compiler/sourcestring&#39;</span><span class="p">,</span> <span class="n">sequence_program</span><span class="p">)</span>
         <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">awg_module</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;awgModule/compiler/sourcestring&#39;</span><span class="p">)</span>
-                      <span class="p">[</span><span class="s1">&#39;compiler&#39;</span><span class="p">][</span><span class="s1">&#39;sourcestring&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
+                  <span class="p">[</span><span class="s1">&#39;compiler&#39;</span><span class="p">][</span><span class="s1">&#39;sourcestring&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_compiler_sleep_time</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">awg_module</span><span class="o">.</span><span class="n">getInt</span><span class="p">(</span><span class="s1">&#39;awgModule/compiler/status&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+            <span class="k">raise</span> <span class="n">CompilerError</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">awg_module</span><span class="o">.</span><span class="n">getString</span><span class="p">(</span><span class="s1">&#39;awgModule/compiler/statusstring&#39;</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">awg_module</span><span class="o">.</span><span class="n">getInt</span><span class="p">(</span><span class="s1">&#39;awgModule/compiler/status&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_handle_compiler_warnings</span><span class="p">(</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">awg_module</span><span class="o">.</span><span class="n">getString</span><span class="p">(</span><span class="s1">&#39;awgModule/compiler/statusstring&#39;</span><span class="p">))</span>
         <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">awg_module</span><span class="o">.</span><span class="n">getDouble</span><span class="p">(</span><span class="s1">&#39;awgModule/progress&#39;</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1.0</span><span class="p">:</span>
-            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_compiler_sleep_time</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">awg_module</span><span class="o">.</span><span class="n">getInt</span><span class="p">(</span><span class="s1">&#39;awgModule/compiler/status&#39;</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_handle_compiler_warnings</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status_string</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">warnings</span> <span class="o">=</span> <span class="p">[</span><span class="n">warning</span> <span class="k">for</span> <span class="n">warning</span> <span class="ow">in</span> <span class="n">status_string</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span> <span class="k">if</span>
+                    <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">WARNING_ANY</span><span class="p">,</span> <span class="n">warning</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+        <span class="n">errors</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">warning</span> <span class="ow">in</span> <span class="n">warnings</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">warning_as_error</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">warnings_as_errors</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">warning_as_error</span><span class="p">,</span> <span class="n">warning</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">warning</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">warning</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">errors</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">warning</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">errors</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">CompilerError</span><span class="p">(</span><span class="s1">&#39;Warning treated as an error.&#39;</span><span class="p">,</span> <span class="o">*</span><span class="n">errors</span><span class="p">)</span>
 
 <div class="viewcode-block" id="ZIHDAWG8.upload_waveform"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.ZI.html#qcodes.instrument_drivers.ZI.ZIHDAWG8.ZIHDAWG8.upload_waveform">[docs]</a>    <span class="k">def</span> <span class="nf">upload_waveform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">awg_number</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">waveform</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>
                         <span class="n">index</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
