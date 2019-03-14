@@ -166,7 +166,9 @@
 <span class="kn">from</span> <span class="nn">functools</span> <span class="k">import</span> <span class="n">partial</span>
 <span class="kn">from</span> <span class="nn">math</span> <span class="k">import</span> <span class="n">sqrt</span>
 
-<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">cast</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">cast</span><span class="p">,</span> <span class="n">Optional</span>
+
+<span class="kn">from</span> <span class="nn">qcodes.utils.helpers</span> <span class="k">import</span> <span class="n">create_on_off_val_mapping</span>
 
 <span class="k">try</span><span class="p">:</span>
     <span class="kn">import</span> <span class="nn">zhinst.utils</span>
@@ -1090,20 +1092,12 @@
                                 <span class="n">val_mapping</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;ON&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;OFF&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
                                 <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="s1">&#39;ON&#39;</span><span class="p">,</span> <span class="s1">&#39;OFF&#39;</span><span class="p">)</span> <span class="p">)</span>
 
-            <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_amplitude&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sigout</span><span class="p">),</span>
-                                <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Signal output amplitude&#39;</span><span class="p">,</span>
-                                <span class="n">set_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sigout_setter</span><span class="p">,</span>
-                                                <span class="n">sigout</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">outputamps</span><span class="p">[</span><span class="n">sigout</span><span class="p">]),</span>
-                                <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sigout_getter</span><span class="p">,</span>
-                                               <span class="n">sigout</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">outputamps</span><span class="p">[</span><span class="n">sigout</span><span class="p">]),</span>
-                                <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;V&#39;</span><span class="p">)</span>
-
             <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_ampdef&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sigout</span><span class="p">),</span>
-                                <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                                <span class="n">initial_value</span><span class="o">=</span><span class="s1">&#39;Vpk&#39;</span><span class="p">,</span>
-                                <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Signal output amplitude&#39;s definition&quot;</span><span class="p">,</span>
-                                <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;V&#39;</span><span class="p">,</span>
-                                <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="s1">&#39;Vpk&#39;</span><span class="p">,</span><span class="s1">&#39;Vrms&#39;</span><span class="p">,</span> <span class="s1">&#39;dBm&#39;</span><span class="p">))</span>
+                               <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                               <span class="n">initial_value</span><span class="o">=</span><span class="s1">&#39;Vpk&#39;</span><span class="p">,</span>
+                               <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Signal output amplitude&#39;s definition&quot;</span><span class="p">,</span>
+                               <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span>
+                               <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="s1">&#39;Vpk&#39;</span><span class="p">,</span> <span class="s1">&#39;Vrms&#39;</span><span class="p">,</span> <span class="s1">&#39;dBm&#39;</span><span class="p">))</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_range&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sigout</span><span class="p">),</span>
                                 <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Signal output range&#39;</span><span class="p">,</span>
@@ -1131,16 +1125,63 @@
                                 <span class="n">val_mapping</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;ON&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;OFF&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
                                 <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="s1">&#39;ON&#39;</span><span class="p">,</span> <span class="s1">&#39;OFF&#39;</span><span class="p">)</span> <span class="p">)</span>
 
-            <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_enable&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sigout</span><span class="p">),</span>
-                                <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Enable signal output&#39;s amplitude.&quot;</span><span class="p">,</span>
-                                <span class="n">set_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sigout_setter</span><span class="p">,</span>
-                                                <span class="n">sigout</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>
-                                                <span class="n">outputampenable</span><span class="p">[</span><span class="n">sigout</span><span class="p">]),</span>
-                                <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sigout_getter</span><span class="p">,</span>
-                                                <span class="n">sigout</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>
-                                                <span class="n">outputampenable</span><span class="p">[</span><span class="n">sigout</span><span class="p">]),</span>
-                                <span class="n">val_mapping</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;ON&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;OFF&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
-                                <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="s1">&#39;ON&#39;</span><span class="p">,</span> <span class="s1">&#39;OFF&#39;</span><span class="p">)</span> <span class="p">)</span>
+            <span class="k">if</span> <span class="s1">&#39;MF&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;options&#39;</span><span class="p">]:</span>
+                <span class="k">for</span> <span class="n">modeout</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">9</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+                        <span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_amplitude</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sigout</span><span class="p">,</span> <span class="n">modeout</span><span class="p">),</span>
+                        <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Signal output amplitude&#39;</span><span class="p">,</span>
+                        <span class="n">set_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sigout_setter</span><span class="p">,</span>
+                                        <span class="n">sigout</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;amplitudes&#39;</span><span class="p">,</span>
+                                        <span class="n">output_mode</span><span class="o">=</span><span class="n">modeout</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span>
+                        <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sigout_getter</span><span class="p">,</span>
+                                        <span class="n">sigout</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;amplitudes&#39;</span><span class="p">,</span>
+                                        <span class="n">output_mode</span><span class="o">=</span><span class="n">modeout</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span>
+                        <span class="n">docstring</span><span class="o">=</span><span class="s2">&quot;Set the signal output amplitude. The actual &quot;</span>
+                                  <span class="s2">&quot;unit and representation is defined by &quot;</span>
+                                  <span class="s2">&quot;signal_output</span><span class="si">{}</span><span class="s2">_ampdef &quot;</span>
+                                  <span class="s2">&quot;parameter&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sigout</span><span class="p">))</span>
+
+                    <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+                        <span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_enable</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sigout</span><span class="p">,</span> <span class="n">modeout</span><span class="p">),</span>
+                        <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Output signal enabled/disabled.&quot;</span><span class="p">,</span>
+                        <span class="n">set_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sigout_setter</span><span class="p">,</span>
+                                        <span class="n">sigout</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>
+                                        <span class="s1">&#39;enables&#39;</span><span class="p">,</span> <span class="n">output_mode</span><span class="o">=</span><span class="n">modeout</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span>
+                        <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sigout_getter</span><span class="p">,</span>
+                                        <span class="n">sigout</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>
+                                        <span class="s1">&#39;enables&#39;</span><span class="p">,</span> <span class="n">output_mode</span><span class="o">=</span><span class="n">modeout</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span>
+                        <span class="n">val_mapping</span><span class="o">=</span><span class="n">create_on_off_val_mapping</span><span class="p">(),</span>
+                        <span class="n">docstring</span><span class="o">=</span><span class="s2">&quot;Enabling/Disabling the Signal Output. &quot;</span>
+                                  <span class="s2">&quot;Corresponds to the blue LED indicator on &quot;</span>
+                                  <span class="s2">&quot;the instrument front panel.&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+                    <span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_enable&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sigout</span><span class="p">),</span>
+                    <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Output signal enabled/disabled.&quot;</span><span class="p">,</span>
+                    <span class="n">set_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sigout_setter</span><span class="p">,</span>
+                                    <span class="n">sigout</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>
+                                    <span class="n">outputampenable</span><span class="p">[</span><span class="n">sigout</span><span class="p">]),</span>
+                    <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sigout_getter</span><span class="p">,</span>
+                                    <span class="n">sigout</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>
+                                    <span class="n">outputampenable</span><span class="p">[</span><span class="n">sigout</span><span class="p">]),</span>
+                    <span class="n">val_mapping</span><span class="o">=</span><span class="n">create_on_off_val_mapping</span><span class="p">(),</span>
+                    <span class="n">docstring</span><span class="o">=</span><span class="s2">&quot;Enabling/Disabling the Signal Output. &quot;</span>
+                              <span class="s2">&quot;Corresponds to the blue LED indicator on &quot;</span>
+                              <span class="s2">&quot;the instrument front panel.&quot;</span>
+                <span class="p">)</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+                    <span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_amplitude&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sigout</span><span class="p">),</span>
+                    <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Signal output amplitude&#39;</span><span class="p">,</span>
+                    <span class="n">set_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sigout_setter</span><span class="p">,</span>
+                                    <span class="n">sigout</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span>
+                                    <span class="n">outputamps</span><span class="p">[</span><span class="n">sigout</span><span class="p">]),</span>
+                    <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sigout_getter</span><span class="p">,</span>
+                                    <span class="n">sigout</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span>
+                                    <span class="n">outputamps</span><span class="p">[</span><span class="n">sigout</span><span class="p">]),</span>
+                    <span class="n">docstring</span><span class="o">=</span><span class="s2">&quot;Set the signal output amplitude. The actual unit&quot;</span>
+                              <span class="s2">&quot; and representation is defined by &quot;</span>
+                              <span class="s2">&quot;signal_output</span><span class="si">{}</span><span class="s2">_ampdef parameter&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sigout</span><span class="p">))</span>
 
         <span class="n">auxoutputchannels</span> <span class="o">=</span> <span class="n">ChannelList</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;AUXOutputChannels&quot;</span><span class="p">,</span> <span class="n">AUXOutputChannel</span><span class="p">,</span>
                                <span class="n">snapshotable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
@@ -1751,7 +1792,7 @@
 <span class="sd">            module (str): The module (eg. demodulator, input, output, ..)</span>
 <span class="sd">                to set.</span>
 <span class="sd">            number (int): Module&#39;s index</span>
-<span class="sd">            mode (bool): Indicating whether we are setting an int or double</span>
+<span class="sd">            mode (int): Indicating whether we are asking for an int (0) or double (1)</span>
 <span class="sd">            setting (str): The module&#39;s setting to set.</span>
 <span class="sd">            value (int/double): The value to set.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -1809,32 +1850,39 @@
         <span class="n">datadict</span><span class="p">[</span><span class="s1">&#39;phi&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">angle</span><span class="p">(</span><span class="n">datadict</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">datadict</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">],</span> <span class="n">deg</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">datadict</span><span class="p">[</span><span class="n">demod_param</span><span class="p">]</span>
 
-    <span class="k">def</span> <span class="nf">_sigout_setter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">number</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">setting</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_sigout_setter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">number</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+                       <span class="n">mode</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+                       <span class="n">setting</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                       <span class="n">value</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span>
+                       <span class="n">output_mode</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Function to set signal output&#39;s settings. A specific setter function is</span>
 <span class="sd">        needed as parameters depend on each other and need to be checked and</span>
 <span class="sd">        updated accordingly.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            number (int):</span>
-<span class="sd">            mode (bool): Indicating whether we are asking for an int or double</span>
-<span class="sd">            setting (str): The module&#39;s setting to set.</span>
-<span class="sd">            value (Union[int, float]): The value to set the setting to.</span>
+<span class="sd">            number: The output channel to use. Either 1 or 2.</span>
+<span class="sd">            mode: Indicating whether we are asking for an int (0) or double (1).</span>
+<span class="sd">            setting: The module&#39;s setting to set.</span>
+<span class="sd">            value: The value to set the setting to.</span>
+<span class="sd">            output_mode: Some options may take an extra int to indicate which of the 8</span>
+<span class="sd">                         demodulators this acts on</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="c1"># convenient reference</span>
         <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span>
 
-        <span class="k">def</span> <span class="nf">amp_valid</span><span class="p">():</span>
-            <span class="k">nonlocal</span> <span class="n">value</span>
-            <span class="n">toget</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_ampdef&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">number</span><span class="o">+</span><span class="mi">1</span><span class="p">)]</span>
-            <span class="n">ampdef_val</span> <span class="o">=</span> <span class="n">toget</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
-            <span class="n">toget</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_autorange&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">number</span><span class="o">+</span><span class="mi">1</span><span class="p">)]</span>
-            <span class="n">autorange_val</span> <span class="o">=</span> <span class="n">toget</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="n">amp_val_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;Vpk&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">value</span><span class="p">:</span> <span class="n">value</span><span class="p">,</span>
+                        <span class="s1">&#39;Vrms&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">value</span><span class="p">:</span> <span class="n">value</span> <span class="o">*</span> <span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span>
+                        <span class="s1">&#39;dBm&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">value</span><span class="p">:</span> <span class="mi">10</span> <span class="o">**</span> <span class="p">((</span><span class="n">value</span> <span class="o">-</span> <span class="mi">10</span><span class="p">)</span> <span class="o">/</span> <span class="mi">20</span><span class="p">)</span>
+                        <span class="p">}</span>
+
+        <span class="k">def</span> <span class="nf">amp_valid</span><span class="p">(</span><span class="n">number</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+            <span class="n">ampdef_val</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_ampdef&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">number</span><span class="o">+</span><span class="mi">1</span><span class="p">)]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+            <span class="n">autorange_val</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_autorange&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">number</span><span class="o">+</span><span class="mi">1</span><span class="p">)]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
 
             <span class="k">if</span> <span class="n">autorange_val</span> <span class="o">==</span> <span class="s1">&#39;ON&#39;</span><span class="p">:</span>
-                <span class="n">toget</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_imp50&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">number</span><span class="o">+</span><span class="mi">1</span><span class="p">)]</span>
-                <span class="n">imp50_val</span> <span class="o">=</span> <span class="n">toget</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+                <span class="n">imp50_val</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_imp50&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">number</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
                 <span class="n">imp50_dic</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;OFF&#39;</span><span class="p">:</span> <span class="mf">1.5</span><span class="p">,</span> <span class="s1">&#39;ON&#39;</span><span class="p">:</span> <span class="mf">0.75</span><span class="p">}</span>
                 <span class="n">range_val</span> <span class="o">=</span> <span class="n">imp50_dic</span><span class="p">[</span><span class="n">imp50_val</span><span class="p">]</span>
 
@@ -1842,32 +1890,32 @@
                 <span class="n">so_range</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_range&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">number</span><span class="o">+</span><span class="mi">1</span><span class="p">)]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
                 <span class="n">range_val</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">so_range</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
 
-            <span class="n">amp_val_dict</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;Vpk&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">value</span><span class="p">:</span> <span class="n">value</span><span class="p">,</span>
-                          <span class="s1">&#39;Vrms&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">value</span><span class="p">:</span> <span class="n">value</span><span class="o">*</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span>
-                          <span class="s1">&#39;dBm&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">value</span><span class="p">:</span> <span class="mi">10</span><span class="o">**</span><span class="p">((</span><span class="n">value</span><span class="o">-</span><span class="mi">10</span><span class="p">)</span><span class="o">/</span><span class="mi">20</span><span class="p">)</span>
-                         <span class="p">}</span>
-
+            <span class="n">converter</span> <span class="o">=</span> <span class="n">amp_val_dict</span><span class="p">[</span><span class="n">ampdef_val</span><span class="p">]</span>
             <span class="k">if</span> <span class="o">-</span><span class="n">range_val</span> <span class="o">&lt;</span> <span class="n">amp_val_dict</span><span class="p">[</span><span class="n">ampdef_val</span><span class="p">](</span><span class="n">value</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">range_val</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Signal Output:&#39;</span>
-                                 <span class="o">+</span> <span class="s1">&#39; Amplitude too high for chosen range.&#39;</span><span class="p">)</span>
-            <span class="n">value</span> <span class="o">=</span> <span class="n">amp_val_dict</span><span class="p">[</span><span class="n">ampdef_val</span><span class="p">](</span><span class="n">value</span><span class="p">)</span>
+                                 <span class="o">+</span> <span class="s1">&#39; Amplitude </span><span class="si">{}</span><span class="s1"> </span><span class="si">{}</span><span class="s1"> too high for chosen range.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">value</span><span class="p">,</span>
+                                                                                        <span class="n">converter</span><span class="p">(</span><span class="n">value</span><span class="p">)))</span>
 
-        <span class="k">def</span> <span class="nf">offset_valid</span><span class="p">():</span>
-            <span class="k">nonlocal</span> <span class="n">value</span>
-            <span class="k">nonlocal</span> <span class="n">number</span>
+        <span class="k">def</span> <span class="nf">offset_valid</span><span class="p">(</span><span class="n">number</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+
+            <span class="k">def</span> <span class="nf">validate_against_individual</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">amp_val</span><span class="p">,</span> <span class="n">range_val</span><span class="p">):</span>
+                <span class="n">amp_val</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">amp_val</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+                <span class="k">if</span> <span class="o">-</span><span class="n">range_val</span> <span class="o">&lt;</span> <span class="n">value</span> <span class="o">+</span> <span class="n">amp_val</span> <span class="o">&gt;</span> <span class="n">range_val</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Signal Output: Offset too high for &#39;</span>
+                                     <span class="s1">&#39;chosen range.&#39;</span><span class="p">)</span>
+
             <span class="n">range_val</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_range&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">number</span><span class="o">+</span><span class="mi">1</span><span class="p">)]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
             <span class="n">range_val</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">range_val</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
-            <span class="n">amp_val</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_amplitude&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">number</span><span class="o">+</span><span class="mi">1</span><span class="p">)]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
-            <span class="n">amp_val</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">amp_val</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
-            <span class="k">if</span> <span class="o">-</span><span class="n">range_val</span><span class="o">&lt;</span> <span class="n">value</span><span class="o">+</span><span class="n">amp_val</span> <span class="o">&gt;</span> <span class="n">range_val</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Signal Output: Offset too high for &#39;</span>
-                                 <span class="s1">&#39;chosen range.&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s1">&#39;MF&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;options&#39;</span><span class="p">]:</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">9</span><span class="p">):</span>
+                    <span class="n">amp_val</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_amplitude</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">number</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">i</span><span class="p">)]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+                    <span class="n">validate_against_individual</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">amp_val</span><span class="p">,</span> <span class="n">range_val</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">amp_val</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_amplitude&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">number</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+                <span class="n">validate_against_individual</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">amp_val</span><span class="p">,</span> <span class="n">range_val</span><span class="p">)</span>
 
-        <span class="k">def</span> <span class="nf">range_valid</span><span class="p">():</span>
-            <span class="k">nonlocal</span> <span class="n">value</span>
-            <span class="k">nonlocal</span> <span class="n">number</span>
-            <span class="n">toget</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_autorange&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">number</span><span class="o">+</span><span class="mi">1</span><span class="p">)]</span>
-            <span class="n">autorange_val</span> <span class="o">=</span> <span class="n">toget</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="k">def</span> <span class="nf">range_valid</span><span class="p">(</span><span class="n">number</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+            <span class="n">autorange_val</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_autorange&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">number</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
             <span class="n">imp50_val</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_imp50&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">number</span><span class="o">+</span><span class="mi">1</span><span class="p">)]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
             <span class="n">imp50_dic</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;OFF&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">1.5</span><span class="p">,</span> <span class="mf">0.15</span><span class="p">],</span> <span class="s1">&#39;ON&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.75</span><span class="p">,</span> <span class="mf">0.075</span><span class="p">]}</span>
 
@@ -1880,7 +1928,7 @@
                                  <span class="s1">&#39;[0.75, 0.075] if imp50 is on, [1.5, 0.15]&#39;</span>
                                  <span class="s1">&#39; otherwise.&#39;</span><span class="p">)</span>
 
-        <span class="k">def</span> <span class="nf">ampdef_valid</span><span class="p">():</span>
+        <span class="k">def</span> <span class="nf">ampdef_valid</span><span class="p">(</span><span class="n">number</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
             <span class="c1"># check which amplitude definition you can use.</span>
             <span class="c1"># dBm is only possible with 50 Ohm imp ON</span>
             <span class="n">imp50_val</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_imp50&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">number</span><span class="o">+</span><span class="mi">1</span><span class="p">)]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
@@ -1893,24 +1941,33 @@
 
         <span class="n">dynamic_validation</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;range&#39;</span><span class="p">:</span> <span class="n">range_valid</span><span class="p">,</span>
                               <span class="s1">&#39;ampdef&#39;</span><span class="p">:</span> <span class="n">ampdef_valid</span><span class="p">,</span>
-                              <span class="s1">&#39;amplitudes/3&#39;</span><span class="p">:</span> <span class="n">amp_valid</span><span class="p">,</span>
-                              <span class="s1">&#39;amplitudes/7&#39;</span><span class="p">:</span> <span class="n">amp_valid</span><span class="p">,</span>
+                              <span class="s1">&#39;amplitudes&#39;</span><span class="p">:</span> <span class="n">amp_valid</span><span class="p">,</span>
                               <span class="s1">&#39;offset&#39;</span><span class="p">:</span> <span class="n">offset_valid</span><span class="p">}</span>
 
         <span class="k">def</span> <span class="nf">update_range_offset_amp</span><span class="p">():</span>
             <span class="n">range_val</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_range&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">number</span><span class="o">+</span><span class="mi">1</span><span class="p">)]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
             <span class="n">offset_val</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_offset&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">number</span><span class="o">+</span><span class="mi">1</span><span class="p">)]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
-            <span class="n">amp_val</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_amplitude&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">number</span><span class="o">+</span><span class="mi">1</span><span class="p">)]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
-            <span class="k">if</span> <span class="o">-</span><span class="n">range_val</span> <span class="o">&lt;</span> <span class="n">offset_val</span> <span class="o">+</span> <span class="n">amp_val</span> <span class="o">&gt;</span> <span class="n">range_val</span><span class="p">:</span>
-                <span class="c1">#The GUI would allow higher values but it would clip the signal.</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Signal Output: Amplitude and/or &#39;</span>
-                                 <span class="s1">&#39;offset out of range.&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s1">&#39;MF&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;options&#39;</span><span class="p">]:</span>
+                <span class="n">amps_val</span> <span class="o">=</span> <span class="p">[</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_amplitude</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">number</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">output</span><span class="p">)]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span> <span class="k">for</span> <span class="n">output</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">9</span><span class="p">)]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">amps_val</span> <span class="o">=</span> <span class="p">[</span><span class="n">params</span><span class="p">[</span><span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_amplitude&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">number</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span><span class="o">.</span><span class="n">get</span><span class="p">()]</span>
+            <span class="k">for</span> <span class="n">amp_val</span> <span class="ow">in</span> <span class="n">amps_val</span><span class="p">:</span>
+                <span class="k">if</span> <span class="o">-</span><span class="n">range_val</span> <span class="o">&lt;</span> <span class="n">offset_val</span> <span class="o">+</span> <span class="n">amp_val</span> <span class="o">&gt;</span> <span class="n">range_val</span><span class="p">:</span>
+                    <span class="c1"># The GUI would allow higher values but it would clip the signal.</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Signal Output: Amplitude and/or &#39;</span>
+                                     <span class="s1">&#39;offset out of range.&#39;</span><span class="p">)</span>
 
         <span class="k">def</span> <span class="nf">update_offset</span><span class="p">():</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_offset&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">number</span><span class="o">+</span><span class="mi">1</span><span class="p">)]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
 
         <span class="k">def</span> <span class="nf">update_amp</span><span class="p">():</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_amplitude&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">number</span><span class="o">+</span><span class="mi">1</span><span class="p">)]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+            <span class="k">if</span> <span class="s1">&#39;MF&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">props</span><span class="p">[</span><span class="s1">&#39;options&#39;</span><span class="p">]:</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">9</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_amplitude</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">number</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="n">i</span><span class="p">)]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_amplitude&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">number</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
 
         <span class="k">def</span> <span class="nf">update_range</span><span class="p">():</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;signal_output</span><span class="si">{}</span><span class="s1">_autorange&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">number</span><span class="o">+</span><span class="mi">1</span><span class="p">)]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
@@ -1919,41 +1976,51 @@
         <span class="n">changing_param</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;imp50&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">update_range_offset_amp</span><span class="p">,</span> <span class="n">update_range</span><span class="p">],</span>
                           <span class="s1">&#39;autorange&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">update_range</span><span class="p">],</span>
                           <span class="s1">&#39;range&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">update_offset</span><span class="p">,</span> <span class="n">update_amp</span><span class="p">],</span>
-                          <span class="s1">&#39;amplitudes/3&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">update_range</span><span class="p">,</span> <span class="n">update_amp</span><span class="p">],</span>
-                          <span class="s1">&#39;amplitudes/7&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">update_range</span><span class="p">,</span> <span class="n">update_amp</span><span class="p">],</span>
+                          <span class="s1">&#39;amplitudes&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">update_range</span><span class="p">,</span> <span class="n">update_amp</span><span class="p">],</span>
                           <span class="s1">&#39;offset&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">update_range</span><span class="p">]</span>
                          <span class="p">}</span>
 
         <span class="n">setstr</span> <span class="o">=</span> <span class="s1">&#39;/</span><span class="si">{}</span><span class="s1">/sigouts/</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">number</span><span class="p">,</span> <span class="n">setting</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">output_mode</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">setstr</span> <span class="o">+=</span> <span class="s1">&#39;/</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">output_mode</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">setting</span> <span class="ow">in</span> <span class="n">dynamic_validation</span><span class="p">:</span>
-            <span class="n">dynamic_validation</span><span class="p">[</span><span class="n">setting</span><span class="p">]()</span>
+            <span class="n">dynamic_validation</span><span class="p">[</span><span class="n">setting</span><span class="p">](</span><span class="n">number</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">daq</span><span class="o">.</span><span class="n">setInt</span><span class="p">(</span><span class="n">setstr</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">daq</span><span class="o">.</span><span class="n">setDouble</span><span class="p">(</span><span class="n">setstr</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Invalid mode supplied&quot;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">setting</span> <span class="ow">in</span> <span class="n">changing_param</span><span class="p">:</span>
             <span class="p">[</span><span class="n">f</span><span class="p">()</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">changing_param</span><span class="p">[</span><span class="n">setting</span><span class="p">]]</span>
 
-    <span class="k">def</span> <span class="nf">_sigout_getter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">number</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">setting</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_sigout_getter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">number</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">setting</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                       <span class="n">output_mode</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Function to query the settings of signal outputs. Specific setter</span>
 <span class="sd">        function is needed as parameters depend on each other and need to be</span>
 <span class="sd">        checked and updated accordingly.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            number (int):</span>
-<span class="sd">            mode (bool): Indicating whether we are asking for an int or double</span>
-<span class="sd">            setting (str): The module&#39;s setting to set.</span>
+<span class="sd">            number:</span>
+<span class="sd">            mode: Indicating whether we are asking for an int (0) or double (1).</span>
+<span class="sd">            setting: The module&#39;s setting to set.</span>
+<span class="sd">            output_mode: Some options may take an extra int to indicate which</span>
+<span class="sd">            of the 8 demodulators this acts on</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="n">querystr</span> <span class="o">=</span> <span class="s1">&#39;/</span><span class="si">{}</span><span class="s1">/sigouts/</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">number</span><span class="p">,</span> <span class="n">setting</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">output_mode</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">querystr</span> <span class="o">+=</span> <span class="s1">&#39;/</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">output_mode</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">daq</span><span class="o">.</span><span class="n">getInt</span><span class="p">(</span><span class="n">querystr</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
             <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">daq</span><span class="o">.</span><span class="n">getDouble</span><span class="p">(</span><span class="n">querystr</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Invalid mode supplied&quot;</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">value</span>
 
