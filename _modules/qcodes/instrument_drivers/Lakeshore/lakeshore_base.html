@@ -159,7 +159,7 @@
            <div itemprop="articleBody">
             
   <h1>Source code for qcodes.instrument_drivers.Lakeshore.lakeshore_base</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">ClassVar</span><span class="p">,</span> <span class="n">List</span>
+<span></span><span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">ClassVar</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Any</span>
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">from</span> <span class="nn">bisect</span> <span class="k">import</span> <span class="n">bisect</span>
 
@@ -190,6 +190,8 @@
     <span class="n">MODES</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
     <span class="n">RANGES</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
 
+    <span class="n">_input_channel_parameter_kwargs</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="p">,</span> <span class="n">output_name</span><span class="p">,</span> <span class="n">output_index</span><span class="p">,</span> <span class="n">has_pid</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> \
             <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parent</span><span class="p">,</span> <span class="n">output_name</span><span class="p">)</span>
@@ -210,8 +212,8 @@
                            <span class="n">docstring</span><span class="o">=</span><span class="s1">&#39;Specifies which measurement input to &#39;</span>
                                      <span class="s1">&#39;control from (note that only &#39;</span>
                                      <span class="s1">&#39;measurement inputs are available)&#39;</span><span class="p">,</span>
-                           <span class="n">get_parser</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
-                           <span class="n">parameter_class</span><span class="o">=</span><span class="n">GroupParameter</span><span class="p">)</span>
+                           <span class="n">parameter_class</span><span class="o">=</span><span class="n">GroupParameter</span><span class="p">,</span>
+                           <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_input_channel_parameter_kwargs</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;powerup_enable&#39;</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Power-up enable on/off&#39;</span><span class="p">,</span>
                            <span class="n">docstring</span><span class="o">=</span><span class="s1">&#39;Specifies whether the output remains on &#39;</span>
@@ -366,7 +368,12 @@
                                <span class="s1">&#39;before automatically setting the range &#39;</span>
                                <span class="s1">&#39;(e.g. inst.range_limits([0.021, 0.1, 0.2, &#39;</span>
                                <span class="s1">&#39;1.1, 2, 4, 8]))&#39;</span><span class="p">)</span>
-        <span class="n">i</span> <span class="o">=</span> <span class="n">bisect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">range_limits</span><span class="o">.</span><span class="n">get_latest</span><span class="p">(),</span> <span class="n">temperature</span><span class="p">)</span>
+        <span class="n">range_limits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">range_limits</span><span class="o">.</span><span class="n">get_latest</span><span class="p">()</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="n">bisect</span><span class="p">(</span><span class="n">range_limits</span><span class="p">,</span> <span class="n">temperature</span><span class="p">)</span>
+        <span class="c1"># if temperature is larger than the highest range, then bisect returns</span>
+        <span class="c1"># an index that is +1 from the needed index, hence we need to take</span>
+        <span class="c1"># care of this corner case here:</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">range_limits</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
         <span class="c1"># there is a `+1` because `self.RANGES` includes `&#39;off&#39;` as the first</span>
         <span class="c1"># value.</span>
         <span class="n">orange</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">INVERSE_RANGES</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="c1"># this is `output range` not the fruit</span>
@@ -427,15 +434,15 @@
                                    <span class="bp">self</span><span class="o">.</span><span class="n">wait_equilibration_time</span><span class="o">.</span><span class="n">get_latest</span><span class="p">())</span>
 
         <span class="n">active_channel_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_channel</span><span class="p">()</span>
-        <span class="n">active_channel_number_in_list</span> <span class="o">=</span> <span class="n">active_channel_id</span> <span class="o">-</span> <span class="mi">1</span>
-        <span class="n">active_channel</span> <span class="o">=</span> \
-            <span class="bp">self</span><span class="o">.</span><span class="n">root_instrument</span><span class="o">.</span><span class="n">channels</span><span class="p">[</span><span class="n">active_channel_number_in_list</span><span class="p">]</span>
+        <span class="n">active_channel_name_on_instrument</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root_instrument</span>
+            <span class="o">.</span><span class="n">input_channel_parameter_values_to_channel_name_on_instrument</span><span class="p">[</span><span class="n">active_channel_id</span><span class="p">])</span>
+        <span class="n">active_channel</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root_instrument</span><span class="p">,</span> <span class="n">active_channel_name_on_instrument</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">active_channel</span><span class="o">.</span><span class="n">units</span><span class="p">()</span> <span class="o">!=</span> <span class="s1">&#39;kelvin&#39;</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Waiting until the setpoint is reached requires &quot;</span>
                              <span class="n">f</span><span class="s2">&quot;channel&#39;s </span><span class="si">{active_channel._channel!r}</span><span class="s2"> units to &quot;</span>
                              <span class="n">f</span><span class="s2">&quot;be set to &#39;kelvin&#39;.&quot;</span><span class="p">)</span>
-        
+
         <span class="n">t_setpoint</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">setpoint</span><span class="p">()</span>
 
         <span class="n">time_now</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
@@ -604,6 +611,8 @@
     <span class="c1"># &quot;B&quot; is referred to in instrument commands as &#39;2&#39;, then this dictionary</span>
     <span class="c1"># will contain {&#39;B&#39;: &#39;2&#39;} entry.</span>
     <span class="n">channel_name_command</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="n">input_channel_parameter_values_to_channel_name_on_instrument</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                  <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
