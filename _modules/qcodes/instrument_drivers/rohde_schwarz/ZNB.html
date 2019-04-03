@@ -160,6 +160,7 @@
             
   <h1>Source code for qcodes.instrument_drivers.rohde_schwarz.ZNB</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="k">import</span> <span class="n">partial</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Optional</span>
 
 <span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="n">VisaInstrument</span>
@@ -256,29 +257,45 @@
 
 <div class="viewcode-block" id="ZNBChannel"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.rohde_schwarz.html#qcodes.instrument_drivers.rohde_schwarz.ZNB.ZNBChannel">[docs]</a><span class="k">class</span> <span class="nc">ZNBChannel</span><span class="p">(</span><span class="n">InstrumentChannel</span><span class="p">):</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">channel</span><span class="p">,</span> <span class="n">vna_parameter</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="p">:</span> <span class="s1">&#39;ZNB&#39;</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">channel</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">vna_parameter</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">existing_trace_to_bind_to</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Args:</span>
 <span class="sd">            parent: Instrument that this channel is bound to.</span>
 <span class="sd">            name: Name to use for this channel.</span>
+<span class="sd">            channel: channel on the VNA to use</span>
 <span class="sd">            vna_parameter: Name of parameter on the vna that this should</span>
 <span class="sd">                measure such as S12. If left empty this will fall back to</span>
 <span class="sd">                `name`.</span>
+<span class="sd">            existing_trace_to_bind_to: Name of an existing trace on the VNA.</span>
+<span class="sd">                If supplied try to bind to an existing trace with this name</span>
+<span class="sd">                rather than creating a new trace.</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">n</span> <span class="o">=</span> <span class="n">channel</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_channel</span> <span class="o">=</span> <span class="n">channel</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_tracename</span> <span class="o">=</span> <span class="s2">&quot;Trc</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="n">vna_parameter</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">vna_parameter</span> <span class="o">=</span> <span class="n">name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_vna_parameter</span> <span class="o">=</span> <span class="n">vna_parameter</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parent</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
 
+        <span class="k">if</span> <span class="n">existing_trace_to_bind_to</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_tracename</span> <span class="o">=</span> <span class="s2">&quot;Trc</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">traces</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parent</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;CONFigure:TRACe:CATalog?&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">existing_trace_to_bind_to</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">traces</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Trying to bind to </span><span class="si">{existing_trace_to_bind_to}</span><span class="s2"> &quot;</span>
+                                   <span class="n">f</span><span class="s2">&quot;which is not in </span><span class="si">{traces}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_tracename</span> <span class="o">=</span> <span class="n">existing_trace_to_bind_to</span>
+
         <span class="c1"># map hardware channel to measurement</span>
         <span class="c1"># hardware channels are mapped one to one to qcodes channels</span>
         <span class="c1"># we are not using sub traces within channels.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;CALC</span><span class="si">{}</span><span class="s2">:PAR:SDEF &#39;</span><span class="si">{}</span><span class="s2">&#39;, &#39;</span><span class="si">{}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_instrument_channel</span><span class="p">,</span>
-                                                       <span class="bp">self</span><span class="o">.</span><span class="n">_tracename</span><span class="p">,</span>
-                                                       <span class="bp">self</span><span class="o">.</span><span class="n">_vna_parameter</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">existing_trace_to_bind_to</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;CALC</span><span class="si">{}</span><span class="s2">:PAR:SDEF &#39;</span><span class="si">{}</span><span class="s2">&#39;, &#39;</span><span class="si">{}</span><span class="s2">&#39;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_instrument_channel</span><span class="p">,</span>
+                                                           <span class="bp">self</span><span class="o">.</span><span class="n">_tracename</span><span class="p">,</span>
+                                                           <span class="bp">self</span><span class="o">.</span><span class="n">_vna_parameter</span><span class="p">))</span>
 
         <span class="c1"># source power is dependent on model, but not well documented.</span>
         <span class="c1"># here we assume -60 dBm for ZNB20, the others are set,</span>
@@ -357,7 +374,7 @@
                            <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;CONF:CHAN</span><span class="si">{}</span><span class="s1">:MEAS {{}}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">n</span><span class="p">),</span>
                            <span class="n">get_parser</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;format&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;CALC</span><span class="si">{}</span><span class="s1">:FORM?&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">n</span><span class="p">),</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_format</span><span class="p">,</span> <span class="n">tracename</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_tracename</span><span class="p">),</span>
                            <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_format</span><span class="p">,</span>
                            <span class="n">val_mapping</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;dB&#39;</span><span class="p">:</span> <span class="s1">&#39;MLOG</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
                                         <span class="s1">&#39;Linear Magnitude&#39;</span><span class="p">:</span> <span class="s1">&#39;MLIN</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
@@ -389,6 +406,11 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">add_function</span><span class="p">(</span><span class="s1">&#39;autoscale&#39;</span><span class="p">,</span>
                           <span class="n">call_cmd</span><span class="o">=</span><span class="s1">&#39;DISPlay:TRACe1:Y:SCALe:AUTO ONCE, &quot;</span><span class="si">{}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_tracename</span><span class="p">))</span>
 
+    <span class="k">def</span> <span class="nf">_get_format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tracename</span><span class="p">):</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_channel</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;CALC</span><span class="si">{n}</span><span class="s2">:PAR:SEL &#39;</span><span class="si">{tracename}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;CALC</span><span class="si">{n}</span><span class="s2">:FORM?&quot;</span><span class="p">)</span>
+
     <span class="k">def</span> <span class="nf">_set_format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
         <span class="n">unit_mapping</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;MLOG</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">:</span> <span class="s1">&#39;dB&#39;</span><span class="p">,</span>
                         <span class="s1">&#39;MLIN</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">:</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
@@ -415,7 +437,8 @@
                          <span class="s1">&#39;GDEL</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">:</span> <span class="s1">&#39;Delay&#39;</span><span class="p">,</span>
                          <span class="s1">&#39;COMP</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">:</span> <span class="s1">&#39;Complex Magnitude&#39;</span><span class="p">}</span>
         <span class="n">channel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_channel</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;CALC</span><span class="si">{}</span><span class="s1">:FORM </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span> <span class="n">val</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;CALC</span><span class="si">{channel}</span><span class="s2">:PAR:SEL &#39;</span><span class="si">{self._tracename}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;CALC</span><span class="si">{channel}</span><span class="s2">:FORM </span><span class="si">{val}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">trace</span><span class="o">.</span><span class="n">unit</span> <span class="o">=</span> <span class="n">unit_mapping</span><span class="p">[</span><span class="n">val</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">trace</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">short_name</span><span class="p">,</span> <span class="n">label_mapping</span><span class="p">[</span><span class="n">val</span><span class="p">])</span>
@@ -436,7 +459,7 @@
         <span class="k">if</span> <span class="n">val</span> <span class="o">!=</span> <span class="n">start</span><span class="p">:</span>
             <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                 <span class="s2">&quot;Could not set start to </span><span class="si">{}</span><span class="s2"> setting it to </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">start</span><span class="p">))</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_update_traces</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_traces</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">_set_stop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
         <span class="n">channel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_channel</span>
@@ -450,24 +473,24 @@
         <span class="k">if</span> <span class="n">val</span> <span class="o">!=</span> <span class="n">stop</span><span class="p">:</span>
             <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                 <span class="s2">&quot;Could not set stop to </span><span class="si">{}</span><span class="s2"> setting it to </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">stop</span><span class="p">))</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_update_traces</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_traces</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">_set_npts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
         <span class="n">channel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_channel</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;SENS</span><span class="si">{}</span><span class="s1">:SWE:POIN </span><span class="si">{:.7f}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span> <span class="n">val</span><span class="p">))</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_update_traces</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_traces</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">_set_span</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
         <span class="n">channel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_channel</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;SENS</span><span class="si">{}</span><span class="s1">:FREQ:SPAN </span><span class="si">{:.7f}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span> <span class="n">val</span><span class="p">))</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_update_traces</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_traces</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">_set_center</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
         <span class="n">channel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_channel</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;SENS</span><span class="si">{}</span><span class="s1">:FREQ:CENT </span><span class="si">{:.7f}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">,</span> <span class="n">val</span><span class="p">))</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_update_traces</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_traces</span><span class="p">()</span>
 
-    <span class="k">def</span> <span class="nf">_update_traces</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="ZNBChannel.update_traces"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.rohde_schwarz.html#qcodes.instrument_drivers.rohde_schwarz.ZNB.ZNBChannel.update_traces">[docs]</a>    <span class="k">def</span> <span class="nf">update_traces</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot; updates start, stop and npts of all trace parameters&quot;&quot;&quot;</span>
         <span class="n">start</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
         <span class="n">stop</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
@@ -477,7 +500,7 @@
                 <span class="k">try</span><span class="p">:</span>
                     <span class="n">parameter</span><span class="o">.</span><span class="n">set_sweep</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">stop</span><span class="p">,</span> <span class="n">npts</span><span class="p">)</span>
                 <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
-                    <span class="k">pass</span>
+                    <span class="k">pass</span></div>
 
     <span class="k">def</span> <span class="nf">_get_sweep_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force_polar</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
 
@@ -499,7 +522,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_parent</span><span class="o">.</span><span class="n">cont_meas_off</span><span class="p">()</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="c1"># if force polar is set, the SDAT data format will be used. Here</span>
-            <span class="c1"># the data will be transfered as a complex number independet of</span>
+            <span class="c1"># the data will be transferred as a complex number independent of</span>
             <span class="c1"># the set format in the instrument.</span>
             <span class="k">if</span> <span class="n">force_polar</span><span class="p">:</span>
                 <span class="n">data_format_command</span> <span class="o">=</span> <span class="s1">&#39;SDAT&#39;</span>
@@ -509,6 +532,7 @@
             <span class="c1"># need to ensure averaged result is returned</span>
             <span class="k">for</span> <span class="n">avgcount</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">avg</span><span class="p">()):</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;INIT</span><span class="si">{}</span><span class="s1">:IMM; *WAI&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_instrument_channel</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_parent</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;CALC</span><span class="si">{self._instrument_channel}</span><span class="s2">:PAR:SEL &#39;</span><span class="si">{self._tracename}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
             <span class="n">data_str</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span>
                 <span class="s1">&#39;CALC</span><span class="si">{}</span><span class="s1">:DATA? </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_instrument_channel</span><span class="p">,</span>
                                          <span class="n">data_format_command</span><span class="p">))</span>
@@ -520,6 +544,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_parent</span><span class="o">.</span><span class="n">cont_meas_on</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">status</span><span class="p">(</span><span class="n">initial_state</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">data</span></div>
+
 
 <div class="viewcode-block" id="ZNB"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.rohde_schwarz.html#qcodes.instrument_drivers.rohde_schwarz.ZNB.ZNB">[docs]</a><span class="k">class</span> <span class="nc">ZNB</span><span class="p">(</span><span class="n">VisaInstrument</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -533,7 +558,10 @@
 <span class="sd">        name: instrument name</span>
 <span class="sd">        address: Address of instrument probably in format</span>
 <span class="sd">            &#39;TCPIP0::192.168.15.100::inst0::INSTR&#39;</span>
-<span class="sd">        init_s_params: Automatically setup channels matching S parameters</span>
+<span class="sd">        init_s_params: Automatically setup channels for all S parameters on the</span>
+<span class="sd">            VNA.</span>
+<span class="sd">        reset_channels: If True any channels defined on the VNA at the time</span>
+<span class="sd">            of initialization are reset and removed.</span>
 <span class="sd">        **kwargs: passed to base class</span>
 
 <span class="sd">    TODO:</span>
@@ -542,8 +570,8 @@
 
     <span class="n">CHANNEL_CLASS</span> <span class="o">=</span> <span class="n">ZNBChannel</span>
 
-
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">address</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">init_s_params</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">address</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">init_s_params</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                 <span class="n">reset_channels</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">address</span><span class="o">=</span><span class="n">address</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
@@ -594,8 +622,9 @@
                           <span class="n">call_cmd</span><span class="o">=</span><span class="s1">&#39;DISP:LAY GRID;:DISP:LAY:GRID 2,1&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_function</span><span class="p">(</span><span class="s1">&#39;rf_off&#39;</span><span class="p">,</span> <span class="n">call_cmd</span><span class="o">=</span><span class="s1">&#39;OUTP1 OFF&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_function</span><span class="p">(</span><span class="s1">&#39;rf_on&#39;</span><span class="p">,</span> <span class="n">call_cmd</span><span class="o">=</span><span class="s1">&#39;OUTP1 ON&#39;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">clear_channels</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">reset_channels</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">clear_channels</span><span class="p">()</span>
         <span class="n">channels</span> <span class="o">=</span> <span class="n">ChannelList</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;VNAChannels&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">CHANNEL_CLASS</span><span class="p">,</span>
                                <span class="n">snapshotable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_submodule</span><span class="p">(</span><span class="s2">&quot;channels&quot;</span><span class="p">,</span> <span class="n">channels</span><span class="p">)</span>
@@ -609,7 +638,8 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="o">.</span><span class="n">autoscale</span><span class="p">()</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">update_display_on</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">rf_off</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">reset_channels</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rf_off</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">connect_message</span><span class="p">()</span>
 
 <div class="viewcode-block" id="ZNB.display_grid"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.rohde_schwarz.html#qcodes.instrument_drivers.rohde_schwarz.ZNB.ZNB.display_grid">[docs]</a>    <span class="k">def</span> <span class="nf">display_grid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rows</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">cols</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
