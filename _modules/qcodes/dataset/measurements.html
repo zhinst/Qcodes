@@ -169,11 +169,11 @@
 <span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">from</span> <span class="nn">time</span> <span class="k">import</span> <span class="n">monotonic</span>
-<span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">OrderedDict</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="p">(</span><span class="n">Callable</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">cast</span><span class="p">,</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="p">(</span><span class="n">Callable</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">cast</span><span class="p">,</span> <span class="n">Set</span><span class="p">,</span>
                     <span class="n">MutableMapping</span><span class="p">,</span> <span class="n">MutableSequence</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">TypeVar</span><span class="p">)</span>
 <span class="kn">from</span> <span class="nn">inspect</span> <span class="k">import</span> <span class="n">signature</span>
 <span class="kn">from</span> <span class="nn">numbers</span> <span class="k">import</span> <span class="n">Number</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="k">import</span> <span class="n">deepcopy</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
@@ -182,8 +182,10 @@
 <span class="kn">from</span> <span class="nn">qcodes.instrument.parameter</span> <span class="k">import</span> <span class="n">ArrayParameter</span><span class="p">,</span> <span class="n">_BaseParameter</span><span class="p">,</span> \
     <span class="n">Parameter</span><span class="p">,</span> <span class="n">MultiParameter</span><span class="p">,</span> <span class="n">ParameterWithSetpoints</span>
 <span class="kn">from</span> <span class="nn">qcodes.dataset.experiment_container</span> <span class="k">import</span> <span class="n">Experiment</span>
-<span class="kn">from</span> <span class="nn">qcodes.dataset.param_spec</span> <span class="k">import</span> <span class="n">ParamSpec</span>
-<span class="kn">from</span> <span class="nn">qcodes.dataset.data_set</span> <span class="k">import</span> <span class="n">DataSet</span>
+<span class="kn">from</span> <span class="nn">qcodes.dataset.param_spec</span> <span class="k">import</span> <span class="n">ParamSpec</span><span class="p">,</span> <span class="n">ParamSpecBase</span>
+<span class="kn">from</span> <span class="nn">qcodes.dataset.dependencies</span> <span class="k">import</span> <span class="p">(</span><span class="n">InterDependencies_</span><span class="p">,</span>
+                                         <span class="n">DependencyError</span><span class="p">,</span> <span class="n">InferenceError</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">qcodes.dataset.data_set</span> <span class="k">import</span> <span class="n">DataSet</span><span class="p">,</span> <span class="n">VALUE</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.helpers</span> <span class="k">import</span> <span class="n">NumpyJSONEncoder</span>
 <span class="kn">import</span> <span class="nn">qcodes.config</span>
 
@@ -191,6 +193,8 @@
 
 <span class="n">array_like_types</span> <span class="o">=</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span>
 <span class="n">scalar_res_types</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">]</span>
+<span class="n">values_type</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="n">scalar_res_types</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                    <span class="n">Sequence</span><span class="p">[</span><span class="n">scalar_res_types</span><span class="p">]]</span>
 <span class="n">res_type</span> <span class="o">=</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">_BaseParameter</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
                  <span class="n">Union</span><span class="p">[</span><span class="n">scalar_res_types</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
                        <span class="n">Sequence</span><span class="p">[</span><span class="n">scalar_res_types</span><span class="p">]]]</span>
@@ -223,8 +227,9 @@
 
     <span class="n">default_callback</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">DataSet</span><span class="p">,</span> <span class="n">write_period</span><span class="p">:</span> <span class="n">numeric_types</span><span class="p">,</span>
-                 <span class="n">parameters</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ParamSpec</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">DataSet</span><span class="p">,</span>
+                 <span class="n">write_period</span><span class="p">:</span> <span class="n">numeric_types</span><span class="p">,</span>
+                 <span class="n">interdeps</span><span class="p">:</span> <span class="n">InterDependencies_</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_dataset</span> <span class="o">=</span> <span class="n">dataset</span>
         <span class="k">if</span> <span class="n">DataSaver</span><span class="o">.</span><span class="n">default_callback</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> \
                 <span class="ow">and</span> <span class="s1">&#39;run_tables_subscription_callback&#39;</span> \
@@ -241,22 +246,18 @@
                                     <span class="n">min_count</span><span class="o">=</span><span class="n">min_count</span><span class="p">,</span>
                                     <span class="n">state</span><span class="o">=</span><span class="p">{},</span>
                                     <span class="n">callback_kwargs</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;run_id&#39;</span><span class="p">:</span>
-                                                         <span class="bp">self</span><span class="o">.</span><span class="n">_dataset</span><span class="o">.</span><span class="n">run_id</span><span class="p">,</span>
+                                                     <span class="bp">self</span><span class="o">.</span><span class="n">_dataset</span><span class="o">.</span><span class="n">run_id</span><span class="p">,</span>
                                                      <span class="s1">&#39;snapshot&#39;</span><span class="p">:</span> <span class="n">snapshot</span><span class="p">})</span>
         <span class="n">default_subscribers</span> <span class="o">=</span> <span class="n">qcodes</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">subscription</span><span class="o">.</span><span class="n">default_subscribers</span>
         <span class="k">for</span> <span class="n">subscriber</span> <span class="ow">in</span> <span class="n">default_subscribers</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_dataset</span><span class="o">.</span><span class="n">subscribe_from_config</span><span class="p">(</span><span class="n">subscriber</span><span class="p">)</span>
 
+        <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span> <span class="o">=</span> <span class="n">interdeps</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">write_period</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">write_period</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span> <span class="o">=</span> <span class="n">parameters</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_known_parameters</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_results</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># will be filled by addResult</span>
+        <span class="c1"># self._results will be filled by add_result</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_results</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">VALUE</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_last_save_time</span> <span class="o">=</span> <span class="n">monotonic</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_known_dependencies</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="k">for</span> <span class="n">param</span><span class="p">,</span> <span class="n">parspec</span> <span class="ow">in</span> <span class="n">parameters</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="k">if</span> <span class="n">parspec</span><span class="o">.</span><span class="n">depends_on</span> <span class="o">!=</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_known_dependencies</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
-                    <span class="p">{</span><span class="nb">str</span><span class="p">(</span><span class="n">param</span><span class="p">):</span> <span class="n">parspec</span><span class="o">.</span><span class="n">depends_on</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;, &#39;</span><span class="p">)})</span>
 
 <div class="viewcode-block" id="DataSaver.add_result"><a class="viewcode-back" href="../../../api/dataset/measurements.html#qcodes.dataset.measurements.DataSaver.add_result">[docs]</a>    <span class="k">def</span> <span class="nf">add_result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">res_tuple</span><span class="p">:</span> <span class="n">res_type</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -271,16 +272,6 @@
 <span class="sd">        the database, but keeps the results in memory. Writing happens every</span>
 <span class="sd">        `write_period` seconds and during the __exit__ method if this class.</span>
 
-<span class="sd">        Regarding arrays: since arrays as binary blobs are (almost) worthless</span>
-<span class="sd">        in a relational database, this function &quot;unravels&quot; arrays passed to it.</span>
-<span class="sd">        That, in turn, forces us to impose rules on what can be saved in one</span>
-<span class="sd">        go. Any number of scalars and any number of arrays OF THE SAME LENGTH</span>
-<span class="sd">        can be passed to add_result. The scalars are duplicated to match the</span>
-<span class="sd">        arrays.</span>
-
-<span class="sd">        However, if the parameter is registered as array type the numpy arrays</span>
-<span class="sd">        are not unraveled but stored directly for improved performance.</span>
-
 <span class="sd">        Args:</span>
 <span class="sd">            res_tuple: a tuple with the first element being the parameter name</span>
 <span class="sd">                and the second element is the corresponding value(s) at this</span>
@@ -290,253 +281,128 @@
 <span class="sd">        Raises:</span>
 <span class="sd">            ValueError: if a parameter name not registered in the parent</span>
 <span class="sd">                Measurement object is encountered.</span>
+<span class="sd">            ValueError: if the shapes of parameters do not match, i.e. if</span>
+<span class="sd">                a parameter gets values of a different shape than its setpoints</span>
+<span class="sd">                (the exception being that setpoints can always be scalar)</span>
 <span class="sd">            ParameterTypeError: if a parameter is given a value not matching</span>
 <span class="sd">                its type.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">res</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">res_type</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
 
         <span class="c1"># we iterate through the input twice. First we find any array and</span>
-        <span class="c1"># multiparameters that needs to be unbundled and collect the names</span>
+        <span class="c1"># multiparameters that need to be unbundled and collect the names</span>
         <span class="c1"># of all parameters. This also allows users to call</span>
         <span class="c1"># add_result with the arguments in any particular order, i.e. NOT</span>
         <span class="c1"># enforcing that setpoints come before dependent variables.</span>
-        <span class="n">input_size</span> <span class="o">=</span> <span class="mi">1</span>
-        <span class="n">found_parameters</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">inserting_as_arrays</span> <span class="o">=</span> <span class="kc">False</span>
-        <span class="n">inserting_unrolled_array</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="n">results_dict</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">ParamSpecBase</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
 
         <span class="k">for</span> <span class="n">partial_result</span> <span class="ow">in</span> <span class="n">res_tuple</span><span class="p">:</span>
             <span class="n">parameter</span> <span class="o">=</span> <span class="n">partial_result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">parameter</span><span class="p">,</span> <span class="n">MultiParameter</span><span class="p">):</span>
-                <span class="c1"># unpack parameters and potential setpoints from MultiParameter</span>
-                <span class="c1"># unlike regular Parameters and ArrayParameters we don&#39;t want</span>
-                <span class="c1"># to add the parameter it self only its components.</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="n">partial_result</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_unbundle_multiparameter</span><span class="p">(</span><span class="n">parameter</span><span class="p">,</span>
-                                              <span class="n">data</span><span class="p">,</span>
-                                              <span class="n">res</span><span class="p">,</span>
-                                              <span class="n">found_parameters</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">parameter</span><span class="p">,</span> <span class="n">ArrayParameter</span><span class="p">):</span>
+                <span class="n">results_dict</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_unpack_arrayparameter</span><span class="p">(</span><span class="n">partial_result</span><span class="p">))</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">parameter</span><span class="p">,</span> <span class="n">MultiParameter</span><span class="p">):</span>
+                <span class="n">results_dict</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_unpack_multiparameter</span><span class="p">(</span><span class="n">partial_result</span><span class="p">))</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">res</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">partial_result</span><span class="p">)</span>
-                <span class="n">paramstr</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">parameter</span><span class="p">)</span>
-                <span class="n">found_parameters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">paramstr</span><span class="p">)</span>
-                <span class="c1"># unpack setpoints from array parameters and add them</span>
-                <span class="c1"># to the res list</span>
-                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">parameter</span><span class="p">,</span> <span class="n">ArrayParameter</span><span class="p">):</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">_unbundle_arrayparameter</span><span class="p">(</span><span class="n">parameter</span><span class="p">,</span>
-                                                  <span class="n">res</span><span class="p">,</span>
-                                                  <span class="n">found_parameters</span><span class="p">)</span>
+                <span class="n">results_dict</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_unpack_partial_result</span><span class="p">(</span><span class="n">partial_result</span><span class="p">))</span>
 
-        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">partial_result</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">res</span><span class="p">):</span>
-            <span class="n">parameter</span> <span class="o">=</span> <span class="n">partial_result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="n">paramstr</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">parameter</span><span class="p">)</span>
-            <span class="n">value</span> <span class="o">=</span> <span class="n">partial_result</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-            <span class="n">found_parameters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">paramstr</span><span class="p">)</span>
-            <span class="n">inserting_this_as_array</span> <span class="o">=</span> <span class="kc">False</span>
-            <span class="k">if</span> <span class="n">paramstr</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_known_parameters</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Can not add a result for </span><span class="si">{paramstr}</span><span class="s1">, no &#39;</span>
-                                 <span class="s1">&#39;such parameter registered in this &#39;</span>
-                                 <span class="s1">&#39;measurement.&#39;</span><span class="p">)</span>
-            <span class="n">param_spec</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">paramstr</span><span class="p">]</span>
-            <span class="k">if</span> <span class="n">param_spec</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;array&#39;</span><span class="p">:</span>
-                <span class="n">inserting_as_arrays</span> <span class="o">=</span> <span class="kc">True</span>
-                <span class="n">inserting_this_as_array</span> <span class="o">=</span> <span class="kc">True</span>
-            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">typ</span><span class="p">)</span> <span class="k">for</span> <span class="n">typ</span> <span class="ow">in</span> <span class="n">array_like_types</span><span class="p">):</span>
-                <span class="n">value</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">partial_result</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
-                <span class="n">value</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-                <span class="c1"># we want to always use the np array going forward</span>
-                <span class="c1"># note that the actual cast to np array is done</span>
-                <span class="c1"># by `np.atleast_1d` not by `cast`</span>
-                <span class="n">res</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">parameter</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
-                <span class="n">array_size</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">ravel</span><span class="p">())</span>
-                <span class="k">if</span> <span class="n">param_spec</span><span class="o">.</span><span class="n">type</span> <span class="o">!=</span> <span class="s1">&#39;array&#39;</span> <span class="ow">and</span> <span class="n">array_size</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-                    <span class="n">inserting_unrolled_array</span> <span class="o">=</span> <span class="kc">True</span>
-                <span class="k">if</span> <span class="n">input_size</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">input_size</span> <span class="o">!=</span> <span class="n">array_size</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Incompatible array dimensions. Trying to&#39;</span>
-                                     <span class="n">f</span><span class="s1">&#39; add arrays of dimension </span><span class="si">{input_size}</span><span class="s1"> &#39;</span>
-                                     <span class="n">f</span><span class="s1">&#39;and </span><span class="si">{array_size}</span><span class="s1">&#39;</span><span class="p">)</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">input_size</span> <span class="o">=</span> <span class="n">array_size</span>
-            <span class="k">elif</span> <span class="n">is_number</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
-                <span class="k">if</span> <span class="n">inserting_this_as_array</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Trying to insert into an ArrayType with &quot;</span>
-                                     <span class="s2">&quot;a scalar value&quot;</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">param_spec</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;text&#39;</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;It is not possible to save a numeric &quot;</span>
-                                     <span class="n">f</span><span class="s2">&quot;value for parameter </span><span class="si">{paramstr!r}</span><span class="s2"> &quot;</span>
-                                     <span class="n">f</span><span class="s2">&quot;because its type class is &quot;</span>
-                                     <span class="n">f</span><span class="s2">&quot;&#39;text&#39;, not &#39;numeric&#39;.&quot;</span><span class="p">)</span>
-            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
-                <span class="k">if</span> <span class="n">param_spec</span><span class="o">.</span><span class="n">type</span> <span class="o">!=</span> <span class="s1">&#39;text&#39;</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;It is not possible to save a string &quot;</span>
-                                     <span class="n">f</span><span class="s2">&quot;value for parameter </span><span class="si">{paramstr!r}</span><span class="s2"> &quot;</span>
-                                     <span class="n">f</span><span class="s2">&quot;because its type class is &quot;</span>
-                                     <span class="n">f</span><span class="s2">&quot;</span><span class="si">{param_spec.type!r}</span><span class="s2">, not &#39;text&#39;.&quot;</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Wrong value type received. &#39;</span>
-                                 <span class="n">f</span><span class="s1">&#39;Got {type(value)}, but only int, float, &#39;</span>
-                                 <span class="s1">&#39;str, tuple, list, and np.ndarray is &#39;</span>
-                                 <span class="s1">&#39;allowed.&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validate_result_deps</span><span class="p">(</span><span class="n">results_dict</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validate_result_shapes</span><span class="p">(</span><span class="n">results_dict</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validate_result_types</span><span class="p">(</span><span class="n">results_dict</span><span class="p">)</span>
 
-            <span class="c1"># Now check for missing setpoints</span>
-            <span class="k">if</span> <span class="n">paramstr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_known_dependencies</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-                <span class="n">stuffweneed</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_known_dependencies</span><span class="p">[</span><span class="n">paramstr</span><span class="p">])</span>
-                <span class="n">stuffwehave</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">found_parameters</span><span class="p">)</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="n">stuffweneed</span><span class="o">.</span><span class="n">issubset</span><span class="p">(</span><span class="n">stuffwehave</span><span class="p">):</span>
-                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Can not add this result; missing &#39;</span>
-                                     <span class="n">f</span><span class="s1">&#39;setpoint values for </span><span class="si">{paramstr}</span><span class="s1">:&#39;</span>
-                                     <span class="n">f</span><span class="s1">&#39; {sorted(stuffweneed)}.&#39;</span>
-                                     <span class="n">f</span><span class="s1">&#39; Values only given for&#39;</span>
-                                     <span class="n">f</span><span class="s1">&#39; {sorted(stuffwehave)}.&#39;</span><span class="p">)</span>
-
-
-        <span class="k">if</span> <span class="n">inserting_unrolled_array</span> <span class="ow">and</span> <span class="n">inserting_as_arrays</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Trying to insert multiple data values both &quot;</span>
-                               <span class="s2">&quot;in array from and as numeric. This is not &quot;</span>
-                               <span class="s2">&quot;possible.&quot;</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">inserting_as_arrays</span><span class="p">:</span>
-            <span class="n">input_size</span> <span class="o">=</span> <span class="mi">1</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">_append_results</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="n">input_size</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_enqueue_results</span><span class="p">(</span><span class="n">results_dict</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">monotonic</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_save_time</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">write_period</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">flush_data_to_database</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_last_save_time</span> <span class="o">=</span> <span class="n">monotonic</span><span class="p">()</span></div>
 
-    <span class="k">def</span> <span class="nf">_append_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">res</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">res_type</span><span class="p">],</span>
-                        <span class="n">input_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">_unpack_partial_result</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">partial_result</span><span class="p">:</span> <span class="n">res_type</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="n">ParamSpecBase</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        A private method to add the data to actual queue of data to be written.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            res: A sequence of the data to be added</span>
-<span class="sd">            input_size: The length of the data to be added. 1 if its</span>
-<span class="sd">                to be inserted as arrays.</span>
+<span class="sd">        Unpack a partial result (not containing ArrayParameters or</span>
+<span class="sd">        MultiParameters) into a standard results dict form and return that</span>
+<span class="sd">        dict</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">input_size</span><span class="p">):</span>
-            <span class="n">res_dict</span> <span class="o">=</span> <span class="p">{}</span>
-            <span class="k">for</span> <span class="n">partial_result</span> <span class="ow">in</span> <span class="n">res</span><span class="p">:</span>
-                <span class="n">param</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">partial_result</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-                <span class="n">value</span> <span class="o">=</span> <span class="n">partial_result</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-                <span class="n">param_spec</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">param</span><span class="p">]</span>
-                <span class="k">if</span> <span class="n">param_spec</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;array&#39;</span> <span class="ow">and</span> <span class="n">index</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                    <span class="n">res_dict</span><span class="p">[</span><span class="n">param</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
-                <span class="k">elif</span> <span class="n">param_spec</span><span class="o">.</span><span class="n">type</span> <span class="o">!=</span> <span class="s1">&#39;array&#39;</span><span class="p">:</span>
-                    <span class="c1"># For compatibility with the old Loop, setpoints are</span>
-                    <span class="c1"># tuples of numbers (usually tuple(np.linspace(...))</span>
-                    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="s1">&#39;__len__&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
-                        <span class="n">value</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="n">Union</span><span class="p">[</span><span class="n">Sequence</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span> <span class="n">value</span><span class="p">)</span>
-                        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
-                            <span class="c1"># we always want to iterate over a 1d array</span>
-                            <span class="c1"># ravel unconditionally returns a 1d representation</span>
-                            <span class="c1"># both for &gt;1D arrays and for 0D arrays</span>
-                            <span class="n">value</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
-                        <span class="n">res_dict</span><span class="p">[</span><span class="n">param</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
-                    <span class="k">else</span><span class="p">:</span>
-                        <span class="n">res_dict</span><span class="p">[</span><span class="n">param</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
-            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">res_dict</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">res_dict</span><span class="p">)</span>
+        <span class="n">param</span><span class="p">,</span> <span class="n">values</span> <span class="o">=</span> <span class="n">partial_result</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">parameter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span><span class="o">.</span><span class="n">_id_to_paramspec</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">param</span><span class="p">)]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Can not add result for parameter &#39;</span>
+                             <span class="n">f</span><span class="s1">&#39;</span><span class="si">{param}</span><span class="s1">, no such parameter registered &#39;</span>
+                             <span class="s1">&#39;with this measurement.&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">parameter</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">values</span><span class="p">)}</span>
 
-    <span class="k">def</span> <span class="nf">_unbundle_arrayparameter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-                                 <span class="n">parameter</span><span class="p">:</span> <span class="n">ArrayParameter</span><span class="p">,</span>
-                                 <span class="n">res</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">res_type</span><span class="p">],</span>
-                                 <span class="n">found_parameters</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">_unpack_arrayparameter</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">partial_result</span><span class="p">:</span> <span class="n">res_type</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="n">ParamSpecBase</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Extract the setpoints from an ArrayParameter and add them to results</span>
-<span class="sd">         as a regular parameter tuple.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            parameter: The ArrayParameter to extract setpoints from.</span>
-<span class="sd">            res: The result list to add to. Note that this is modified inplace</span>
-<span class="sd">            found_parameters: The list of all parameters that we know of by now</span>
-<span class="sd">              Note that this is modified in place.</span>
+<span class="sd">        Unpack a partial result containing an arrayparameter into a standard</span>
+<span class="sd">        results dict form and return that dict</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">sp_names</span> <span class="o">=</span> <span class="n">parameter</span><span class="o">.</span><span class="n">setpoint_full_names</span>
-        <span class="n">fallback_sp_name</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;</span><span class="si">{parameter.full_name}</span><span class="s2">_setpoint&quot;</span>
-        <span class="k">if</span> <span class="n">parameter</span><span class="o">.</span><span class="n">setpoints</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{parameter.full_name}</span><span class="s2"> is an {type(parameter)} &quot;</span>
+        <span class="n">array_param</span><span class="p">,</span> <span class="n">values_array</span> <span class="o">=</span> <span class="n">partial_result</span>
+        <span class="n">array_param</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="n">ArrayParameter</span><span class="p">,</span> <span class="n">array_param</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">array_param</span><span class="o">.</span><span class="n">setpoints</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{array_param.full_name}</span><span class="s2"> is an &quot;</span>
+                               <span class="n">f</span><span class="s2">&quot;{type(array_param)} &quot;</span>
                                <span class="n">f</span><span class="s2">&quot;without setpoints. Cannot handle this.&quot;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_unbundle_setpoints_from_param</span><span class="p">(</span><span class="n">parameter</span><span class="p">,</span> <span class="n">sp_names</span><span class="p">,</span>
-                                            <span class="n">fallback_sp_name</span><span class="p">,</span>
-                                            <span class="n">parameter</span><span class="o">.</span><span class="n">setpoints</span><span class="p">,</span>
-                                            <span class="n">res</span><span class="p">,</span> <span class="n">found_parameters</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">main_parameter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span><span class="o">.</span><span class="n">_id_to_paramspec</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">array_param</span><span class="p">)]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Can not add result for parameter &#39;</span>
+                             <span class="n">f</span><span class="s1">&#39;</span><span class="si">{array_param}</span><span class="s1">, no such parameter registered &#39;</span>
+                             <span class="s1">&#39;with this measurement.&#39;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_unbundle_setpoints_from_param</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameter</span><span class="p">:</span> <span class="n">_BaseParameter</span><span class="p">,</span>
-                                       <span class="n">sp_names</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
-                                       <span class="n">fallback_sp_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-                                       <span class="n">setpoints</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">,</span>
-                                       <span class="n">res</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">res_type</span><span class="p">],</span>
-                                       <span class="n">found_parameters</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]):</span>
+        <span class="n">res_dict</span> <span class="o">=</span> <span class="p">{</span><span class="n">main_parameter</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">values_array</span><span class="p">)}</span>
+
+        <span class="n">sp_names</span> <span class="o">=</span> <span class="n">array_param</span><span class="o">.</span><span class="n">setpoint_full_names</span>
+        <span class="n">fallback_sp_name</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;</span><span class="si">{array_param.full_name}</span><span class="s2">_setpoint&quot;</span>
+
+        <span class="n">res_dict</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_unpack_setpoints_from_parameter</span><span class="p">(</span>
+                <span class="n">array_param</span><span class="p">,</span> <span class="n">array_param</span><span class="o">.</span><span class="n">setpoints</span><span class="p">,</span>
+                <span class="n">sp_names</span><span class="p">,</span> <span class="n">fallback_sp_name</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">res_dict</span>
+
+    <span class="k">def</span> <span class="nf">_unpack_multiparameter</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">partial_result</span><span class="p">:</span> <span class="n">res_type</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="n">ParamSpecBase</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Private function to unbundle setpoints from an ArrayParameter or</span>
-<span class="sd">        a subset of a MultiParameter.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            parameter:</span>
-<span class="sd">            sp_names: Names of the setpoint axes</span>
-<span class="sd">            fallback_sp_name: Fallback name for setpoints in case sp_names</span>
-<span class="sd">              is None. The axis num is appended to this name to ensure all</span>
-<span class="sd">              setpoint axes names are unique.</span>
-<span class="sd">            setpoints: The actual setpoints i.e. `parameter.setpoints` for an</span>
-<span class="sd">              ArrayParameter and `parameter.setpoints[i]` for a MultiParameter</span>
-<span class="sd">            res: The result list the unpacked setpoints are added too.</span>
-<span class="sd">              Note that this will be modified in place.</span>
-<span class="sd">            found_parameters: The list of all parameters that we know of by now</span>
-<span class="sd">              This is modified in place with new parameters found here.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">setpoint_axes</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">setpoint_meta</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">if</span> <span class="n">setpoints</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{parameter.full_name}</span><span class="s2"> is an {type(parameter)} &quot;</span>
-                               <span class="n">f</span><span class="s2">&quot;without setpoints. Cannot handle this.&quot;</span><span class="p">)</span>
-
-        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">sps</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">setpoints</span><span class="p">):</span>
-            <span class="k">if</span> <span class="n">sp_names</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">spname</span> <span class="o">=</span> <span class="n">sp_names</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">spname</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{fallback_sp_name}</span><span class="s1">_</span><span class="si">{i}</span><span class="s1">&#39;</span>
-
-            <span class="k">if</span> <span class="n">spname</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;No setpoints registered for &#39;</span>
-                                   <span class="n">f</span><span class="s1">&#39;{type(parameter)} </span><span class="si">{parameter.full_name}</span><span class="s1">!&#39;</span><span class="p">)</span>
-            <span class="n">sps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">sps</span><span class="p">)</span>
-            <span class="k">while</span> <span class="n">sps</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-                <span class="c1"># The outermost setpoint axis or an nD param is nD</span>
-                <span class="c1"># but the innermost is 1D. In all cases we just need</span>
-                <span class="c1"># the axis along one dim, the innermost one.</span>
-                <span class="n">sps</span> <span class="o">=</span> <span class="n">sps</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-
-            <span class="n">setpoint_meta</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">spname</span><span class="p">)</span>
-            <span class="n">found_parameters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">spname</span><span class="p">)</span>
-            <span class="n">setpoint_axes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sps</span><span class="p">)</span>
-
-        <span class="n">output_grids</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="o">*</span><span class="n">setpoint_axes</span><span class="p">,</span> <span class="n">indexing</span><span class="o">=</span><span class="s1">&#39;ij&#39;</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">grid</span><span class="p">,</span> <span class="n">meta</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">output_grids</span><span class="p">,</span> <span class="n">setpoint_meta</span><span class="p">):</span>
-            <span class="n">res</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">meta</span><span class="p">,</span> <span class="n">grid</span><span class="p">))</span>
-
-    <span class="k">def</span> <span class="nf">_unbundle_multiparameter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-                                 <span class="n">parameter</span><span class="p">:</span> <span class="n">MultiParameter</span><span class="p">,</span>
-                                 <span class="n">data</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
-                                 <span class="n">res</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">res_type</span><span class="p">],</span>
-                                 <span class="n">found_parameters</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Extract the subarrays and setpoints from an MultiParameter and</span>
-<span class="sd">        add them to res as a regular parameter tuple.</span>
+<span class="sd">        Unpack the subarrays and setpoints from a MultiParameter and</span>
+<span class="sd">        into a standard results dict form and return that</span>
+<span class="sd">        dict</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            parameter: The MultiParameter to extract from</span>
 <span class="sd">            data: The acquired data for this parameter</span>
-<span class="sd">            res: The result list that the unpacked data and setpoints</span>
-<span class="sd">              is added too. Note that this will be modified in place.</span>
-<span class="sd">            found_parameters: The list of all parameters that we know of by now</span>
-<span class="sd">              This is modified in place with new parameters found here.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">parameter</span><span class="p">,</span> <span class="n">data</span> <span class="o">=</span> <span class="n">partial_result</span>
+        <span class="n">parameter</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="n">MultiParameter</span><span class="p">,</span> <span class="n">parameter</span><span class="p">)</span>
+
+        <span class="n">result_dict</span> <span class="o">=</span> <span class="p">{}</span>
+
         <span class="k">if</span> <span class="n">parameter</span><span class="o">.</span><span class="n">setpoints</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{parameter.full_name}</span><span class="s2"> is an {type(parameter)} &quot;</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;</span><span class="si">{parameter.full_name}</span><span class="s2"> is an &quot;</span>
+                               <span class="n">f</span><span class="s2">&quot;{type(parameter)} &quot;</span>
                                <span class="n">f</span><span class="s2">&quot;without setpoints. Cannot handle this.&quot;</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">parameter</span><span class="o">.</span><span class="n">shapes</span><span class="p">)):</span>
+            <span class="c1"># if this loop runs, then &#39;data&#39; is a Sequence</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span> <span class="n">data</span><span class="p">)</span>
+
             <span class="n">shape</span> <span class="o">=</span> <span class="n">parameter</span><span class="o">.</span><span class="n">shapes</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-            <span class="n">res</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">parameter</span><span class="o">.</span><span class="n">names</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">paramspec</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span><span class="o">.</span><span class="n">_id_to_paramspec</span><span class="p">[</span><span class="n">parameter</span><span class="o">.</span><span class="n">names</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span>
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Can not add result for parameter &#39;</span>
+                                 <span class="n">f</span><span class="s1">&#39;</span><span class="si">{parameter.names[i]}</span><span class="s1">, &#39;</span>
+                                 <span class="s1">&#39;no such parameter registered &#39;</span>
+                                 <span class="s1">&#39;with this measurement.&#39;</span><span class="p">)</span>
+
+            <span class="n">result_dict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">paramspec</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">])})</span>
             <span class="k">if</span> <span class="n">shape</span> <span class="o">!=</span> <span class="p">():</span>
                 <span class="c1"># array parameter like part of the multiparameter</span>
                 <span class="c1"># need to find setpoints too</span>
@@ -547,10 +413,248 @@
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">sp_names</span> <span class="o">=</span> <span class="kc">None</span>
 
-                <span class="bp">self</span><span class="o">.</span><span class="n">_unbundle_setpoints_from_param</span><span class="p">(</span><span class="n">parameter</span><span class="p">,</span> <span class="n">sp_names</span><span class="p">,</span>
-                                                    <span class="n">fallback_sp_name</span><span class="p">,</span>
-                                                    <span class="n">parameter</span><span class="o">.</span><span class="n">setpoints</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
-                                                    <span class="n">res</span><span class="p">,</span> <span class="n">found_parameters</span><span class="p">)</span>
+                <span class="n">result_dict</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_unpack_setpoints_from_parameter</span><span class="p">(</span>
+                        <span class="n">parameter</span><span class="p">,</span>
+                        <span class="n">parameter</span><span class="o">.</span><span class="n">setpoints</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                        <span class="n">sp_names</span><span class="p">,</span>
+                        <span class="n">fallback_sp_name</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">result_dict</span>
+
+    <span class="k">def</span> <span class="nf">_unpack_setpoints_from_parameter</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">parameter</span><span class="p">:</span> <span class="n">_BaseParameter</span><span class="p">,</span> <span class="n">setpoints</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">,</span>
+        <span class="n">sp_names</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">fallback_sp_name</span><span class="p">:</span> <span class="nb">str</span>
+            <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="n">ParamSpecBase</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Unpack the setpoints and their values from a parameter with setpoints</span>
+<span class="sd">        into a standard results dict form and return that dict</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">setpoint_axes</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">setpoint_parameters</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">ParamSpecBase</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">sps</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">setpoints</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">sp_names</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">spname</span> <span class="o">=</span> <span class="n">sp_names</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">spname</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{fallback_sp_name}</span><span class="s1">_</span><span class="si">{i}</span><span class="s1">&#39;</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">setpoint_parameter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span><span class="p">[</span><span class="n">spname</span><span class="p">]</span>
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;No setpoints registered for &#39;</span>
+                                   <span class="n">f</span><span class="s1">&#39;{type(parameter)} </span><span class="si">{parameter.full_name}</span><span class="s1">!&#39;</span><span class="p">)</span>
+            <span class="n">sps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">sps</span><span class="p">)</span>
+            <span class="k">while</span> <span class="n">sps</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="c1"># The outermost setpoint axis or an nD param is nD</span>
+                <span class="c1"># but the innermost is 1D. In all cases we just need</span>
+                <span class="c1"># the axis along one dim, the innermost one.</span>
+                <span class="n">sps</span> <span class="o">=</span> <span class="n">sps</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="n">setpoint_parameters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">setpoint_parameter</span><span class="p">)</span>
+            <span class="n">setpoint_axes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sps</span><span class="p">)</span>
+
+        <span class="n">output_grids</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="o">*</span><span class="n">setpoint_axes</span><span class="p">,</span> <span class="n">indexing</span><span class="o">=</span><span class="s1">&#39;ij&#39;</span><span class="p">)</span>
+        <span class="n">result_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">grid</span><span class="p">,</span> <span class="n">param</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">output_grids</span><span class="p">,</span> <span class="n">setpoint_parameters</span><span class="p">):</span>
+            <span class="n">result_dict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">param</span><span class="p">:</span> <span class="n">grid</span><span class="p">})</span>
+
+        <span class="k">return</span> <span class="n">result_dict</span>
+
+    <span class="k">def</span> <span class="nf">_validate_result_deps</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">results_dict</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">ParamSpecBase</span><span class="p">,</span> <span class="n">values_type</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Validate that the dependencies of the results_dict are met, meaning</span>
+<span class="sd">        that (some) values for all required setpoints and inferences are</span>
+<span class="sd">        present</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span><span class="o">.</span><span class="n">validate_subset</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">results_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+        <span class="k">except</span> <span class="p">(</span><span class="n">DependencyError</span><span class="p">,</span> <span class="n">InferenceError</span><span class="p">)</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Can not add result, some required parameters &#39;</span>
+                             <span class="s1">&#39;are missing.&#39;</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">err</span>
+
+    <span class="k">def</span> <span class="nf">_validate_result_shapes</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">results_dict</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">ParamSpecBase</span><span class="p">,</span> <span class="n">values_type</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Validate that all sizes of the results_dict are consistent. This means</span>
+<span class="sd">        that array-values of parameters and their setpoints are of the</span>
+<span class="sd">        same size, whereas parameters with no setpoint relation to each other</span>
+<span class="sd">        can have different sizes.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">toplevel_params</span> <span class="o">=</span> <span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span><span class="o">.</span><span class="n">dependencies</span><span class="p">)</span>
+                           <span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">results_dict</span><span class="p">)))</span>
+        <span class="k">for</span> <span class="n">toplevel_param</span> <span class="ow">in</span> <span class="n">toplevel_params</span><span class="p">:</span>
+            <span class="n">required_shape</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">results_dict</span><span class="p">[</span><span class="n">toplevel_param</span><span class="p">])</span>
+            <span class="k">for</span> <span class="n">setpoint</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span><span class="o">.</span><span class="n">dependencies</span><span class="p">[</span><span class="n">toplevel_param</span><span class="p">]:</span>
+                <span class="c1"># a setpoint is allowed to be a scalar; shape is then ()</span>
+                <span class="n">setpoint_shape</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">results_dict</span><span class="p">[</span><span class="n">setpoint</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">setpoint_shape</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[(),</span> <span class="n">required_shape</span><span class="p">]:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Incompatible shapes. Parameter &#39;</span>
+                                     <span class="n">f</span><span class="s2">&quot;</span><span class="si">{toplevel_param.name}</span><span class="s2"> has shape &quot;</span>
+                                     <span class="n">f</span><span class="s2">&quot;</span><span class="si">{required_shape}</span><span class="s2">, but its setpoint &quot;</span>
+                                     <span class="n">f</span><span class="s2">&quot;</span><span class="si">{setpoint.name}</span><span class="s2"> has shape &quot;</span>
+                                     <span class="n">f</span><span class="s2">&quot;</span><span class="si">{setpoint_shape}</span><span class="s2">.&quot;</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_validate_result_types</span><span class="p">(</span>
+            <span class="n">results_dict</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">ParamSpecBase</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Validate the type of the results</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">allowed_kinds</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;numeric&#39;</span><span class="p">:</span> <span class="s1">&#39;iuf&#39;</span><span class="p">,</span> <span class="s1">&#39;text&#39;</span><span class="p">:</span> <span class="s1">&#39;SU&#39;</span><span class="p">,</span> <span class="s1">&#39;array&#39;</span><span class="p">:</span> <span class="s1">&#39;iuf&#39;</span><span class="p">}</span>
+
+        <span class="k">for</span> <span class="n">ps</span><span class="p">,</span> <span class="n">vals</span> <span class="ow">in</span> <span class="n">results_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">vals</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">kind</span> <span class="ow">in</span> <span class="n">allowed_kinds</span><span class="p">[</span><span class="n">ps</span><span class="o">.</span><span class="n">type</span><span class="p">]:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Parameter </span><span class="si">{ps.name}</span><span class="s1"> is of type &#39;</span>
+                                     <span class="n">f</span><span class="s1">&#39;&quot;</span><span class="si">{ps.type}</span><span class="s1">&quot;, but got a result of &#39;</span>
+                                     <span class="n">f</span><span class="s1">&#39;type </span><span class="si">{vals.dtype}</span><span class="s1"> (</span><span class="si">{vals}</span><span class="s1">).&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_enqueue_results</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">result_dict</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">ParamSpecBase</span><span class="p">,</span> <span class="n">values_type</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Enqueue the results into self._results</span>
+
+<span class="sd">        Before we can enqueue the results, all values of the results dict</span>
+<span class="sd">        must have the same length. We enqueue each parameter tree seperately,</span>
+<span class="sd">        effectively mimicking making one call to add_result per parameter</span>
+<span class="sd">        tree.</span>
+
+<span class="sd">        Deal with &#39;numeric&#39; type parameters. If a &#39;numeric&#39; top level parameter</span>
+<span class="sd">        has non-scalar shape, it must be unrolled into a list of dicts of</span>
+<span class="sd">        single values (database).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">interdeps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span>
+
+        <span class="n">toplevel_params</span> <span class="o">=</span> <span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">interdeps</span><span class="o">.</span><span class="n">dependencies</span><span class="p">)</span>
+                           <span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">result_dict</span><span class="p">)))</span>
+        <span class="k">for</span> <span class="n">toplevel_param</span> <span class="ow">in</span> <span class="n">toplevel_params</span><span class="p">:</span>
+            <span class="n">inff_params</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">interdeps</span><span class="o">.</span><span class="n">inferences</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">toplevel_param</span><span class="p">,</span> <span class="p">()))</span>
+            <span class="n">deps_params</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">interdeps</span><span class="o">.</span><span class="n">dependencies</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">toplevel_param</span><span class="p">,</span> <span class="p">()))</span>
+            <span class="n">all_params</span> <span class="o">=</span> <span class="p">(</span><span class="n">inff_params</span>
+                          <span class="o">.</span><span class="n">union</span><span class="p">(</span><span class="n">deps_params</span><span class="p">)</span>
+                          <span class="o">.</span><span class="n">union</span><span class="p">({</span><span class="n">toplevel_param</span><span class="p">}))</span>
+            <span class="n">res_dict</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">VALUE</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># the dict to append to _results</span>
+            <span class="k">if</span> <span class="n">toplevel_param</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;array&#39;</span><span class="p">:</span>
+                <span class="n">res_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_finalize_res_dict_array</span><span class="p">(</span>
+                    <span class="n">result_dict</span><span class="p">,</span> <span class="n">all_params</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">toplevel_param</span><span class="o">.</span><span class="n">type</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;numeric&#39;</span><span class="p">,</span> <span class="s1">&#39;text&#39;</span><span class="p">):</span>
+                <span class="n">res_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_finalize_res_dict_numeric_or_text</span><span class="p">(</span>
+                               <span class="n">result_dict</span><span class="p">,</span> <span class="n">toplevel_param</span><span class="p">,</span>
+                               <span class="n">inff_params</span><span class="p">,</span> <span class="n">deps_params</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">res_dict</span> <span class="o">=</span> <span class="p">{</span><span class="n">ps</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">result_dict</span><span class="p">[</span><span class="n">ps</span><span class="p">]</span> <span class="k">for</span> <span class="n">ps</span> <span class="ow">in</span> <span class="n">all_params</span><span class="p">}</span>
+                <span class="n">res_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">res_dict</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_results</span> <span class="o">+=</span> <span class="n">res_list</span>
+
+        <span class="c1"># Finally, handle standalone parameters</span>
+
+        <span class="n">standalones</span> <span class="o">=</span> <span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">interdeps</span><span class="o">.</span><span class="n">standalones</span><span class="p">)</span>
+                       <span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">result_dict</span><span class="p">)))</span>
+
+        <span class="k">if</span> <span class="n">standalones</span><span class="p">:</span>
+            <span class="n">stdln_dict</span> <span class="o">=</span> <span class="p">{</span><span class="n">st</span><span class="p">:</span> <span class="n">result_dict</span><span class="p">[</span><span class="n">st</span><span class="p">]</span> <span class="k">for</span> <span class="n">st</span> <span class="ow">in</span> <span class="n">standalones</span><span class="p">}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_results</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_finalize_res_dict_standalones</span><span class="p">(</span><span class="n">stdln_dict</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_finalize_res_dict_array</span><span class="p">(</span>
+            <span class="n">result_dict</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">ParamSpecBase</span><span class="p">,</span> <span class="n">values_type</span><span class="p">],</span>
+            <span class="n">all_params</span><span class="p">:</span> <span class="n">Set</span><span class="p">[</span><span class="n">ParamSpecBase</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">VALUE</span><span class="p">]]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Make a list of res_dicts out of the results for a &#39;array&#39; type</span>
+<span class="sd">        parameter. The results are assumed to already have been validated for</span>
+<span class="sd">        type and shape</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">def</span> <span class="nf">reshaper</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">paramtype</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">paramtype</span> <span class="o">==</span> <span class="s1">&#39;numeric&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">paramtype</span> <span class="o">==</span> <span class="s1">&#39;text&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">paramtype</span> <span class="o">==</span> <span class="s1">&#39;array&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">val</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">val</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,))</span>
+
+        <span class="n">res_dict</span> <span class="o">=</span> <span class="p">{</span><span class="n">ps</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">reshaper</span><span class="p">(</span><span class="n">result_dict</span><span class="p">[</span><span class="n">ps</span><span class="p">],</span> <span class="n">ps</span><span class="o">.</span><span class="n">type</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">ps</span> <span class="ow">in</span> <span class="n">all_params</span><span class="p">}</span>
+
+        <span class="k">return</span> <span class="p">[</span><span class="n">res_dict</span><span class="p">]</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_finalize_res_dict_numeric_or_text</span><span class="p">(</span>
+            <span class="n">result_dict</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">ParamSpecBase</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
+            <span class="n">toplevel_param</span><span class="p">:</span> <span class="n">ParamSpecBase</span><span class="p">,</span>
+            <span class="n">inff_params</span><span class="p">:</span> <span class="n">Set</span><span class="p">[</span><span class="n">ParamSpecBase</span><span class="p">],</span>
+            <span class="n">deps_params</span><span class="p">:</span> <span class="n">Set</span><span class="p">[</span><span class="n">ParamSpecBase</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">VALUE</span><span class="p">]]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Make a res_dict in the format expected by DataSet.add_results out</span>
+<span class="sd">        of the results for a &#39;numeric&#39; or text type parameter. This includes</span>
+<span class="sd">        replicating and unrolling values as needed and also handling the corner</span>
+<span class="sd">        case of np.array(1) kind of values</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">res_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">VALUE</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">all_params</span> <span class="o">=</span> <span class="n">inff_params</span><span class="o">.</span><span class="n">union</span><span class="p">(</span><span class="n">deps_params</span><span class="p">)</span><span class="o">.</span><span class="n">union</span><span class="p">({</span><span class="n">toplevel_param</span><span class="p">})</span>
+
+        <span class="n">t_map</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;numeric&#39;</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="s1">&#39;text&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">}</span>
+
+        <span class="n">toplevel_shape</span> <span class="o">=</span> <span class="n">result_dict</span><span class="p">[</span><span class="n">toplevel_param</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span>
+        <span class="k">if</span> <span class="n">toplevel_shape</span> <span class="o">==</span> <span class="p">():</span>
+            <span class="c1"># In the case of a single value, life is reasonably simple</span>
+            <span class="n">res_list</span> <span class="o">=</span> <span class="p">[{</span><span class="n">ps</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">t_map</span><span class="p">[</span><span class="n">ps</span><span class="o">.</span><span class="n">type</span><span class="p">](</span><span class="n">result_dict</span><span class="p">[</span><span class="n">ps</span><span class="p">])</span>
+                         <span class="k">for</span> <span class="n">ps</span> <span class="ow">in</span> <span class="n">all_params</span><span class="p">}]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># We first massage all values into np.arrays of the same</span>
+            <span class="c1"># shape</span>
+            <span class="n">flat_results</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span><span class="o">=</span> <span class="p">{}</span>
+
+            <span class="n">toplevel_val</span> <span class="o">=</span> <span class="n">result_dict</span><span class="p">[</span><span class="n">toplevel_param</span><span class="p">]</span>
+            <span class="n">flat_results</span><span class="p">[</span><span class="n">toplevel_param</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">toplevel_val</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+            <span class="n">N</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">flat_results</span><span class="p">[</span><span class="n">toplevel_param</span><span class="o">.</span><span class="n">name</span><span class="p">])</span>
+            <span class="k">for</span> <span class="n">dep</span> <span class="ow">in</span> <span class="n">deps_params</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">result_dict</span><span class="p">[</span><span class="n">dep</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">():</span>
+                    <span class="n">flat_results</span><span class="p">[</span><span class="n">dep</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">result_dict</span><span class="p">[</span><span class="n">dep</span><span class="p">],</span> <span class="n">N</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">flat_results</span><span class="p">[</span><span class="n">dep</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">result_dict</span><span class="p">[</span><span class="n">dep</span><span class="p">]</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">inff</span> <span class="ow">in</span> <span class="n">inff_params</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">result_dict</span><span class="p">[</span><span class="n">inff</span><span class="p">])</span> <span class="o">==</span> <span class="p">():</span>
+                    <span class="n">flat_results</span><span class="p">[</span><span class="n">inff</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">result_dict</span><span class="p">[</span><span class="n">dep</span><span class="p">],</span> <span class="n">N</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">flat_results</span><span class="p">[</span><span class="n">inff</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">result_dict</span><span class="p">[</span><span class="n">inff</span><span class="p">]</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+
+            <span class="c1"># And then put everything into the list</span>
+
+            <span class="n">res_list</span> <span class="o">=</span> <span class="p">[{</span><span class="n">p</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">flat_results</span><span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">name</span><span class="p">][</span><span class="n">ind</span><span class="p">]</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">all_params</span><span class="p">}</span>
+                        <span class="k">for</span> <span class="n">ind</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">N</span><span class="p">)]</span>
+
+        <span class="k">return</span> <span class="n">res_list</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_finalize_res_dict_standalones</span><span class="p">(</span>
+            <span class="n">result_dict</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">ParamSpecBase</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span>
+            <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">VALUE</span><span class="p">]]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Massage all standalone parameters into the correct shape</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">res_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">VALUE</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">param</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">result_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;text&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">value</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
+                    <span class="n">res_list</span> <span class="o">+=</span> <span class="p">[{</span><span class="n">param</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">val</span><span class="p">)}</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">value</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">res_list</span> <span class="o">+=</span> <span class="p">[{</span><span class="n">param</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)}]</span>
+            <span class="k">elif</span> <span class="n">param</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;numeric&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">value</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
+                    <span class="n">res_list</span> <span class="o">+=</span> <span class="p">[{</span><span class="n">param</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">number</span><span class="p">}</span> <span class="k">for</span> <span class="n">number</span> <span class="ow">in</span> <span class="n">value</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">res_list</span> <span class="o">+=</span> <span class="p">[{</span><span class="n">param</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">value</span><span class="p">)}]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">res_list</span> <span class="o">+=</span> <span class="p">[{</span><span class="n">param</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">value</span><span class="p">}]</span>
+
+        <span class="k">return</span> <span class="n">res_list</span>
 
 <div class="viewcode-block" id="DataSaver.flush_data_to_database"><a class="viewcode-back" href="../../../api/dataset/measurements.html#qcodes.dataset.measurements.DataSaver.flush_data_to_database">[docs]</a>    <span class="k">def</span> <span class="nf">flush_data_to_database</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -596,7 +700,7 @@
             <span class="bp">self</span><span class="p">,</span> <span class="n">enteractions</span><span class="p">:</span> <span class="n">List</span><span class="p">,</span> <span class="n">exitactions</span><span class="p">:</span> <span class="n">List</span><span class="p">,</span>
             <span class="n">experiment</span><span class="p">:</span> <span class="n">Experiment</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">station</span><span class="p">:</span> <span class="n">Station</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
             <span class="n">write_period</span><span class="p">:</span> <span class="n">numeric_types</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-            <span class="n">parameters</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ParamSpec</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">interdeps</span><span class="p">:</span> <span class="n">InterDependencies_</span> <span class="o">=</span> <span class="n">InterDependencies_</span><span class="p">(),</span>
             <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
             <span class="n">subscribers</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span>
                                         <span class="n">Union</span><span class="p">[</span><span class="n">MutableSequence</span><span class="p">,</span>
@@ -613,7 +717,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">subscribers</span> <span class="o">=</span> <span class="n">subscribers</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">experiment</span> <span class="o">=</span> <span class="n">experiment</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">station</span> <span class="o">=</span> <span class="n">station</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span> <span class="o">=</span> <span class="n">parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_interdependencies</span> <span class="o">=</span> <span class="n">interdeps</span>
         <span class="c1"># here we use 5 s as a sane default, but that value should perhaps</span>
         <span class="c1"># be read from some config file</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">write_period</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">write_period</span><span class="p">)</span> \
@@ -644,11 +748,10 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">ds</span><span class="o">.</span><span class="n">add_snapshot</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span><span class="s1">&#39;station&#39;</span><span class="p">:</span> <span class="n">station</span><span class="o">.</span><span class="n">snapshot</span><span class="p">()},</span>
                                             <span class="bp">cls</span><span class="o">=</span><span class="n">NumpyJSONEncoder</span><span class="p">))</span>
 
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">paramspec</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">ds</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">paramspec</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interdependencies</span> <span class="o">==</span> <span class="n">InterDependencies_</span><span class="p">():</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;No parameters supplied&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ds</span><span class="o">.</span><span class="n">set_interdependencies</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_interdependencies</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">ds</span><span class="o">.</span><span class="n">mark_started</span><span class="p">()</span>
 
@@ -664,7 +767,7 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">datasaver</span> <span class="o">=</span> <span class="n">DataSaver</span><span class="p">(</span><span class="n">dataset</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ds</span><span class="p">,</span>
                                    <span class="n">write_period</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">write_period</span><span class="p">,</span>
-                                   <span class="n">parameters</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">)</span>
+                                   <span class="n">interdeps</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_interdependencies</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">datasaver</span>
 
@@ -683,8 +786,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">ds</span><span class="o">.</span><span class="n">unsubscribe_all</span><span class="p">()</span></div>
 
 
-
 <span class="n">T</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;T&#39;</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="s1">&#39;Measurement&#39;</span><span class="p">)</span>
+
+
 <div class="viewcode-block" id="Measurement"><a class="viewcode-back" href="../../../api/dataset/measurements.html#qcodes.dataset.measurements.Measurement">[docs]</a><span class="k">class</span> <span class="nc">Measurement</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Measurement procedure container</span>
@@ -704,9 +808,13 @@
                                                      <span class="n">MutableMapping</span><span class="p">]]]</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">experiment</span> <span class="o">=</span> <span class="n">exp</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">station</span> <span class="o">=</span> <span class="n">station</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ParamSpec</span><span class="p">]</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_write_period</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span> <span class="o">=</span> <span class="n">InterDependencies_</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ParamSpecBase</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span><span class="o">.</span><span class="n">_id_to_paramspec</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">write_period</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
@@ -721,14 +829,16 @@
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;The write period must be at least 1 ms.&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_write_period</span> <span class="o">=</span> <span class="n">wp_float</span>
 
-    <span class="k">def</span> <span class="nf">_registration_validation</span><span class="p">(</span>
+    <span class="k">def</span> <span class="nf">_paramspecbase_from_strings</span><span class="p">(</span>
             <span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">setpoints</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-            <span class="n">basis</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+            <span class="n">basis</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">ParamSpecBase</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">ParamSpecBase</span><span class="p">,</span> <span class="o">...</span><span class="p">]]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Helper function to do all the validation in terms of dependencies</span>
-<span class="sd">        when adding parameters, e.g. that no setpoints have setpoints etc.</span>
+<span class="sd">        Helper function to look up and get ParamSpecBases and to give a nice</span>
+<span class="sd">        error message if the user tries to register a parameter with reference</span>
+<span class="sd">        (setpoints, basis) to a parameter not registered with this measurement</span>
 
-<span class="sd">        Called by register_parameter and register_custom_parameter</span>
+<span class="sd">        Called by _register_parameter only.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            name: Name of the parameter to register</span>
@@ -737,40 +847,34 @@
 <span class="sd">                inferred from</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
+        <span class="n">idps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span>
+
         <span class="c1"># now handle setpoints</span>
         <span class="n">depends_on</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">if</span> <span class="n">setpoints</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">sp</span> <span class="ow">in</span> <span class="n">setpoints</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">sp</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">sp_psb</span> <span class="o">=</span> <span class="n">idps</span><span class="o">.</span><span class="n">_id_to_paramspec</span><span class="p">[</span><span class="n">sp</span><span class="p">]</span>
+                    <span class="n">depends_on</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sp_psb</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
                     <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Unknown setpoint: </span><span class="si">{sp}</span><span class="s1">.&#39;</span>
                                      <span class="s1">&#39; Please register that parameter first.&#39;</span><span class="p">)</span>
-                <span class="k">elif</span> <span class="n">sp</span> <span class="o">==</span> <span class="n">name</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;A parameter can not have itself as &#39;</span>
-                                     <span class="s1">&#39;setpoint.&#39;</span><span class="p">)</span>
-                <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">sp</span><span class="p">]</span><span class="o">.</span><span class="n">depends_on</span> <span class="o">!=</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;A parameter&#39;s setpoints can not have &quot;</span>
-                                     <span class="n">f</span><span class="s2">&quot;setpoints themselves. </span><span class="si">{sp}</span><span class="s2"> depends on&quot;</span>
-                                     <span class="n">f</span><span class="s2">&quot; </span><span class="si">{self.parameters[sp].depends_on}</span><span class="s2">&quot;</span><span class="p">)</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">depends_on</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sp</span><span class="p">)</span>
 
         <span class="c1"># now handle inferred parameters</span>
         <span class="n">inf_from</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">if</span> <span class="n">basis</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">inff</span> <span class="ow">in</span> <span class="n">basis</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">inff</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">inff_psb</span> <span class="o">=</span> <span class="n">idps</span><span class="o">.</span><span class="n">_id_to_paramspec</span><span class="p">[</span><span class="n">inff</span><span class="p">]</span>
+                    <span class="n">inf_from</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">inff_psb</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
                     <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Unknown basis parameter: </span><span class="si">{inff}</span><span class="s1">.&#39;</span>
                                      <span class="s1">&#39; Please register that parameter first.&#39;</span><span class="p">)</span>
-                <span class="k">elif</span> <span class="n">inff</span> <span class="o">==</span> <span class="n">name</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;A parameter can not be inferred from&#39;</span>
-                                     <span class="s1">&#39;itself.&#39;</span><span class="p">)</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">inf_from</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">inff</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">depends_on</span><span class="p">,</span> <span class="n">inf_from</span>
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">depends_on</span><span class="p">),</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">inf_from</span><span class="p">)</span>
 
 <div class="viewcode-block" id="Measurement.register_parameter"><a class="viewcode-back" href="../../../api/dataset/measurements.html#qcodes.dataset.measurements.Measurement.register_parameter">[docs]</a>    <span class="k">def</span> <span class="nf">register_parameter</span><span class="p">(</span>
-            <span class="bp">self</span> <span class="p">:</span> <span class="n">T</span><span class="p">,</span> <span class="n">parameter</span><span class="p">:</span> <span class="n">_BaseParameter</span><span class="p">,</span>
+            <span class="bp">self</span><span class="p">:</span> <span class="n">T</span><span class="p">,</span> <span class="n">parameter</span><span class="p">:</span> <span class="n">_BaseParameter</span><span class="p">,</span>
             <span class="n">setpoints</span><span class="p">:</span> <span class="n">setpoints_type</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
             <span class="n">basis</span><span class="p">:</span> <span class="n">setpoints_type</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
             <span class="n">paramtype</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;numeric&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="p">:</span>
@@ -830,15 +934,36 @@
 
         <span class="k">return</span> <span class="bp">self</span></div>
 
-    <span class="k">def</span> <span class="nf">_register_parameter</span><span class="p">(</span><span class="bp">self</span> <span class="p">:</span> <span class="n">T</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="k">def</span> <span class="nf">_register_parameter</span><span class="p">(</span><span class="bp">self</span><span class="p">:</span> <span class="n">T</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                             <span class="n">label</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
                             <span class="n">unit</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
                             <span class="n">setpoints</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">setpoints_type</span><span class="p">],</span>
                             <span class="n">basis</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">setpoints_type</span><span class="p">],</span>
                             <span class="n">paramtype</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Generate ParamSpecs and register them for an individual parameter</span>
+<span class="sd">        Update the interdependencies object with a new group</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">parameter</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ParamSpecBase</span><span class="p">]</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">parameter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="n">parameter</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="n">paramspec</span> <span class="o">=</span> <span class="n">ParamSpecBase</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                                  <span class="n">paramtype</span><span class="o">=</span><span class="n">paramtype</span><span class="p">,</span>
+                                  <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">,</span>
+                                  <span class="n">unit</span><span class="o">=</span><span class="n">unit</span><span class="p">)</span>
+
+        <span class="c1"># We want to allow the registration of the exact same parameter twice,</span>
+        <span class="c1"># the reason being that e.g. two ArrayParameters could share the same</span>
+        <span class="c1"># setpoint parameter, which would then be registered along with each</span>
+        <span class="c1"># dependent (array)parameter</span>
+
+        <span class="k">if</span> <span class="n">parameter</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">parameter</span> <span class="o">!=</span> <span class="n">paramspec</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Parameter already registered &quot;</span>
+                             <span class="s2">&quot;in this Measurement.&quot;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">setpoints</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">sp_strings</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">sp</span><span class="p">)</span> <span class="k">for</span> <span class="n">sp</span> <span class="ow">in</span> <span class="n">setpoints</span><span class="p">]</span>
@@ -850,19 +975,20 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="n">bs_strings</span> <span class="o">=</span> <span class="p">[]</span>
 
-        <span class="c1"># validate all dependencies</span>
-        <span class="n">depends_on</span><span class="p">,</span> <span class="n">inf_from</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_registration_validation</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">sp_strings</span><span class="p">,</span>
-                                                             <span class="n">bs_strings</span><span class="p">)</span>
-        <span class="n">paramspec</span> <span class="o">=</span> <span class="n">ParamSpec</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
-                              <span class="n">paramtype</span><span class="o">=</span><span class="n">paramtype</span><span class="p">,</span>
-                              <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">,</span>
-                              <span class="n">unit</span><span class="o">=</span><span class="n">unit</span><span class="p">,</span>
-                              <span class="n">inferred_from</span><span class="o">=</span><span class="n">inf_from</span><span class="p">,</span>
-                              <span class="n">depends_on</span><span class="o">=</span><span class="n">depends_on</span><span class="p">)</span>
-        <span class="c1"># ensure the correct order</span>
-        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">paramspec</span>
+        <span class="c1"># get the ParamSpecBases</span>
+        <span class="n">depends_on</span><span class="p">,</span> <span class="n">inf_from</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_paramspecbase_from_strings</span><span class="p">(</span><span class="n">name</span><span class="p">,</span>
+                                                                <span class="n">sp_strings</span><span class="p">,</span>
+                                                                <span class="n">bs_strings</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">depends_on</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+                                  <span class="n">dependencies</span><span class="o">=</span><span class="p">{</span><span class="n">paramspec</span><span class="p">:</span> <span class="n">depends_on</span><span class="p">})</span>
+        <span class="k">if</span> <span class="n">inf_from</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+                                  <span class="n">inferences</span><span class="o">=</span><span class="p">{</span><span class="n">paramspec</span><span class="p">:</span> <span class="n">inf_from</span><span class="p">})</span>
+        <span class="k">if</span> <span class="ow">not</span><span class="p">(</span><span class="n">depends_on</span> <span class="ow">or</span> <span class="n">inf_from</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">standalones</span><span class="o">=</span><span class="p">(</span><span class="n">paramspec</span><span class="p">,))</span>
+
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Registered </span><span class="si">{name}</span><span class="s1"> in the Measurement.&#39;</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="bp">self</span>
@@ -873,7 +999,7 @@
                                  <span class="n">basis</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">setpoints_type</span><span class="p">],</span>
                                  <span class="n">paramtype</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Register an Array paramter and the setpoints belonging to the</span>
+<span class="sd">        Register an ArrayParameter and the setpoints belonging to that</span>
 <span class="sd">        ArrayParameter</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">parameter</span><span class="p">)</span>
@@ -893,10 +1019,12 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">spunit</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
 
-            <span class="n">sp</span> <span class="o">=</span> <span class="n">ParamSpec</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">spname</span><span class="p">,</span> <span class="n">paramtype</span><span class="o">=</span><span class="n">paramtype</span><span class="p">,</span>
-                           <span class="n">label</span><span class="o">=</span><span class="n">splabel</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="n">spunit</span><span class="p">)</span>
-
-            <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">spname</span><span class="p">]</span> <span class="o">=</span> <span class="n">sp</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_register_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">spname</span><span class="p">,</span>
+                                     <span class="n">paramtype</span><span class="o">=</span><span class="n">paramtype</span><span class="p">,</span>
+                                     <span class="n">label</span><span class="o">=</span><span class="n">splabel</span><span class="p">,</span>
+                                     <span class="n">unit</span><span class="o">=</span><span class="n">spunit</span><span class="p">,</span>
+                                     <span class="n">setpoints</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                     <span class="n">basis</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 
             <span class="n">my_setpoints</span> <span class="o">+=</span> <span class="p">[</span><span class="n">spname</span><span class="p">]</span>
 
@@ -927,10 +1055,12 @@
             <span class="n">splabel</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">label</span>
             <span class="n">spunit</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">unit</span>
 
-            <span class="n">spparamspec</span> <span class="o">=</span> <span class="n">ParamSpec</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">spname</span><span class="p">,</span> <span class="n">paramtype</span><span class="o">=</span><span class="n">paramtype</span><span class="p">,</span>
-                                    <span class="n">label</span><span class="o">=</span><span class="n">splabel</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="n">spunit</span><span class="p">)</span>
-
-            <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">spname</span><span class="p">]</span> <span class="o">=</span> <span class="n">spparamspec</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_register_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">spname</span><span class="p">,</span>
+                                     <span class="n">paramtype</span><span class="o">=</span><span class="n">paramtype</span><span class="p">,</span>
+                                     <span class="n">label</span><span class="o">=</span><span class="n">splabel</span><span class="p">,</span>
+                                     <span class="n">unit</span><span class="o">=</span><span class="n">spunit</span><span class="p">,</span>
+                                     <span class="n">setpoints</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                     <span class="n">basis</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 
             <span class="n">my_setpoints</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">spname</span><span class="p">)</span>
 
@@ -948,7 +1078,7 @@
                                  <span class="n">paramtype</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Find the individual multiparameter components and their setpoints</span>
-<span class="sd">        and register these</span>
+<span class="sd">        and register those as individual parameters</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">setpoints_lists</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">multiparameter</span><span class="o">.</span><span class="n">shapes</span><span class="p">)):</span>
@@ -975,10 +1105,13 @@
                     <span class="k">else</span><span class="p">:</span>
                         <span class="n">spunit</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
 
-                    <span class="n">sp</span> <span class="o">=</span> <span class="n">ParamSpec</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">spname</span><span class="p">,</span> <span class="n">paramtype</span><span class="o">=</span><span class="n">paramtype</span><span class="p">,</span>
-                                   <span class="n">label</span><span class="o">=</span><span class="n">splabel</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="n">spunit</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_register_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">spname</span><span class="p">,</span>
+                                             <span class="n">paramtype</span><span class="o">=</span><span class="n">paramtype</span><span class="p">,</span>
+                                             <span class="n">label</span><span class="o">=</span><span class="n">splabel</span><span class="p">,</span>
+                                             <span class="n">unit</span><span class="o">=</span><span class="n">spunit</span><span class="p">,</span>
+                                             <span class="n">setpoints</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                             <span class="n">basis</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 
-                    <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">spname</span><span class="p">]</span> <span class="o">=</span> <span class="n">sp</span>
                     <span class="n">my_setpoints</span> <span class="o">+=</span> <span class="p">[</span><span class="n">spname</span><span class="p">]</span>
 
             <span class="n">setpoints_lists</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">my_setpoints</span><span class="p">)</span>
@@ -992,7 +1125,7 @@
                                      <span class="n">paramtype</span><span class="p">)</span>
 
 <div class="viewcode-block" id="Measurement.register_custom_parameter"><a class="viewcode-back" href="../../../api/dataset/measurements.html#qcodes.dataset.measurements.Measurement.register_custom_parameter">[docs]</a>    <span class="k">def</span> <span class="nf">register_custom_parameter</span><span class="p">(</span>
-            <span class="bp">self</span> <span class="p">:</span> <span class="n">T</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="bp">self</span><span class="p">:</span> <span class="n">T</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
             <span class="n">label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">unit</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
             <span class="n">basis</span><span class="p">:</span> <span class="n">setpoints_type</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
             <span class="n">setpoints</span><span class="p">:</span> <span class="n">setpoints_type</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -1035,23 +1168,16 @@
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Wrong input type. Must be a QCoDeS parameter or&#39;</span>
                              <span class="s1">&#39; the name (a string) of a parameter.&#39;</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">param</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">:</span>
-            <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Tried to unregister </span><span class="si">{param}</span><span class="s1">, but it was not&#39;</span>
-                     <span class="s1">&#39;registered.&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">paramspec</span><span class="p">:</span> <span class="n">ParamSpecBase</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span><span class="p">[</span><span class="n">param</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
             <span class="k">return</span>
 
-        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">paramspec</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="k">if</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">paramspec</span><span class="o">.</span><span class="n">depends_on</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Can not unregister </span><span class="si">{param}</span><span class="s1">, it is a &#39;</span>
-                                 <span class="n">f</span><span class="s1">&#39;setpoint for </span><span class="si">{name}</span><span class="s1">&#39;</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">paramspec</span><span class="o">.</span><span class="n">inferred_from</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Can not unregister </span><span class="si">{param}</span><span class="s1">, it is a &#39;</span>
-                                 <span class="n">f</span><span class="s1">&#39;basis for </span><span class="si">{name}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">paramspec</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">param</span><span class="p">)</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Removed </span><span class="si">{param}</span><span class="s1"> from Measurement.&#39;</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="Measurement.add_before_run"><a class="viewcode-back" href="../../../api/dataset/measurements.html#qcodes.dataset.measurements.Measurement.add_before_run">[docs]</a>    <span class="k">def</span> <span class="nf">add_before_run</span><span class="p">(</span><span class="bp">self</span> <span class="p">:</span> <span class="n">T</span><span class="p">,</span> <span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">args</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="p">:</span>
+<div class="viewcode-block" id="Measurement.add_before_run"><a class="viewcode-back" href="../../../api/dataset/measurements.html#qcodes.dataset.measurements.Measurement.add_before_run">[docs]</a>    <span class="k">def</span> <span class="nf">add_before_run</span><span class="p">(</span><span class="bp">self</span><span class="p">:</span> <span class="n">T</span><span class="p">,</span> <span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">args</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Add an action to be performed before the measurement.</span>
 
@@ -1069,7 +1195,7 @@
 
         <span class="k">return</span> <span class="bp">self</span></div>
 
-<div class="viewcode-block" id="Measurement.add_after_run"><a class="viewcode-back" href="../../../api/dataset/measurements.html#qcodes.dataset.measurements.Measurement.add_after_run">[docs]</a>    <span class="k">def</span> <span class="nf">add_after_run</span><span class="p">(</span><span class="bp">self</span> <span class="p">:</span> <span class="n">T</span><span class="p">,</span> <span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">args</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="p">:</span>
+<div class="viewcode-block" id="Measurement.add_after_run"><a class="viewcode-back" href="../../../api/dataset/measurements.html#qcodes.dataset.measurements.Measurement.add_after_run">[docs]</a>    <span class="k">def</span> <span class="nf">add_after_run</span><span class="p">(</span><span class="bp">self</span><span class="p">:</span> <span class="n">T</span><span class="p">,</span> <span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">args</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Add an action to be performed after the measurement.</span>
 
@@ -1087,7 +1213,7 @@
 
         <span class="k">return</span> <span class="bp">self</span></div>
 
-<div class="viewcode-block" id="Measurement.add_subscriber"><a class="viewcode-back" href="../../../api/dataset/measurements.html#qcodes.dataset.measurements.Measurement.add_subscriber">[docs]</a>    <span class="k">def</span> <span class="nf">add_subscriber</span><span class="p">(</span><span class="bp">self</span> <span class="p">:</span> <span class="n">T</span><span class="p">,</span>
+<div class="viewcode-block" id="Measurement.add_subscriber"><a class="viewcode-back" href="../../../api/dataset/measurements.html#qcodes.dataset.measurements.Measurement.add_subscriber">[docs]</a>    <span class="k">def</span> <span class="nf">add_subscriber</span><span class="p">(</span><span class="bp">self</span><span class="p">:</span> <span class="n">T</span><span class="p">,</span>
                        <span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span>
                        <span class="n">state</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">MutableSequence</span><span class="p">,</span> <span class="n">MutableMapping</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -1110,7 +1236,7 @@
         <span class="k">return</span> <span class="n">Runner</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">enteractions</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">exitactions</span><span class="p">,</span>
                       <span class="bp">self</span><span class="o">.</span><span class="n">experiment</span><span class="p">,</span> <span class="n">station</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">station</span><span class="p">,</span>
                       <span class="n">write_period</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_write_period</span><span class="p">,</span>
-                      <span class="n">parameters</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">,</span>
+                      <span class="n">interdeps</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span><span class="p">,</span>
                       <span class="n">name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
                       <span class="n">subscribers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">subscribers</span><span class="p">)</span></div></div>
 </pre></div>

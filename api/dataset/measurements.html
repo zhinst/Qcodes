@@ -243,7 +243,7 @@ set self.__traceback__ to tb and return self.</p>
 
 <dl class="class">
 <dt id="qcodes.dataset.measurements.DataSaver">
-<em class="property">class </em><code class="descclassname">qcodes.dataset.measurements.</code><code class="descname">DataSaver</code><span class="sig-paren">(</span><em>dataset: qcodes.dataset.data_set.DataSet, write_period: Union[float, int], parameters: Dict[str, qcodes.dataset.param_spec.ParamSpec]</em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qcodes/dataset/measurements.html#DataSaver"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#qcodes.dataset.measurements.DataSaver" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">qcodes.dataset.measurements.</code><code class="descname">DataSaver</code><span class="sig-paren">(</span><em>dataset: qcodes.dataset.data_set.DataSet, write_period: Union[float, int], interdeps: qcodes.dataset.dependencies.InterDependencies_</em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qcodes/dataset/measurements.html#DataSaver"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#qcodes.dataset.measurements.DataSaver" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference external" href="https://docs.python.org/3.6/library/functions.html#object" title="(in Python v3.6)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>The class used by the Runner context manager to handle the datasaving to
 the database.</p>
@@ -264,14 +264,6 @@ to this function would be (e.g.)
 <p>For better performance, this function does not immediately write to
 the database, but keeps the results in memory. Writing happens every
 <cite>write_period</cite> seconds and during the __exit__ method if this class.</p>
-<p>Regarding arrays: since arrays as binary blobs are (almost) worthless
-in a relational database, this function “unravels” arrays passed to it.
-That, in turn, forces us to impose rules on what can be saved in one
-go. Any number of scalars and any number of arrays OF THE SAME LENGTH
-can be passed to add_result. The scalars are duplicated to match the
-arrays.</p>
-<p>However, if the parameter is registered as array type the numpy arrays
-are not unraveled but stored directly for improved performance.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><p><strong>res_tuple</strong> – a tuple with the first element being the parameter name
@@ -283,6 +275,9 @@ are results.</p>
 <dd class="field-even"><ul class="simple">
 <li><p><a class="reference external" href="https://docs.python.org/3.6/library/exceptions.html#ValueError" title="(in Python v3.6)"><strong>ValueError</strong></a> – if a parameter name not registered in the parent
     Measurement object is encountered.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3.6/library/exceptions.html#ValueError" title="(in Python v3.6)"><strong>ValueError</strong></a> – if the shapes of parameters do not match, i.e. if
+    a parameter gets values of a different shape than its setpoints
+    (the exception being that setpoints can always be scalar)</p></li>
 <li><p><a class="reference internal" href="#qcodes.dataset.measurements.ParameterTypeError" title="qcodes.dataset.measurements.ParameterTypeError"><strong>ParameterTypeError</strong></a> – if a parameter is given a value not matching
     its type.</p></li>
 </ul>
@@ -315,7 +310,7 @@ are results.</p>
 
 <dl class="class">
 <dt id="qcodes.dataset.measurements.Runner">
-<em class="property">class </em><code class="descclassname">qcodes.dataset.measurements.</code><code class="descname">Runner</code><span class="sig-paren">(</span><em>enteractions: List</em>, <em>exitactions: List</em>, <em>experiment: qcodes.dataset.experiment_container.Experiment = None</em>, <em>station: qcodes.station.Station = None</em>, <em>write_period: Union[float</em>, <em>int] = None</em>, <em>parameters: Dict[str</em>, <em>qcodes.dataset.param_spec.ParamSpec] = None</em>, <em>name: str = ''</em>, <em>subscribers: Sequence[Tuple[Callable</em>, <em>Union[MutableSequence</em>, <em>MutableMapping]]] = None</em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qcodes/dataset/measurements.html#Runner"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#qcodes.dataset.measurements.Runner" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">qcodes.dataset.measurements.</code><code class="descname">Runner</code><span class="sig-paren">(</span><em>enteractions: List</em>, <em>exitactions: List</em>, <em>experiment: qcodes.dataset.experiment_container.Experiment = None</em>, <em>station: qcodes.station.Station = None</em>, <em>write_period: Union[float</em>, <em>int] = None</em>, <em>interdeps: qcodes.dataset.dependencies.InterDependencies_ = InterDependencies_(dependencies={}</em>, <em>inferences={}</em>, <em>standalones=frozenset())</em>, <em>name: str = ''</em>, <em>subscribers: Sequence[Tuple[Callable</em>, <em>Union[MutableSequence</em>, <em>MutableMapping]]] = None</em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qcodes/dataset/measurements.html#Runner"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#qcodes.dataset.measurements.Runner" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference external" href="https://docs.python.org/3.6/library/functions.html#object" title="(in Python v3.6)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>Context manager for the measurement.</p>
 <p>Lives inside a Measurement and should never be instantiated
@@ -340,6 +335,11 @@ default one is used.</p></li>
 </ul>
 </dd>
 </dl>
+<dl class="attribute">
+<dt id="qcodes.dataset.measurements.Measurement.parameters">
+<code class="descname">parameters</code><a class="headerlink" href="#qcodes.dataset.measurements.Measurement.parameters" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 <dl class="attribute">
 <dt id="qcodes.dataset.measurements.Measurement.write_period">
 <code class="descname">write_period</code><a class="headerlink" href="#qcodes.dataset.measurements.Measurement.write_period" title="Permalink to this definition">¶</a></dt>
