@@ -199,6 +199,10 @@
     <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="n">numeric_value</span><span class="p">)</span>
 
 
+<div class="viewcode-block" id="CommandSetError"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.Keithley_6500.CommandSetError">[docs]</a><span class="k">class</span> <span class="nc">CommandSetError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+
+
 <div class="viewcode-block" id="Keithley_6500"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.Keithley_6500.Keithley_6500">[docs]</a><span class="k">class</span> <span class="nc">Keithley_6500</span><span class="p">(</span><span class="n">VisaInstrument</span><span class="p">):</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">address</span><span class="p">,</span> <span class="n">reset_device</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -214,6 +218,12 @@
 <span class="sd">            reset_device (bool): Reset the device on startup if true.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">address</span><span class="p">,</span> <span class="n">terminator</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="n">command_set</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;*LANG?&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">command_set</span> <span class="o">!=</span> <span class="s1">&#39;SCPI&#39;</span><span class="p">:</span>
+            <span class="n">error_msg</span> <span class="o">=</span> <span class="s2">&quot;This driver only compatible with the &#39;SCPI&#39; command &quot;</span> \
+                        <span class="s2">&quot;set, not &#39;</span><span class="si">{}</span><span class="s2">&#39; set&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">command_set</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">CommandSetError</span><span class="p">(</span><span class="n">error_msg</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_trigger_sent</span> <span class="o">=</span> <span class="kc">False</span>
 
@@ -270,10 +280,19 @@
                            <span class="n">vals</span><span class="o">=</span><span class="n">Bool</span><span class="p">())</span>
 
         <span class="c1"># Global parameters</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;display_enabled&#39;</span><span class="p">,</span>
-                           <span class="n">get_parser</span><span class="o">=</span><span class="n">_parse_output_bool</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;DISP:ENAB?&#39;</span><span class="p">,</span>
-                           <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;DISP:ENAB </span><span class="si">{}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">set_parser</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">Bool</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;display_backlight&#39;</span><span class="p">,</span>
+                           <span class="n">docstring</span><span class="o">=</span><span class="s1">&#39;Control the brightness of the display &#39;</span>
+                                     <span class="s1">&#39;backligt. Off turns the display off and&#39;</span>
+                                     <span class="s1">&#39;Blackout also turns off indicators and &#39;</span>
+                                     <span class="s1">&#39;key lights on the device.&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;DISP:LIGH:STAT?&#39;</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;DISP:LIGH:STAT </span><span class="si">{}</span><span class="s1">&#39;</span><span class="p">,</span>
+                           <span class="n">val_mapping</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;On 100&#39;</span><span class="p">:</span> <span class="s1">&#39;ON100&#39;</span><span class="p">,</span>
+                                        <span class="s1">&#39;On 75&#39;</span><span class="p">:</span> <span class="s1">&#39;ON75&#39;</span><span class="p">,</span>
+                                        <span class="s1">&#39;On 50&#39;</span><span class="p">:</span> <span class="s1">&#39;ON50&#39;</span><span class="p">,</span>
+                                        <span class="s1">&#39;On 25&#39;</span><span class="p">:</span> <span class="s1">&#39;ON25&#39;</span><span class="p">,</span>
+                                        <span class="s1">&#39;Off&#39;</span><span class="p">:</span> <span class="s1">&#39;OFF&#39;</span><span class="p">,</span>
+                                        <span class="s1">&#39;Blackout&#39;</span><span class="p">:</span> <span class="s1">&#39;BLACkout&#39;</span><span class="p">})</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;trigger_count&#39;</span><span class="p">,</span>
                            <span class="n">get_parser</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
@@ -282,17 +301,32 @@
                            <span class="n">vals</span><span class="o">=</span><span class="n">MultiType</span><span class="p">(</span><span class="n">Ints</span><span class="p">(</span><span class="n">min_value</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">max_value</span><span class="o">=</span><span class="mi">9999</span><span class="p">),</span>
                                           <span class="n">Enum</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">,</span> <span class="s1">&#39;default&#39;</span><span class="p">,</span> <span class="s1">&#39;minimum&#39;</span><span class="p">,</span> <span class="s1">&#39;maximum&#39;</span><span class="p">)))</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;trigger_delay&#39;</span><span class="p">,</span>
-                           <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;TRIG:DEL?&#39;</span><span class="p">,</span>
-                           <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;TRIG:DEL </span><span class="si">{}</span><span class="s1">&#39;</span><span class="p">,</span>
-                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(</span><span class="n">min_value</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">max_value</span><span class="o">=</span><span class="mf">999999.999</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">trigger</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;trigger</span><span class="si">%i</span><span class="s1">_delay&#39;</span> <span class="o">%</span> <span class="n">trigger</span><span class="p">,</span>
+                               <span class="n">docstring</span><span class="o">=</span><span class="s1">&#39;Set and read trigger delay for &#39;</span>
+                                         <span class="s1">&#39;timer </span><span class="si">%i</span><span class="s1">.&#39;</span> <span class="o">%</span> <span class="n">trigger</span><span class="p">,</span>
+                               <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+                               <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;TRIG:TIM</span><span class="si">%i</span><span class="s1">:DEL?&#39;</span> <span class="o">%</span> <span class="n">trigger</span><span class="p">,</span>
+                               <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;TRIG:TIM</span><span class="si">%i</span><span class="s1">:DEL </span><span class="si">{}</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">trigger</span><span class="p">,</span>
+                               <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(</span><span class="n">min_value</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                                                      <span class="n">max_value</span><span class="o">=</span><span class="mf">999999.999</span><span class="p">))</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;trigger_source&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;TRIG:SOUR?&#39;</span><span class="p">,</span>
-                           <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;TRIG:SOUR </span><span class="si">{}</span><span class="s1">&#39;</span><span class="p">,</span>
-                           <span class="n">val_mapping</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;immediate&#39;</span><span class="p">:</span> <span class="s1">&#39;NONE&#39;</span><span class="p">,</span> <span class="s1">&#39;timer&#39;</span><span class="p">:</span> <span class="s1">&#39;TIM&#39;</span><span class="p">,</span> <span class="s1">&#39;manual&#39;</span><span class="p">:</span> <span class="s1">&#39;MAN&#39;</span><span class="p">,</span>
-                                        <span class="s1">&#39;bus&#39;</span><span class="p">:</span> <span class="s1">&#39;BUS&#39;</span><span class="p">,</span> <span class="s1">&#39;external&#39;</span><span class="p">:</span> <span class="s1">&#39;EXT&#39;</span><span class="p">})</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;trigger</span><span class="si">%i</span><span class="s1">_source&#39;</span> <span class="o">%</span> <span class="n">trigger</span><span class="p">,</span>
+                               <span class="n">docstring</span><span class="o">=</span><span class="s1">&#39;Set the trigger source for &#39;</span>
+                                         <span class="s1">&#39;timer </span><span class="si">%i</span><span class="s1">.&#39;</span> <span class="o">%</span> <span class="n">trigger</span><span class="p">,</span>
+                               <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;TRIG:TIM</span><span class="si">%i</span><span class="s1">:STAR:STIM?&#39;</span> <span class="o">%</span> <span class="n">trigger</span><span class="p">,</span>
+                               <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;TRIG:TIM</span><span class="si">%i</span><span class="s1">:STAR:STIM </span><span class="si">{}</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">trigger</span><span class="p">,</span>
+                               <span class="n">val_mapping</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;immediate&#39;</span><span class="p">:</span> <span class="s1">&#39;NONE&#39;</span><span class="p">,</span>
+                                            <span class="s1">&#39;timer1&#39;</span><span class="p">:</span> <span class="s1">&#39;TIM1&#39;</span><span class="p">,</span>
+                                            <span class="s1">&#39;timer2&#39;</span><span class="p">:</span> <span class="s1">&#39;TIM2&#39;</span><span class="p">,</span>
+                                            <span class="s1">&#39;timer3&#39;</span><span class="p">:</span> <span class="s1">&#39;TIM3&#39;</span><span class="p">,</span>
+                                            <span class="s1">&#39;timer4&#39;</span><span class="p">:</span> <span class="s1">&#39;TIM4&#39;</span><span class="p">,</span>
+                                            <span class="s1">&#39;notify1&#39;</span><span class="p">:</span> <span class="s1">&#39;NOT1&#39;</span><span class="p">,</span>
+                                            <span class="s1">&#39;notify2&#39;</span><span class="p">:</span> <span class="s1">&#39;NOT2&#39;</span><span class="p">,</span>
+                                            <span class="s1">&#39;notify3&#39;</span><span class="p">:</span> <span class="s1">&#39;NOT3&#39;</span><span class="p">,</span>
+                                            <span class="s1">&#39;front-panel&#39;</span><span class="p">:</span> <span class="s1">&#39;DISP&#39;</span><span class="p">,</span>
+                                            <span class="s1">&#39;bus&#39;</span><span class="p">:</span> <span class="s1">&#39;COMM&#39;</span><span class="p">,</span>
+                                            <span class="s1">&#39;external&#39;</span><span class="p">:</span> <span class="s1">&#39;EXT&#39;</span><span class="p">})</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;trigger_timer&#39;</span><span class="p">,</span>
                            <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
