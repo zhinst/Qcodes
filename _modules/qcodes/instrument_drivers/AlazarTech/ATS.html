@@ -174,7 +174,7 @@
 <span class="kn">from</span> <span class="nn">.ats_api</span> <span class="k">import</span> <span class="n">AlazarATSAPI</span>
 <span class="kn">from</span> <span class="nn">.utils</span> <span class="k">import</span> <span class="n">TraceParameter</span>
 <span class="kn">from</span> <span class="nn">.helpers</span> <span class="k">import</span> <span class="n">CapabilityHelper</span>
-<span class="kn">from</span> <span class="nn">.constants</span> <span class="k">import</span> <span class="n">NUMBER_OF_CHANNELS_FROM_BYTE_REPR</span>
+<span class="kn">from</span> <span class="nn">.constants</span> <span class="k">import</span> <span class="n">NUMBER_OF_CHANNELS_FROM_BYTE_REPR</span><span class="p">,</span> <span class="n">max_buffer_size</span>
 
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
@@ -606,6 +606,41 @@
         <span class="n">samples_per_record</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">samples_per_record</span><span class="o">.</span><span class="n">raw_value</span>
         <span class="n">records_per_buffer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">records_per_buffer</span><span class="o">.</span><span class="n">raw_value</span>
 
+        <span class="c1"># bits per sample</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">bits_per_sample</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">get_channel_info_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">)</span>
+
+        <span class="c1"># channels</span>
+        <span class="n">channels_binrep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel_selection</span><span class="o">.</span><span class="n">raw_value</span>
+        <span class="n">number_of_channels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_num_channels</span><span class="p">(</span><span class="n">channels_binrep</span><span class="p">)</span>
+
+        <span class="c1"># In the following we need to consider the size of the buffer</span>
+        <span class="c1"># in two different scenarios as several Alazar cards have sample sizes</span>
+        <span class="c1"># that are in fractions of bytes. (such as 12 bits).</span>
+        <span class="c1"># We are transferring data padded to</span>
+        <span class="c1"># whole bytes. I.e a sample of 12 bits will take up 16 bits when</span>
+        <span class="c1"># transferred so we are allocating buffers of that size.</span>
+        <span class="c1"># However, when calculating internal limitations on the card we are</span>
+        <span class="c1"># using the fractional sizes of samples</span>
+
+        <span class="c1"># number of bytes per sample rounded up to the nearest integer</span>
+        <span class="n">whole_bytes_per_sample</span> <span class="o">=</span> <span class="p">(</span><span class="n">bits_per_sample</span> <span class="o">+</span> <span class="mi">7</span><span class="p">)</span> <span class="o">//</span> <span class="mi">8</span>
+        <span class="n">transfer_record_size</span> <span class="o">=</span> <span class="n">whole_bytes_per_sample</span> <span class="o">*</span> <span class="n">samples_per_record</span>
+        <span class="n">transfer_buffer_size</span> <span class="o">=</span> <span class="p">(</span><span class="n">transfer_record_size</span> <span class="o">*</span>
+                                <span class="n">records_per_buffer</span> <span class="o">*</span> <span class="n">number_of_channels</span><span class="p">)</span>
+
+        <span class="n">sample_type</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint16</span> <span class="k">if</span> <span class="n">whole_bytes_per_sample</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint8</span><span class="p">)</span>
+
+        <span class="n">internal_buffer_size_requested</span> <span class="o">=</span> <span class="p">(</span><span class="n">bits_per_sample</span> <span class="o">*</span> <span class="n">samples_per_record</span> <span class="o">*</span>
+                                          <span class="n">records_per_buffer</span><span class="p">)</span> <span class="o">//</span> <span class="mi">8</span>
+
+        <span class="k">if</span> <span class="n">internal_buffer_size_requested</span> <span class="o">&gt;</span> <span class="n">max_buffer_size</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Requested a buffer of size: &quot;</span>
+                               <span class="n">f</span><span class="s2">&quot;{internal_buffer_size_requested / 1024 ** 2}&quot;</span>
+                               <span class="n">f</span><span class="s2">&quot; MB. The maximum supported size is &quot;</span>
+                               <span class="n">f</span><span class="s2">&quot;{max_buffer_size / 1024 ** 2} MB &quot;</span>
+                               <span class="n">f</span><span class="s2">&quot;(recommended is &lt;8MB).&quot;</span><span class="p">)</span>
+
         <span class="c1"># Set record size for NPT mode</span>
         <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;NPT&#39;</span><span class="p">:</span>
             <span class="n">pretriggersize</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># pretriggersize is 0 for NPT always</span>
@@ -656,23 +691,6 @@
                 <span class="n">acquire_flags</span>
             <span class="p">)</span>
 
-        <span class="c1"># bytes per sample</span>
-        <span class="n">_</span><span class="p">,</span> <span class="n">bps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">get_channel_info_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_handle</span><span class="p">)</span>
-        <span class="c1"># TODO(JHN) Why +7 I guess its to do ceil division?</span>
-        <span class="n">bytes_per_sample</span> <span class="o">=</span> <span class="p">(</span><span class="n">bps</span> <span class="o">+</span> <span class="mi">7</span><span class="p">)</span> <span class="o">//</span> <span class="mi">8</span>
-        <span class="c1"># bytes per record</span>
-        <span class="n">bytes_per_record</span> <span class="o">=</span> <span class="n">bytes_per_sample</span> <span class="o">*</span> <span class="n">samples_per_record</span>
-
-        <span class="c1"># channels</span>
-        <span class="n">channels_binrep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel_selection</span><span class="o">.</span><span class="n">raw_value</span>
-        <span class="n">number_of_channels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_num_channels</span><span class="p">(</span><span class="n">channels_binrep</span><span class="p">)</span>
-
-        <span class="c1"># bytes per buffer</span>
-        <span class="n">bytes_per_buffer</span> <span class="o">=</span> <span class="p">(</span><span class="n">bytes_per_record</span> <span class="o">*</span>
-                            <span class="n">records_per_buffer</span> <span class="o">*</span> <span class="n">number_of_channels</span><span class="p">)</span>
-
-        <span class="n">sample_type</span> <span class="o">=</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint16</span> <span class="k">if</span> <span class="n">bytes_per_sample</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_uint8</span>
-
         <span class="bp">self</span><span class="o">.</span><span class="n">clear_buffers</span><span class="p">()</span>
 
         <span class="c1"># make sure that allocated_buffers &lt;= buffers_per_acquisition</span>
@@ -693,7 +711,7 @@
         <span class="k">try</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">allocated_buffers</span><span class="p">):</span>
                 <span class="n">buf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">allocate_and_post_buffer</span><span class="p">(</span><span class="n">sample_type</span><span class="p">,</span>
-                                                    <span class="n">bytes_per_buffer</span><span class="p">)</span>
+                                                    <span class="n">transfer_buffer_size</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">buffer_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">buf</span><span class="p">)</span>
 
             <span class="c1"># -----start capture here-----</span>
