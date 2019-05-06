@@ -159,8 +159,10 @@
            <div itemprop="articleBody">
             
   <h1>Source code for qcodes.instrument_drivers.Keysight.Keysight_E8267D</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span> <span class="nn">numpy</span> <span class="k">import</span> <span class="n">rad2deg</span><span class="p">,</span> <span class="n">deg2rad</span>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="n">VisaInstrument</span><span class="p">,</span> <span class="n">validators</span> <span class="k">as</span> <span class="n">vals</span>
+<span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="k">import</span> <span class="n">Numbers</span>
+<span class="kn">from</span> <span class="nn">qcodes.utils.helpers</span> <span class="k">import</span> <span class="n">create_on_off_val_mapping</span>
 
 
 <div class="viewcode-block" id="parse_on_off"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.Keysight.html#qcodes.instrument_drivers.Keysight.Keysight_E8267D.parse_on_off">[docs]</a><span class="k">def</span> <span class="nf">parse_on_off</span><span class="p">(</span><span class="n">stat</span><span class="p">):</span>
@@ -169,6 +171,36 @@
     <span class="k">elif</span> <span class="n">stat</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;1&#39;</span><span class="p">):</span>
         <span class="n">stat</span> <span class="o">=</span> <span class="s1">&#39;On&#39;</span>
     <span class="k">return</span> <span class="n">stat</span></div>
+
+
+<span class="n">frequency_mode_docstring</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">This command sets the frequency mode of the signal generator.</span>
+
+<span class="s2">*FIXed* and *CW* These choices are synonymous. Any currently running frequency sweeps are</span>
+<span class="s2">turned off, and the current CW frequency settings are used to control the output</span>
+<span class="s2">frequency.</span>
+
+<span class="s2">*SWEep* The effects of this choice are determined by the sweep generation type selected. In analog sweep generation, the ramp</span>
+<span class="s2">sweep frequency settings (start, stop, center, and span) control the output</span>
+<span class="s2">frequency. In step sweep generation, the current step sweep frequency settings</span>
+<span class="s2">control the output frequency. In both cases, this selection also activates the sweep.</span>
+<span class="s2">This choice is available with Option 007 only.</span>
+
+<span class="s2">*LIST* This choice selects the swept frequency mode. If sweep triggering is set to</span>
+<span class="s2">immediate along with continuous sweep mode, executing the command starts the LIST or STEP frequency sweep. </span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+<span class="n">IQsource_docstring</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">This command selects the I/Q modulator source for one of the two possible paths.</span>
+
+<span class="s2">*EXTernal* This choice selects an external 50 ohm source as the I/Q input to I/Q modulator.</span>
+<span class="s2">*INTernal* This choice is for backward compatibility with ESG E44xxB models and performs</span>
+<span class="s2">the same function as the BBG1 selection.</span>
+<span class="s2">*BBG1* This choice selects the baseband generator as the source for the I/Q modulator.</span>
+<span class="s2">*EXT600* This choice selects a 600 ohm impedance for the I and Q input connectors and</span>
+<span class="s2">routes the applied signals to the I/Q modulator.</span>
+<span class="s2">*OFF* This choice disables the I/Q input.</span>
+<span class="s2">&quot;&quot;&quot;</span>
 
 
 <div class="viewcode-block" id="Keysight_E8267D"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.Keysight.html#qcodes.instrument_drivers.Keysight.Keysight_E8267D.Keysight_E8267D">[docs]</a><span class="k">class</span> <span class="nc">Keysight_E8267D</span><span class="p">(</span><span class="n">VisaInstrument</span><span class="p">):</span>
@@ -188,6 +220,12 @@
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">address</span><span class="p">,</span> <span class="n">step_attenuator</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">address</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
+        <span class="c1"># Only listed most common spellings idealy want a</span>
+        <span class="c1"># .upper val for Enum or string</span>
+        <span class="n">on_off_validator</span> <span class="o">=</span> <span class="n">vals</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="s1">&#39;on&#39;</span><span class="p">,</span> <span class="s1">&#39;On&#39;</span><span class="p">,</span> <span class="s1">&#39;ON&#39;</span><span class="p">,</span>
+                                     <span class="s1">&#39;off&#39;</span><span class="p">,</span> <span class="s1">&#39;Off&#39;</span><span class="p">,</span> <span class="s1">&#39;OFF&#39;</span><span class="p">)</span>
+        <span class="n">on_off_mapping</span> <span class="o">=</span> <span class="n">create_on_off_val_mapping</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;frequency&#39;</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Frequency&#39;</span><span class="p">,</span>
                            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;Hz&#39;</span><span class="p">,</span>
@@ -195,14 +233,29 @@
                            <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;FREQ:CW&#39;</span> <span class="o">+</span> <span class="s1">&#39; </span><span class="si">{:.4f}</span><span class="s1">&#39;</span><span class="p">,</span>
                            <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
                            <span class="n">set_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">(</span><span class="mf">1e5</span><span class="p">,</span> <span class="mf">20e9</span><span class="p">))</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">(</span><span class="mf">1e5</span><span class="p">,</span> <span class="mf">20e9</span><span class="p">),</span>
+                           <span class="n">docstring</span><span class="o">=</span><span class="s1">&#39;Adjust the RF output frequency&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;frequency_offset&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Frequency offset&#39;</span><span class="p">,</span>
+                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;Hz&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;FREQ:OFFS?&#39;</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;FREQ:OFFS </span><span class="si">{}</span><span class="s1">&#39;</span><span class="p">,</span>
+                           <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(</span><span class="n">min_value</span><span class="o">=-</span><span class="mf">200e9</span><span class="p">,</span>
+                                        <span class="n">max_value</span><span class="o">=</span><span class="mf">200e9</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;frequency_mode&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Frequency mode&#39;</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;FREQ:MODE </span><span class="si">{}</span><span class="s1">&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;FREQ:MODE?&#39;</span><span class="p">,</span>
+                           <span class="n">get_parser</span><span class="o">=</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="s1">&#39;FIX&#39;</span><span class="p">,</span> <span class="s1">&#39;CW&#39;</span><span class="p">,</span> <span class="s1">&#39;SWE&#39;</span><span class="p">,</span> <span class="s1">&#39;LIST&#39;</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;phase&#39;</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Phase&#39;</span><span class="p">,</span>
                            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;deg&#39;</span><span class="p">,</span>
                            <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;PHASE?&#39;</span><span class="p">,</span>
                            <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;PHASE&#39;</span> <span class="o">+</span> <span class="s1">&#39; </span><span class="si">{:.8f}</span><span class="s1">&#39;</span><span class="p">,</span>
-                           <span class="n">get_parser</span><span class="o">=</span><span class="n">rad2deg</span><span class="p">,</span>
-                           <span class="n">set_parser</span><span class="o">=</span><span class="n">deg2rad</span><span class="p">,</span>
+                           <span class="n">get_parser</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rad_to_deg</span><span class="p">,</span>
+                           <span class="n">set_parser</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">deg_to_rad</span><span class="p">,</span>
                            <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">(</span><span class="o">-</span><span class="mi">180</span><span class="p">,</span> <span class="mi">180</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;power&#39;</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Power&#39;</span><span class="p">,</span>
@@ -216,10 +269,24 @@
                            <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;:OUTP?&#39;</span><span class="p">,</span>
                            <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;OUTP </span><span class="si">{}</span><span class="s1">&#39;</span><span class="p">,</span>
                            <span class="n">get_parser</span><span class="o">=</span><span class="n">parse_on_off</span><span class="p">,</span>
-                           <span class="c1"># Only listed most common spellings idealy want a</span>
-                           <span class="c1"># .upper val for Enum or string</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="s1">&#39;on&#39;</span><span class="p">,</span> <span class="s1">&#39;On&#39;</span><span class="p">,</span> <span class="s1">&#39;ON&#39;</span><span class="p">,</span>
-                                          <span class="s1">&#39;off&#39;</span><span class="p">,</span> <span class="s1">&#39;Off&#39;</span><span class="p">,</span> <span class="s1">&#39;OFF&#39;</span><span class="p">))</span>
+                           <span class="n">vals</span><span class="o">=</span><span class="n">on_off_validator</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;modulation_rf_enabled&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;OUTP:MOD?&#39;</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;OUTP:MOD </span><span class="si">{}</span><span class="s1">&#39;</span><span class="p">,</span>
+                           <span class="n">val_mapping</span><span class="o">=</span><span class="n">on_off_mapping</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;IQmodulator_enabled&#39;</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;DM:STATe?&#39;</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="s1">&#39;DM:STATe </span><span class="si">{}</span><span class="s1">&#39;</span><span class="p">,</span>
+                           <span class="n">val_mapping</span><span class="o">=</span><span class="n">on_off_mapping</span><span class="p">,</span>
+                           <span class="n">docstring</span><span class="o">=</span><span class="s1">&#39;Enables or disables the internal I/Q modulator. Source can be external or internal.&#39;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">source</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;IQsource</span><span class="si">{source}</span><span class="s1">&#39;</span><span class="p">,</span>
+                               <span class="n">get_cmd</span><span class="o">=</span><span class="n">f</span><span class="s1">&#39;DM:SOUR</span><span class="si">{source}</span><span class="s1">?&#39;</span><span class="p">,</span>
+                               <span class="n">set_cmd</span><span class="o">=</span><span class="n">f</span><span class="s1">&#39;DM:SOUR</span><span class="si">{source}</span><span class="s1"> {{}}&#39;</span><span class="p">,</span>
+                               <span class="n">get_parser</span><span class="o">=</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span>
+                               <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Enum</span><span class="p">(</span><span class="s1">&#39;OFF&#39;</span><span class="p">,</span> <span class="s1">&#39;EXT&#39;</span><span class="p">,</span> <span class="s1">&#39;EXT600&#39;</span><span class="p">,</span> <span class="s1">&#39;INT&#39;</span><span class="p">),</span>
+                               <span class="n">docstring</span><span class="o">=</span><span class="n">IQsource_docstring</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">connect_message</span><span class="p">()</span>
 
@@ -227,7 +294,15 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;status&#39;</span><span class="p">,</span> <span class="s1">&#39;on&#39;</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Keysight_E8267D.off"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.Keysight.html#qcodes.instrument_drivers.Keysight.Keysight_E8267D.Keysight_E8267D.off">[docs]</a>    <span class="k">def</span> <span class="nf">off</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;status&#39;</span><span class="p">,</span> <span class="s1">&#39;off&#39;</span><span class="p">)</span></div></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;status&#39;</span><span class="p">,</span> <span class="s1">&#39;off&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Keysight_E8267D.deg_to_rad"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.Keysight.html#qcodes.instrument_drivers.Keysight.Keysight_E8267D.Keysight_E8267D.deg_to_rad">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">deg_to_rad</span><span class="p">(</span><span class="n">angle_deg</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">deg2rad</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">angle_deg</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="Keysight_E8267D.rad_to_deg"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.Keysight.html#qcodes.instrument_drivers.Keysight.Keysight_E8267D.Keysight_E8267D.rad_to_deg">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">rad_to_deg</span><span class="p">(</span><span class="n">angle_rad</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">rad2deg</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">angle_rad</span><span class="p">))</span></div></div>
 </pre></div>
 
            </div>
