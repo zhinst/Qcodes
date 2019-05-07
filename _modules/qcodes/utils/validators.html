@@ -673,32 +673,98 @@
 
 <div class="viewcode-block" id="Arrays"><a class="viewcode-back" href="../../../api/utils/validators.html#qcodes.utils.validators.Arrays">[docs]</a><span class="k">class</span> <span class="nc">Arrays</span><span class="p">(</span><span class="n">Validator</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Validator for numerical numpy arrays</span>
+<span class="sd">    Validator for numerical numpy arrays of numeric types (int, float, complex).</span>
+<span class="sd">    By default it validates int and float arrays.</span>
+
+<span class="sd">    Min and max validation is not supported for complex numbers.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        min_value:  Min value allowed, default inf.</span>
-<span class="sd">        max_value: Max value allowed, default inf.</span>
+<span class="sd">        min_value:  Min value allowed, default None for which min value</span>
+<span class="sd">            check is not performed</span>
+<span class="sd">        max_value: Max value allowed, default None for which max value</span>
+<span class="sd">            check is not performed</span>
 <span class="sd">        shape: The shape of the array, tuple of either ints or Callables taking</span>
 <span class="sd">            no arguments that return the size along that dim as an int.</span>
+<span class="sd">        valid_types: Sequence of types that the validator should support. Should</span>
+<span class="sd">            be a subset of the supported types, or None. If None, all real</span>
+<span class="sd">            datatypes will validate.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="n">validtypes</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">)</span>
+    <span class="n">__real_types</span> <span class="o">=</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">)</span>
+    <span class="n">__supported_types</span> <span class="o">=</span> <span class="n">__real_types</span> <span class="o">+</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">complexfloating</span><span class="p">,)</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">min_value</span><span class="p">:</span> <span class="n">numbertypes</span> <span class="o">=</span> <span class="o">-</span><span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">),</span>
-                 <span class="n">max_value</span><span class="p">:</span> <span class="n">numbertypes</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">),</span>
-                 <span class="n">shape</span><span class="p">:</span> <span class="n">TSequence</span><span class="p">[</span><span class="n">shape_type</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">min_value</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">numbertypes</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">max_value</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">numbertypes</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">shape</span><span class="p">:</span> <span class="n">TSequence</span><span class="p">[</span><span class="n">shape_type</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">valid_types</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">TSequence</span><span class="p">[</span><span class="nb">type</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">min_value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">validtypes</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">valid_types</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">mytype</span> <span class="ow">in</span> <span class="n">valid_types</span><span class="p">:</span>
+
+                <span class="n">is_supported</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">issubsctype</span><span class="p">(</span><span class="n">mytype</span><span class="p">,</span> <span class="n">supported_type</span><span class="p">)</span> <span class="k">for</span>
+                                   <span class="n">supported_type</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__supported_types</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">is_supported</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Arrays validator only supports numeric &quot;</span>
+                                    <span class="n">f</span><span class="s2">&quot;types: </span><span class="si">{mytype}</span><span class="s2"> is not supported.&quot;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">valid_types</span> <span class="o">=</span> <span class="n">valid_types</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">valid_types</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__real_types</span>
+
+        <span class="n">supports_complex</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">issubsctype</span><span class="p">(</span><span class="n">my_type</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">complexfloating</span><span class="p">)</span> <span class="k">for</span> <span class="n">my_type</span> <span class="ow">in</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">valid_types</span><span class="p">)</span>
+
+        <span class="n">limits_given</span> <span class="o">=</span> <span class="n">min_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">max_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+
+        <span class="n">min_real</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">issubsctype</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">min_value</span><span class="p">),</span> <span class="n">real_type</span><span class="p">)</span> <span class="k">for</span> <span class="n">real_type</span> <span class="ow">in</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__real_types</span><span class="p">)</span>
+
+        <span class="n">max_real</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">issubsctype</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">max_value</span><span class="p">),</span> <span class="n">real_type</span><span class="p">)</span> <span class="k">for</span> <span class="n">real_type</span> <span class="ow">in</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__real_types</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">min_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">min_real</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;min_value must be a real number. It is &quot;</span>
+                            <span class="n">f</span><span class="s2">&quot;</span><span class="si">{min_value}</span><span class="s2"> of type {type(min_value)}&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">max_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">max_real</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;max_value must be a real number. It is &quot;</span>
+                            <span class="n">f</span><span class="s2">&quot;</span><span class="si">{max_value}</span><span class="s2"> of type {type(max_value)}&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">supports_complex</span> <span class="ow">and</span> <span class="n">limits_given</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="s2">&quot;Setting min_value or max_value is not supported for &quot;</span>
+                <span class="s2">&quot;complex validators.&quot;</span><span class="p">)</span>
+
+        <span class="n">min_value_is_valid_type</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">issubsctype</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">min_value</span><span class="p">),</span> <span class="n">valid_type</span><span class="p">)</span> <span class="k">for</span> <span class="n">valid_type</span> <span class="ow">in</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">valid_types</span><span class="p">)</span>
+
+        <span class="n">max_value_is_valid_type</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">issubsctype</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">max_value</span><span class="p">),</span> <span class="n">valid_type</span><span class="p">)</span> <span class="k">for</span> <span class="n">valid_type</span> <span class="ow">in</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">valid_types</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">min_value_is_valid_type</span> <span class="ow">or</span> <span class="n">min_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_min_value</span> <span class="o">=</span> <span class="n">min_value</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;min_value must be a number&#39;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;min_value must be an instance of valid_types. &#39;</span>
+                            <span class="n">f</span><span class="s1">&#39;It is </span><span class="si">{min_value}</span><span class="s1"> of &#39;</span>
+                            <span class="n">f</span><span class="s1">&#39;type {type(min_value)}&#39;</span><span class="p">)</span>
 
-        <span class="n">valuesok</span> <span class="o">=</span> <span class="n">max_value</span> <span class="o">&gt;</span> <span class="n">min_value</span>
-
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">max_value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">validtypes</span><span class="p">)</span> <span class="ow">and</span> <span class="n">valuesok</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">max_value_is_valid_type</span> <span class="ow">or</span> <span class="n">max_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_max_value</span> <span class="o">=</span> <span class="n">max_value</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;max_value must be a number bigger than min_value&#39;</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;max_value must be an instance of valid_types. &#39;</span>
+                            <span class="n">f</span><span class="s1">&#39;It is </span><span class="si">{max_value}</span><span class="s1"> of &#39;</span>
+                            <span class="n">f</span><span class="s1">&#39;type {type(max_value)}&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">min_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">max_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">valuesok</span> <span class="o">=</span> <span class="n">max_value</span> <span class="o">&gt;</span> <span class="n">min_value</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">valuesok</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;max_value must be bigger than min_value&#39;</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span>
                           <span class="n">collections</span><span class="o">.</span><span class="n">abc</span><span class="o">.</span><span class="n">Sequence</span><span class="p">)</span> <span class="ow">and</span> <span class="n">shape</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Shape must be a sequence (List, Tuple ...) &quot;</span>
@@ -712,9 +778,9 @@
     <span class="k">def</span> <span class="nf">valid_values</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
         <span class="n">shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span>
         <span class="k">if</span> <span class="n">shape</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">_min_value</span><span class="p">]),)</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">_min_value</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">valid_types</span><span class="p">[</span><span class="mi">0</span><span class="p">]),)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">val_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+            <span class="n">val_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">valid_types</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
             <span class="n">val_arr</span><span class="o">.</span><span class="n">fill</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_min_value</span><span class="p">)</span>
             <span class="k">return</span> <span class="p">(</span><span class="n">val_arr</span><span class="p">,)</span>
 
@@ -741,9 +807,12 @@
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
                 <span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> is not a numpy array; </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">value</span><span class="p">),</span> <span class="n">context</span><span class="p">))</span>
 
-        <span class="k">if</span> <span class="n">value</span><span class="o">.</span><span class="n">dtype</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">validtypes</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">issubsctype</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">type</span><span class="p">,</span> <span class="n">valid_type</span><span class="p">)</span> <span class="k">for</span> <span class="n">valid_type</span> <span class="ow">in</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">valid_types</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
-                <span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> is not an int or float; </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">value</span><span class="p">),</span> <span class="n">context</span><span class="p">))</span>
+                <span class="n">f</span><span class="s1">&#39;type of </span><span class="si">{value}</span><span class="s1"> is not any of </span><span class="si">{self.valid_types}</span><span class="s1">&#39;</span>
+                <span class="n">f</span><span class="s1">&#39; it is </span><span class="si">{value.dtype}</span><span class="s1">; </span><span class="si">{context}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span>
             <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">!=</span> <span class="n">shape</span><span class="p">:</span>
@@ -752,7 +821,7 @@
                     <span class="n">f</span><span class="s1">&#39; it has shape {np.shape(value)}; </span><span class="si">{context}</span><span class="s1">&#39;</span><span class="p">)</span>
 
         <span class="c1"># Only check if max is not inf as it can be expensive for large arrays</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_value</span> <span class="o">!=</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_value</span> <span class="o">!=</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">))</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_value</span><span class="p">):</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
                     <span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> is invalid: all values must be between &#39;</span>
@@ -761,7 +830,7 @@
                         <span class="bp">self</span><span class="o">.</span><span class="n">_max_value</span><span class="p">,</span> <span class="n">context</span><span class="p">))</span>
 
         <span class="c1"># Only check if min is not -inf as it can be expensive for large arrays</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_min_value</span> <span class="o">!=</span> <span class="p">(</span><span class="o">-</span><span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_min_value</span> <span class="o">!=</span> <span class="p">(</span><span class="o">-</span><span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">))</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_min_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_min_value</span> <span class="o">&lt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">value</span><span class="p">)):</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
                     <span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> is invalid: all values must be between &#39;</span>
@@ -772,13 +841,18 @@
     <span class="n">is_numeric</span> <span class="o">=</span> <span class="kc">True</span>
 
     <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-        <span class="n">minv</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_min_value</span> <span class="k">if</span> <span class="n">math</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_min_value</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
-        <span class="n">maxv</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_value</span> <span class="k">if</span> <span class="n">math</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_max_value</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_min_value</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">math</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_min_value</span><span class="p">):</span>
+            <span class="n">minv</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">minv</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_min_value</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_value</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">math</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_max_value</span><span class="p">):</span>
+            <span class="n">maxv</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">maxv</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_value</span>
         <span class="c1"># we don&#39;t want the repr to execute any deferred shape argument</span>
         <span class="c1"># so we use shape_unevaluated</span>
         <span class="k">return</span> <span class="s1">&#39;&lt;Arrays</span><span class="si">{}</span><span class="s1">, shape: </span><span class="si">{}</span><span class="s1">&gt;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">range_str</span><span class="p">(</span><span class="n">minv</span><span class="p">,</span> <span class="n">maxv</span><span class="p">,</span> <span class="s1">&#39;v&#39;</span><span class="p">),</span>
                                               <span class="bp">self</span><span class="o">.</span><span class="n">shape_unevaluated</span><span class="p">)</span></div>
-
 
 
 <div class="viewcode-block" id="Lists"><a class="viewcode-back" href="../../../api/utils/validators.html#qcodes.utils.validators.Lists">[docs]</a><span class="k">class</span> <span class="nc">Lists</span><span class="p">(</span><span class="n">Validator</span><span class="p">):</span>
