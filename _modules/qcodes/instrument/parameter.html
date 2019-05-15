@@ -173,8 +173,8 @@
 <span class="sd">to all parameter types, such as ramping and scaling of values, adding delays</span>
 <span class="sd">(see documentation for details).</span>
 
-<span class="sd">This module defines four classes of parameters as well as some more specialized</span>
-<span class="sd">ones:</span>
+<span class="sd">This module defines the following basic classes of parameters as well as some</span>
+<span class="sd">more specialized ones:</span>
 
 <span class="sd">- :class:`.Parameter` is the base class for scalar-valued parameters.</span>
 <span class="sd">    Two primary ways in which it can be used:</span>
@@ -194,6 +194,11 @@
 <span class="sd">    :class:`qcodes.dataset.measurements.Measurement` but is not supported by the</span>
 <span class="sd">    legacy :class:`qcodes.loops.Loop` and :class:`qcodes.measure.Measure`</span>
 <span class="sd">    measurement types.</span>
+
+<span class="sd">- :class:`.DelegateParameter` is intended proxy-ing other parameters.</span>
+<span class="sd">    It forwards its ``get`` and ``set`` to the underlying source parameter,</span>
+<span class="sd">    while allowing to specify label/unit/etc that is different from the</span>
+<span class="sd">    source parameter.</span>
 
 <span class="sd">- :class:`.ArrayParameter` is an older base class for array-valued parameters.</span>
 <span class="sd">    For any new driver we strongly recommend using</span>
@@ -1091,8 +1096,11 @@
                  <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">instrument</span><span class="o">=</span><span class="n">instrument</span><span class="p">,</span> <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
-        <span class="c1"># Enable set/get methods if get_cmd/set_cmd is given</span>
-        <span class="c1"># Called first so super().__init__ can wrap get/set methods</span>
+        <span class="c1"># Enable set/get methods from get_cmd/set_cmd if given and</span>
+        <span class="c1"># no `get`/`set` or `get_raw`/`set_raw` methods have been defined</span>
+        <span class="c1"># in the scope of this class.</span>
+        <span class="c1"># (previous call to `super().__init__` wraps existing get_raw/set_raw to</span>
+        <span class="c1"># get/set methods)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;get&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">get_cmd</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">False</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">get_cmd</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">max_val_age</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -1289,6 +1297,58 @@
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vals</span><span class="p">,</span> <span class="n">Arrays</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">validate_consistent_shape</span><span class="p">()</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="DelegateParameter"><a class="viewcode-back" href="../../../api/parameters/parameter.html#qcodes.instrument_drivers.devices.DelegateParameter">[docs]</a><span class="k">class</span> <span class="nc">DelegateParameter</span><span class="p">(</span><span class="n">Parameter</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The `DelegateParameter` wraps a given `source`-parameter. Setting/getting</span>
+<span class="sd">    it results in a set/get of the source parameter with the provided</span>
+<span class="sd">    arguments.</span>
+
+<span class="sd">    The reason for using a `DelegateParameter` instead of the source parameter</span>
+<span class="sd">    is to provide all the functionality of the Parameter base class without</span>
+<span class="sd">    overwriting properties of the source: for example to set a different</span>
+<span class="sd">    Scaling factor and unit on the `DelegateParameter` without changing those</span>
+<span class="sd">    in the source parameter</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="n">Parameter</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">source</span> <span class="o">=</span> <span class="n">source</span>
+
+        <span class="k">for</span> <span class="n">ka</span><span class="p">,</span> <span class="n">param</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">((</span><span class="s1">&#39;unit&#39;</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">,</span> <span class="s1">&#39;snapshot_value&#39;</span><span class="p">),</span>
+                             <span class="p">(</span><span class="s1">&#39;unit&#39;</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">,</span> <span class="s1">&#39;_snapshot_value&#39;</span><span class="p">)):</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="n">ka</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ka</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">param</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="n">cmd</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;set_cmd&#39;</span><span class="p">,</span> <span class="s1">&#39;get_cmd&#39;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">cmd</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;It is not allowed to set &quot;</span><span class="si">{cmd}</span><span class="s1">&quot; of a &#39;</span>
+                               <span class="n">f</span><span class="s1">&#39;DelegateParameter because the one of the &#39;</span>
+                               <span class="n">f</span><span class="s1">&#39;source parameter is supposed to be used.&#39;</span><span class="p">)</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="c1"># Disable the warnings until MultiParameter has been</span>
+    <span class="c1"># replaced and name/label/unit can live in _BaseParameter</span>
+    <span class="c1"># pylint: disable=method-hidden</span>
+<div class="viewcode-block" id="DelegateParameter.get_raw"><a class="viewcode-back" href="../../../api/parameters/parameter.html#qcodes.instrument_drivers.devices.DelegateParameter.get_raw">[docs]</a>    <span class="k">def</span> <span class="nf">get_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">get</span><span class="p">()</span></div>
+
+    <span class="c1"># same as for `get_raw`</span>
+    <span class="c1"># pylint: disable=method-hidden</span>
+<div class="viewcode-block" id="DelegateParameter.set_raw"><a class="viewcode-back" href="../../../api/parameters/parameter.html#qcodes.instrument_drivers.devices.DelegateParameter.set_raw">[docs]</a>    <span class="k">def</span> <span class="nf">set_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DelegateParameter.snapshot_base"><a class="viewcode-back" href="../../../api/parameters/parameter.html#qcodes.instrument_drivers.devices.DelegateParameter.snapshot_base">[docs]</a>    <span class="k">def</span> <span class="nf">snapshot_base</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                      <span class="n">update</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                      <span class="n">params_to_skip_update</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="n">snapshot</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">snapshot_base</span><span class="p">(</span>
+            <span class="n">update</span><span class="o">=</span><span class="n">update</span><span class="p">,</span>
+            <span class="n">params_to_skip_update</span><span class="o">=</span><span class="n">params_to_skip_update</span>
+        <span class="p">)</span>
+        <span class="n">snapshot</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="p">{</span><span class="s1">&#39;source_parameter&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="n">update</span><span class="p">)}</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">snapshot</span></div></div>
 
 
 <div class="viewcode-block" id="ArrayParameter"><a class="viewcode-back" href="../../../api/parameters/parameter.html#qcodes.instrument_drivers.devices.ArrayParameter">[docs]</a><span class="k">class</span> <span class="nc">ArrayParameter</span><span class="p">(</span><span class="n">_BaseParameter</span><span class="p">):</span>

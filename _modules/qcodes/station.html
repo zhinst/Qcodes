@@ -160,17 +160,52 @@
             
   <h1>Source code for qcodes.station</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Station objects - collect all the equipment you use to do an experiment.&quot;&quot;&quot;</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Any</span>
+<span class="kn">from</span> <span class="nn">contextlib</span> <span class="k">import</span> <span class="n">suppress</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="p">(</span>
+    <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">cast</span><span class="p">,</span> <span class="n">AnyStr</span><span class="p">,</span> <span class="n">IO</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="k">import</span> <span class="n">partial</span>
+<span class="kn">import</span> <span class="nn">importlib</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="k">import</span> <span class="n">deepcopy</span><span class="p">,</span> <span class="n">copy</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">UserDict</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Union</span>
 
+<span class="kn">import</span> <span class="nn">qcodes</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.metadata</span> <span class="k">import</span> <span class="n">Metadatable</span>
-<span class="kn">from</span> <span class="nn">qcodes.utils.helpers</span> <span class="k">import</span> <span class="n">make_unique</span><span class="p">,</span> <span class="n">DelegateAttributes</span>
+<span class="kn">from</span> <span class="nn">qcodes.utils.helpers</span> <span class="k">import</span> <span class="p">(</span>
+    <span class="n">make_unique</span><span class="p">,</span> <span class="n">DelegateAttributes</span><span class="p">,</span> <span class="n">YAML</span><span class="p">,</span> <span class="n">checked_getattr</span><span class="p">)</span>
 
-<span class="kn">from</span> <span class="nn">qcodes.instrument.base</span> <span class="k">import</span> <span class="n">Instrument</span>
-<span class="kn">from</span> <span class="nn">qcodes.instrument.parameter</span> <span class="k">import</span> <span class="n">Parameter</span>
-<span class="kn">from</span> <span class="nn">qcodes.instrument.parameter</span> <span class="k">import</span> <span class="n">ManualParameter</span>
-<span class="kn">from</span> <span class="nn">qcodes.instrument.parameter</span> <span class="k">import</span> <span class="n">StandardParameter</span>
+<span class="kn">from</span> <span class="nn">qcodes.instrument.base</span> <span class="k">import</span> <span class="n">Instrument</span><span class="p">,</span> <span class="n">InstrumentBase</span>
+<span class="kn">from</span> <span class="nn">qcodes.instrument.parameter</span> <span class="k">import</span> <span class="p">(</span>
+    <span class="n">Parameter</span><span class="p">,</span> <span class="n">ManualParameter</span><span class="p">,</span> <span class="n">StandardParameter</span><span class="p">,</span>
+    <span class="n">DelegateParameter</span><span class="p">)</span>
+<span class="kn">import</span> <span class="nn">qcodes.utils.validators</span> <span class="k">as</span> <span class="nn">validators</span>
+<span class="kn">from</span> <span class="nn">qcodes.monitor.monitor</span> <span class="k">import</span> <span class="n">Monitor</span>
 
 <span class="kn">from</span> <span class="nn">qcodes.actions</span> <span class="k">import</span> <span class="n">_actions_snapshot</span>
+
+
+<span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="n">PARAMETER_ATTRIBUTES</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">,</span> <span class="s1">&#39;unit&#39;</span><span class="p">,</span> <span class="s1">&#39;scale&#39;</span><span class="p">,</span> <span class="s1">&#39;inter_delay&#39;</span><span class="p">,</span> <span class="s1">&#39;post_delay&#39;</span><span class="p">,</span>
+                        <span class="s1">&#39;step&#39;</span><span class="p">,</span> <span class="s1">&#39;offset&#39;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="get_config_enable_forced_reconnect"><a class="viewcode-back" href="../../api/station.html#qcodes.station.get_config_enable_forced_reconnect">[docs]</a><span class="k">def</span> <span class="nf">get_config_enable_forced_reconnect</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">qcodes</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;station&quot;</span><span class="p">][</span><span class="s2">&quot;enable_forced_reconnect&quot;</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="get_config_default_folder"><a class="viewcode-back" href="../../api/station.html#qcodes.station.get_config_default_folder">[docs]</a><span class="k">def</span> <span class="nf">get_config_default_folder</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+    <span class="k">return</span> <span class="n">qcodes</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;station&quot;</span><span class="p">][</span><span class="s2">&quot;default_folder&quot;</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="get_config_default_file"><a class="viewcode-back" href="../../api/station.html#qcodes.station.get_config_default_file">[docs]</a><span class="k">def</span> <span class="nf">get_config_default_file</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+    <span class="k">return</span> <span class="n">qcodes</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;station&quot;</span><span class="p">][</span><span class="s2">&quot;default_file&quot;</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="get_config_use_monitor"><a class="viewcode-back" href="../../api/station.html#qcodes.station.get_config_use_monitor">[docs]</a><span class="k">def</span> <span class="nf">get_config_use_monitor</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+    <span class="k">return</span> <span class="n">qcodes</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;station&quot;</span><span class="p">][</span><span class="s2">&quot;use_monitor&quot;</span><span class="p">]</span></div>
 
 
 <div class="viewcode-block" id="Station"><a class="viewcode-back" href="../../api/station.html#qcodes.station.Station">[docs]</a><span class="k">class</span> <span class="nc">Station</span><span class="p">(</span><span class="n">Metadatable</span><span class="p">,</span> <span class="n">DelegateAttributes</span><span class="p">):</span>
@@ -204,11 +239,12 @@
 <span class="sd">            treated as attributes of self</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="n">default</span> <span class="o">=</span> <span class="kc">None</span> <span class="c1"># type: &#39;Station&#39;</span>
+    <span class="n">default</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;Station&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">components</span><span class="p">:</span> <span class="n">Metadatable</span><span class="p">,</span>
-                 <span class="n">monitor</span><span class="p">:</span> <span class="n">Any</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">default</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                 <span class="n">update_snapshot</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+                 <span class="n">config_file</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">use_monitor</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">default</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                 <span class="n">update_snapshot</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
         <span class="c1"># when a new station is defined, store it in a class variable</span>
@@ -220,16 +256,21 @@
         <span class="k">if</span> <span class="n">default</span><span class="p">:</span>
             <span class="n">Station</span><span class="o">.</span><span class="n">default</span> <span class="o">=</span> <span class="bp">self</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">components</span> <span class="o">=</span> <span class="p">{}</span> <span class="c1"># type: Dict[str, Metadatable]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Metadatable</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">components</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">add_component</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">update_snapshot</span><span class="o">=</span><span class="n">update_snapshot</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">monitor</span> <span class="o">=</span> <span class="n">monitor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_monitor</span> <span class="o">=</span> <span class="n">use_monitor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config_file</span> <span class="o">=</span> <span class="n">config_file</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">default_measurement</span> <span class="o">=</span> <span class="p">[]</span> <span class="c1"># type: List</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">default_measurement</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_added_methods</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_monitor_parameters</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Parameter</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
 
-<div class="viewcode-block" id="Station.snapshot_base"><a class="viewcode-back" href="../../api/station.html#qcodes.station.Station.snapshot_base">[docs]</a>    <span class="k">def</span> <span class="nf">snapshot_base</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                      <span class="n">params_to_skip_update</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">load_config_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config_file</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Station.snapshot_base"><a class="viewcode-back" href="../../api/station.html#qcodes.station.Station.snapshot_base">[docs]</a>    <span class="k">def</span> <span class="nf">snapshot_base</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                      <span class="n">params_to_skip_update</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        State of the station as a JSON-compatible dict.</span>
 
@@ -277,8 +318,8 @@
 
         <span class="k">return</span> <span class="n">snap</span></div>
 
-<div class="viewcode-block" id="Station.add_component"><a class="viewcode-back" href="../../api/station.html#qcodes.station.Station.add_component">[docs]</a>    <span class="k">def</span> <span class="nf">add_component</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">component</span><span class="p">:</span> <span class="n">Metadatable</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                      <span class="n">update_snapshot</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<div class="viewcode-block" id="Station.add_component"><a class="viewcode-back" href="../../api/station.html#qcodes.station.Station.add_component">[docs]</a>    <span class="k">def</span> <span class="nf">add_component</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">component</span><span class="p">:</span> <span class="n">Metadatable</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                      <span class="n">update_snapshot</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Record one component as part of this Station.</span>
 
@@ -289,8 +330,8 @@
 <span class="sd">                of each component as it is added to the Station, default true</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            str: The name assigned this component, which may have been changed to</span>
-<span class="sd">            make it unique among previously added components.</span>
+<span class="sd">            str: The name assigned this component, which may have been changed</span>
+<span class="sd">                 to make it unique among previously added components.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
@@ -377,7 +418,249 @@
         <span class="sd">&quot;&quot;&quot;Shortcut to components dict.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="n">key</span><span class="p">]</span></div>
 
-    <span class="n">delegate_attr_dicts</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;components&#39;</span><span class="p">]</span></div>
+    <span class="n">delegate_attr_dicts</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;components&#39;</span><span class="p">]</span>
+
+<div class="viewcode-block" id="Station.load_config_file"><a class="viewcode-back" href="../../api/station.html#qcodes.station.Station.load_config_file">[docs]</a>    <span class="k">def</span> <span class="nf">load_config_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Loads a configuration from a YAML file. If `filename` is not specified</span>
+<span class="sd">        the default file name from the qcodes config will be used.</span>
+
+<span class="sd">        Loading of a configuration will update the snapshot of the station and</span>
+<span class="sd">        make the instruments described in the config file available for</span>
+<span class="sd">        instantiation with the :meth:`load_instrument` method.</span>
+
+<span class="sd">        Additionally the shortcut methods `load_&lt;instrument_name&gt;` will be</span>
+<span class="sd">        updated.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">def</span> <span class="nf">get_config_file_path</span><span class="p">(</span>
+                <span class="n">filename</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+            <span class="n">filename</span> <span class="o">=</span> <span class="n">filename</span> <span class="ow">or</span> <span class="n">get_config_default_file</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">filename</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            <span class="n">search_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">filename</span><span class="p">]</span>
+            <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isabs</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span> <span class="ow">and</span>
+                    <span class="n">get_config_default_folder</span><span class="p">()</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
+                <span class="n">config_folder</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">get_config_default_folder</span><span class="p">())</span>
+                <span class="n">search_list</span> <span class="o">+=</span> <span class="p">[</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config_folder</span><span class="p">,</span> <span class="n">filename</span><span class="p">)]</span>
+            <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">search_list</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">p</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="n">p</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="n">path</span> <span class="o">=</span> <span class="n">get_config_file_path</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">filename</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">get_config_default_file</span><span class="p">()</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                        <span class="s1">&#39;Could not load default config for Station: </span><span class="se">\n</span><span class="s1">&#39;</span>
+                        <span class="n">f</span><span class="s1">&#39;File {get_config_default_file()} not found. </span><span class="se">\n</span><span class="s1">&#39;</span>
+                        <span class="s1">&#39;You can change the default config file in &#39;</span>
+                        <span class="s1">&#39;`qcodesrc.json`.&#39;</span><span class="p">)</span>
+                <span class="k">return</span>
+
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">load_config</span><span class="p">(</span><span class="n">f</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Station.load_config"><a class="viewcode-back" href="../../api/station.html#qcodes.station.Station.load_config">[docs]</a>    <span class="k">def</span> <span class="nf">load_config</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">IO</span><span class="p">[</span><span class="n">AnyStr</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Loads a config from a supplied string or file/stream handle.</span>
+
+<span class="sd">        Loading of a configuration will update the snapshot of the station and</span>
+<span class="sd">        make the instruments described in the config file available for</span>
+<span class="sd">        instantiation with the :meth:`load_instrument` method.</span>
+
+<span class="sd">        Additionally the shortcut methods `load_&lt;instrument_name&gt;` will be</span>
+<span class="sd">        updated.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">def</span> <span class="nf">update_station_configuration_snapshot</span><span class="p">():</span>
+            <span class="k">class</span> <span class="nc">StationConfig</span><span class="p">(</span><span class="n">UserDict</span><span class="p">):</span>
+                <span class="k">def</span> <span class="nf">snapshot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="bp">self</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s1">&#39;config&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">StationConfig</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">update_load_instrument_methods</span><span class="p">():</span>
+            <span class="c1">#  create shortcut methods to instantiate instruments via</span>
+            <span class="c1"># `load_&lt;instrument_name&gt;()` so that autocompletion can be used</span>
+            <span class="c1"># first remove methods that have been added by a previous</span>
+            <span class="c1"># :meth:`load_config_file` call</span>
+            <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_added_methods</span><span class="p">):</span>
+                <span class="nb">delattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_added_methods</span><span class="o">.</span><span class="n">pop</span><span class="p">())</span>
+
+            <span class="c1"># add shortcut methods</span>
+            <span class="k">for</span> <span class="n">instrument_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_config</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">method_name</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;load_</span><span class="si">{instrument_name}</span><span class="s1">&#39;</span>
+                <span class="k">if</span> <span class="n">method_name</span><span class="o">.</span><span class="n">isidentifier</span><span class="p">():</span>
+                    <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">method_name</span><span class="p">,</span> <span class="n">partial</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">load_instrument</span><span class="p">,</span> <span class="n">identifier</span><span class="o">=</span><span class="n">instrument_name</span><span class="p">))</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_added_methods</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">method_name</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Invalid identifier: &#39;</span> <span class="o">+</span>
+                                <span class="n">f</span><span class="s1">&#39;for the instrument </span><span class="si">{instrument_name}</span><span class="s1"> no &#39;</span> <span class="o">+</span>
+                                <span class="n">f</span><span class="s1">&#39;lazy loading method </span><span class="si">{method_name}</span><span class="s1"> could &#39;</span> <span class="o">+</span>
+                                <span class="s1">&#39;be created in the Station.&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="n">YAML</span><span class="p">()</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">[</span><span class="s1">&#39;instruments&#39;</span><span class="p">]</span>
+        <span class="n">update_station_configuration_snapshot</span><span class="p">()</span>
+        <span class="n">update_load_instrument_methods</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="Station.close_and_remove_instrument"><a class="viewcode-back" href="../../api/station.html#qcodes.station.Station.close_and_remove_instrument">[docs]</a>    <span class="k">def</span> <span class="nf">close_and_remove_instrument</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                                    <span class="n">instrument</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Instrument</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
+                                    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Safely close instrument and remove from station and monitor list</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># remove parameters related to this instrument from the</span>
+        <span class="c1"># monitor list</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">instrument</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">instrument</span> <span class="o">=</span> <span class="n">Instrument</span><span class="o">.</span><span class="n">find_instrument</span><span class="p">(</span><span class="n">instrument</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_monitor_parameters</span> <span class="o">=</span> <span class="p">[</span><span class="n">v</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_monitor_parameters</span>
+                                    <span class="k">if</span> <span class="n">v</span><span class="o">.</span><span class="n">root_instrument</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">instrument</span><span class="p">]</span>
+        <span class="c1"># remove instrument from station snapshot</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">remove_component</span><span class="p">(</span><span class="n">instrument</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="c1"># del will remove weakref and close the instrument</span>
+        <span class="n">instrument</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">del</span> <span class="n">instrument</span></div>
+
+<div class="viewcode-block" id="Station.load_instrument"><a class="viewcode-back" href="../../api/station.html#qcodes.station.Station.load_instrument">[docs]</a>    <span class="k">def</span> <span class="nf">load_instrument</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">identifier</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                        <span class="n">revive_instance</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                        <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Instrument</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Creates an :class:`~.Instrument` instance as described by the</span>
+<span class="sd">        loaded config file.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            identifier: the identfying string that is looked up in the yaml</span>
+<span class="sd">                configuration file, which identifies the instrument to be added</span>
+<span class="sd">            revive_instance: If true, try to return an instrument with the</span>
+<span class="sd">                specified name instead of closing it and creating a new one.</span>
+<span class="sd">            **kwargs: additional keyword arguments that get passed on to the</span>
+<span class="sd">                __init__-method of the instrument to be added.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># try to revive the instrument</span>
+        <span class="k">if</span> <span class="n">revive_instance</span> <span class="ow">and</span> <span class="n">Instrument</span><span class="o">.</span><span class="n">exist</span><span class="p">(</span><span class="n">identifier</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">Instrument</span><span class="o">.</span><span class="n">find_instrument</span><span class="p">(</span><span class="n">identifier</span><span class="p">)</span>
+
+        <span class="c1"># load file</span>
+        <span class="c1"># try to reload file on every call. This makes script execution a</span>
+        <span class="c1"># little slower but makes the overall workflow more convenient.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">load_config_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config_file</span><span class="p">)</span>
+
+        <span class="c1"># load from config</span>
+        <span class="k">if</span> <span class="n">identifier</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_config</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Instrument </span><span class="si">{identifier}</span><span class="s1"> not found in &#39;</span>
+                               <span class="s1">&#39;instrument config file&#39;</span><span class="p">)</span>
+        <span class="n">instr_cfg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_instrument_config</span><span class="p">[</span><span class="n">identifier</span><span class="p">]</span>
+
+        <span class="c1"># TODO: add validation of config for better verbose errors:</span>
+
+        <span class="c1"># check if instrument is already defined and close connection</span>
+        <span class="k">if</span> <span class="n">instr_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;enable_forced_reconnect&#39;</span><span class="p">,</span>
+                         <span class="n">get_config_enable_forced_reconnect</span><span class="p">()):</span>
+            <span class="k">with</span> <span class="n">suppress</span><span class="p">(</span><span class="ne">KeyError</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">close_and_remove_instrument</span><span class="p">(</span><span class="n">identifier</span><span class="p">)</span>
+
+        <span class="c1"># instantiate instrument</span>
+        <span class="n">init_kwargs</span> <span class="o">=</span> <span class="n">instr_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;init&#39;</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="c1"># somebody might have a empty init section in the config</span>
+        <span class="n">init_kwargs</span> <span class="o">=</span> <span class="p">{}</span> <span class="k">if</span> <span class="n">init_kwargs</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">init_kwargs</span>
+        <span class="k">if</span> <span class="s1">&#39;address&#39;</span> <span class="ow">in</span> <span class="n">instr_cfg</span><span class="p">:</span>
+            <span class="n">init_kwargs</span><span class="p">[</span><span class="s1">&#39;address&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">instr_cfg</span><span class="p">[</span><span class="s1">&#39;address&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s1">&#39;port&#39;</span> <span class="ow">in</span> <span class="n">instr_cfg</span><span class="p">:</span>
+            <span class="n">init_kwargs</span><span class="p">[</span><span class="s1">&#39;port&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">instr_cfg</span><span class="p">[</span><span class="s1">&#39;port&#39;</span><span class="p">]</span>
+        <span class="c1"># make explicitly passed arguments overide the ones from the config</span>
+        <span class="c1"># file.</span>
+        <span class="c1"># We are mutating the dict below</span>
+        <span class="c1"># so make a copy to ensure that any changes</span>
+        <span class="c1"># does not leek into the station config object</span>
+        <span class="c1"># specifically we may be passing non pickleable</span>
+        <span class="c1"># instrument instances via kwargs</span>
+        <span class="n">instr_kwargs</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">init_kwargs</span><span class="p">)</span>
+        <span class="n">instr_kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="n">instr_kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="n">identifier</span><span class="p">)</span>
+
+        <span class="n">module</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="n">instr_cfg</span><span class="p">[</span><span class="s1">&#39;driver&#39;</span><span class="p">])</span>
+        <span class="n">instr_class</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">instr_cfg</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">])</span>
+        <span class="n">instr</span> <span class="o">=</span> <span class="n">instr_class</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">instr_kwargs</span><span class="p">)</span>
+
+        <span class="c1"># local function to refactor common code from defining new parameter</span>
+        <span class="c1"># and setting existing one</span>
+        <span class="k">def</span> <span class="nf">resolve_parameter_identifier</span><span class="p">(</span><span class="n">instrument</span><span class="p">:</span> <span class="n">InstrumentBase</span><span class="p">,</span>
+                                         <span class="n">identifier</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Parameter</span><span class="p">:</span>
+
+            <span class="n">parts</span> <span class="o">=</span> <span class="n">identifier</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="n">parts</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+                    <span class="n">instrument</span> <span class="o">=</span> <span class="n">checked_getattr</span><span class="p">(</span><span class="n">instrument</span><span class="p">,</span> <span class="n">level</span><span class="p">,</span>
+                                                 <span class="n">InstrumentBase</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                    <span class="n">f</span><span class="s1">&#39;Cannot resolve `</span><span class="si">{level}</span><span class="s1">` in </span><span class="si">{identifier}</span><span class="s1"> to an &#39;</span>
+                    <span class="n">f</span><span class="s1">&#39;instrument/channel for base instrument &#39;</span>
+                    <span class="n">f</span><span class="s1">&#39;</span><span class="si">{instrument!r}</span><span class="s1">.&#39;</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">checked_getattr</span><span class="p">(</span><span class="n">instrument</span><span class="p">,</span> <span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">Parameter</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                    <span class="n">f</span><span class="s1">&#39;Cannot resolve parameter identifier `</span><span class="si">{identifier}</span><span class="s1">` to &#39;</span>
+                    <span class="n">f</span><span class="s1">&#39;a parameter on instrument </span><span class="si">{instrument!r}</span><span class="s1">.&#39;</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">setup_parameter_from_dict</span><span class="p">(</span><span class="n">instr</span><span class="p">:</span> <span class="n">Instrument</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                                      <span class="n">options</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]):</span>
+            <span class="n">parameter</span> <span class="o">=</span> <span class="n">resolve_parameter_identifier</span><span class="p">(</span><span class="n">instr</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">attr</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">options</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">PARAMETER_ATTRIBUTES</span><span class="p">:</span>
+                    <span class="c1"># set the attributes of the parameter, that map 1 to 1</span>
+                    <span class="nb">setattr</span><span class="p">(</span><span class="n">parameter</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span>
+                <span class="c1"># extra attributes that need parsing</span>
+                <span class="k">elif</span> <span class="n">attr</span> <span class="o">==</span> <span class="s1">&#39;limits&#39;</span><span class="p">:</span>
+                    <span class="n">lower</span><span class="p">,</span> <span class="n">upper</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">val</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)]</span>
+                    <span class="n">parameter</span><span class="o">.</span><span class="n">vals</span> <span class="o">=</span> <span class="n">validators</span><span class="o">.</span><span class="n">Numbers</span><span class="p">(</span><span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">attr</span> <span class="o">==</span> <span class="s1">&#39;monitor&#39;</span> <span class="ow">and</span> <span class="n">val</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_monitor_parameters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">parameter</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">attr</span> <span class="o">==</span> <span class="s1">&#39;alias&#39;</span><span class="p">:</span>
+                    <span class="nb">setattr</span><span class="p">(</span><span class="n">instr</span><span class="p">,</span> <span class="n">val</span><span class="p">,</span> <span class="n">parameter</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">attr</span> <span class="o">==</span> <span class="s1">&#39;initial_value&#39;</span><span class="p">:</span>
+                    <span class="c1"># skip value attribute so that it gets set last</span>
+                    <span class="c1"># when everything else has been set up</span>
+                    <span class="k">pass</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Attribute </span><span class="si">{attr}</span><span class="s1"> not recognized when &#39;</span>
+                                <span class="n">f</span><span class="s1">&#39;instatiating parameter </span><span class="se">\&quot;</span><span class="si">{parameter.name}</span><span class="se">\&quot;</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s1">&#39;initial_value&#39;</span> <span class="ow">in</span> <span class="n">options</span><span class="p">:</span>
+                <span class="n">parameter</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">options</span><span class="p">[</span><span class="s1">&#39;initial_value&#39;</span><span class="p">])</span>
+
+        <span class="k">def</span> <span class="nf">add_parameter_from_dict</span><span class="p">(</span><span class="n">instr</span><span class="p">:</span> <span class="n">Instrument</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                                    <span class="n">options</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]):</span>
+            <span class="c1"># keep the original dictionray intact for snapshot</span>
+            <span class="n">options</span> <span class="o">=</span> <span class="n">copy</span><span class="p">(</span><span class="n">options</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s1">&#39;source&#39;</span> <span class="ow">in</span> <span class="n">options</span><span class="p">:</span>
+                <span class="n">instr</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+                    <span class="n">name</span><span class="p">,</span>
+                    <span class="n">DelegateParameter</span><span class="p">,</span>
+                    <span class="n">source</span><span class="o">=</span><span class="n">resolve_parameter_identifier</span><span class="p">(</span><span class="n">instr</span><span class="p">,</span>
+                                                        <span class="n">options</span><span class="p">[</span><span class="s1">&#39;source&#39;</span><span class="p">]))</span>
+                <span class="n">options</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;source&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">instr</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">)</span>
+            <span class="n">setup_parameter_from_dict</span><span class="p">(</span><span class="n">instr</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">options</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">update_monitor</span><span class="p">():</span>
+            <span class="k">if</span> <span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">use_monitor</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">get_config_use_monitor</span><span class="p">())</span>
+                    <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_monitor</span><span class="p">):</span>
+                <span class="c1"># restart Monitor</span>
+                <span class="n">Monitor</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">_monitor_parameters</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">options</span> <span class="ow">in</span> <span class="n">instr_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;parameters&#39;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">setup_parameter_from_dict</span><span class="p">(</span><span class="n">instr</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">options</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">options</span> <span class="ow">in</span> <span class="n">instr_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;add_parameters&#39;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">add_parameter_from_dict</span><span class="p">(</span><span class="n">instr</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">options</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_component</span><span class="p">(</span><span class="n">instr</span><span class="p">)</span>
+        <span class="n">update_monitor</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">instr</span></div></div>
 </pre></div>
 
            </div>

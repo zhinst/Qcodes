@@ -168,7 +168,7 @@
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">from</span> <span class="nn">collections.abc</span> <span class="k">import</span> <span class="n">Iterator</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Mapping</span>
 <span class="kn">from</span> <span class="nn">copy</span> <span class="k">import</span> <span class="n">deepcopy</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Any</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">TypeVar</span><span class="p">,</span> <span class="n">Type</span><span class="p">,</span> <span class="n">List</span>
 <span class="kn">from</span> <span class="nn">contextlib</span> <span class="k">import</span> <span class="n">contextmanager</span>
 <span class="kn">from</span> <span class="nn">asyncio</span> <span class="k">import</span> <span class="n">iscoroutinefunction</span>
 <span class="kn">from</span> <span class="nn">inspect</span> <span class="k">import</span> <span class="n">signature</span>
@@ -177,6 +177,7 @@
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
+<span class="kn">import</span> <span class="nn">qcodes</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.deprecate</span> <span class="k">import</span> <span class="n">deprecate</span>
 
 
@@ -553,9 +554,9 @@
 <span class="sd">        2. keys of each dict in delegate_attr_dicts (in order)</span>
 <span class="sd">        3. attributes of each object in delegate_attr_objects (in order)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">delegate_attr_dicts</span> <span class="o">=</span> <span class="p">[]</span> <span class="c1"># type: List[str]</span>
-    <span class="n">delegate_attr_objects</span> <span class="o">=</span> <span class="p">[]</span> <span class="c1"># type: List[str]</span>
-    <span class="n">omit_delegate_attrs</span> <span class="o">=</span> <span class="p">[]</span> <span class="c1"># type: List[str]</span>
+    <span class="n">delegate_attr_dicts</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">delegate_attr_objects</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">omit_delegate_attrs</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
 
     <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">omit_delegate_attrs</span><span class="p">:</span>
@@ -864,6 +865,46 @@
     <span class="n">funcobj</span><span class="o">.</span><span class="n">__qcodes_is_abstract_method__</span> <span class="o">=</span> <span class="kc">True</span>
     <span class="k">return</span> <span class="n">funcobj</span></div>
 
+
+<span class="k">def</span> <span class="nf">_ruamel_importer</span><span class="p">():</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">from</span> <span class="nn">ruamel_yaml</span> <span class="k">import</span> <span class="n">YAML</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">ruamel.yaml</span> <span class="k">import</span> <span class="n">YAML</span>
+        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="s1">&#39;No ruamel module found. Please install &#39;</span>
+                              <span class="s1">&#39;either ruamel.yaml or ruamel_yaml.&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">YAML</span>
+
+<span class="c1"># YAML module to be imported. Resovles naming issues of YAML from pypi and</span>
+<span class="c1"># anaconda</span>
+<span class="n">YAML</span> <span class="o">=</span> <span class="n">_ruamel_importer</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="get_qcodes_path"><a class="viewcode-back" href="../../../api/utils/helpers.html#qcodes.utils.helpers.get_qcodes_path">[docs]</a><span class="k">def</span> <span class="nf">get_qcodes_path</span><span class="p">(</span><span class="o">*</span><span class="n">subfolder</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return full file path of the QCoDeS module. Additional arguments will be</span>
+<span class="sd">    appended as subfolder.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">qcodes</span><span class="o">.</span><span class="vm">__file__</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="o">*</span><span class="n">subfolder</span><span class="p">)</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span></div>
+
+
+<span class="n">X</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;X&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="checked_getattr"><a class="viewcode-back" href="../../../api/utils/helpers.html#qcodes.utils.helpers.checked_getattr">[docs]</a><span class="k">def</span> <span class="nf">checked_getattr</span><span class="p">(</span><span class="n">instance</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+                    <span class="n">attribute</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                    <span class="n">expected_type</span><span class="p">:</span> <span class="n">Type</span><span class="p">[</span><span class="n">X</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">X</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Like `getattr` but raises type error if not of expected type.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">attr</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">instance</span><span class="p">,</span> <span class="n">attribute</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">attr</span><span class="p">,</span> <span class="n">expected_type</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">attr</span></div>
 </pre></div>
 
            </div>
