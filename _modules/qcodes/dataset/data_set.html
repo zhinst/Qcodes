@@ -161,7 +161,7 @@
   <h1>Source code for qcodes.dataset.data_set</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">functools</span>
 <span class="kn">import</span> <span class="nn">json</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="p">(</span><span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Sized</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">cast</span><span class="p">,</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="p">(</span><span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Sized</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span>
                     <span class="n">Sequence</span><span class="p">)</span>
 <span class="kn">from</span> <span class="nn">threading</span> <span class="k">import</span> <span class="n">Thread</span>
 <span class="kn">import</span> <span class="nn">time</span>
@@ -172,7 +172,8 @@
 <span class="kn">import</span> <span class="nn">numpy</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 
-<span class="kn">from</span> <span class="nn">qcodes.dataset.param_spec</span> <span class="k">import</span> <span class="n">ParamSpec</span><span class="p">,</span> <span class="n">ParamSpecBase</span>
+<span class="kn">from</span> <span class="nn">qcodes.dataset.descriptions.param_spec</span> <span class="k">import</span> <span class="n">ParamSpec</span><span class="p">,</span> <span class="n">ParamSpecBase</span>
+<span class="kn">import</span> <span class="nn">qcodes.dataset.descriptions.versioning.serialization</span> <span class="k">as</span> <span class="nn">serial</span>
 <span class="kn">from</span> <span class="nn">qcodes.dataset.sqlite.connection</span> <span class="k">import</span> <span class="n">atomic</span><span class="p">,</span> <span class="n">atomic_transaction</span><span class="p">,</span> \
     <span class="n">transaction</span><span class="p">,</span> <span class="n">make_connection_plus_from</span><span class="p">,</span> <span class="n">ConnectionPlus</span>
 <span class="kn">from</span> <span class="nn">qcodes.dataset.sqlite.queries</span> <span class="k">import</span> <span class="n">add_parameter</span><span class="p">,</span> <span class="n">create_run</span><span class="p">,</span> \
@@ -188,11 +189,12 @@
     <span class="n">insert_many_values</span><span class="p">,</span> <span class="n">insert_values</span><span class="p">,</span> <span class="n">VALUE</span><span class="p">,</span> <span class="n">one</span>
 <span class="kn">from</span> <span class="nn">qcodes.dataset.sqlite.database</span> <span class="k">import</span> <span class="n">get_DB_location</span><span class="p">,</span> <span class="n">connect</span>
 <span class="kn">from</span> <span class="nn">qcodes.instrument.parameter</span> <span class="k">import</span> <span class="n">_BaseParameter</span>
-<span class="kn">from</span> <span class="nn">qcodes.dataset.descriptions</span> <span class="k">import</span> <span class="n">RunDescriber</span>
-<span class="kn">from</span> <span class="nn">qcodes.dataset.dependencies</span> <span class="k">import</span> <span class="p">(</span><span class="n">InterDependencies</span><span class="p">,</span>
-                                         <span class="n">InterDependencies_</span><span class="p">,</span>
-                                         <span class="n">old_to_new</span><span class="p">,</span> <span class="n">new_to_old</span><span class="p">,</span>
-                                         <span class="n">DependencyError</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">qcodes.dataset.descriptions.rundescriber</span> <span class="k">import</span> <span class="n">RunDescriber</span>
+<span class="kn">from</span> <span class="nn">qcodes.dataset.descriptions.dependencies</span> <span class="k">import</span> <span class="p">(</span><span class="n">InterDependencies_</span><span class="p">,</span>
+                                                      <span class="n">DependencyError</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">qcodes.dataset.descriptions.versioning.v0</span> <span class="k">import</span> <span class="n">InterDependencies</span>
+<span class="kn">from</span> <span class="nn">qcodes.dataset.descriptions.versioning.converters</span> <span class="k">import</span> <span class="n">old_to_new</span><span class="p">,</span> \
+    <span class="n">new_to_old</span>
 <span class="kn">from</span> <span class="nn">qcodes.dataset.guids</span> <span class="k">import</span> <span class="n">generate_guid</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.deprecate</span> <span class="k">import</span> <span class="n">deprecate</span>
 <span class="kn">import</span> <span class="nn">qcodes.config</span>
@@ -408,15 +410,7 @@
                                  <span class="n">f</span><span class="s2">&quot;the database&quot;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_completed</span> <span class="o">=</span> <span class="n">completed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
             <span class="n">run_desc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_run_description_from_db</span><span class="p">()</span>
-            <span class="k">if</span> <span class="n">run_desc</span><span class="o">.</span><span class="n">_old_style_deps</span><span class="p">:</span>
-                <span class="c1"># TODO: what if the old run had invalid interdep.s?</span>
-                <span class="n">old_idps</span><span class="p">:</span> <span class="n">InterDependencies</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="n">InterDependencies</span><span class="p">,</span>
-                                                   <span class="n">run_desc</span><span class="o">.</span><span class="n">interdeps</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span> <span class="o">=</span> <span class="n">old_to_new</span><span class="p">(</span><span class="n">old_idps</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">new_idps</span><span class="p">:</span> <span class="n">InterDependencies_</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="n">InterDependencies_</span><span class="p">,</span>
-                                                    <span class="n">run_desc</span><span class="o">.</span><span class="n">interdeps</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span> <span class="o">=</span> <span class="n">new_idps</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span> <span class="o">=</span> <span class="n">run_desc</span><span class="o">.</span><span class="n">interdeps</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_metadata</span> <span class="o">=</span> <span class="n">get_metadata_from_run_id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="n">run_id</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_started</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_timestamp_raw</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
 
@@ -625,7 +619,7 @@
 <span class="sd">        Look up the run_description from the database</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">desc_str</span> <span class="o">=</span> <span class="n">get_run_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">RunDescriber</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="n">desc_str</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">serial</span><span class="o">.</span><span class="n">from_json_to_current</span><span class="p">(</span><span class="n">desc_str</span><span class="p">)</span>
 
 <div class="viewcode-block" id="DataSet.toggle_debug"><a class="viewcode-back" href="../../../api/dataset/data_set.html#qcodes.dataset.data_set.DataSet.toggle_debug">[docs]</a>    <span class="k">def</span> <span class="nf">toggle_debug</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -751,8 +745,9 @@
         <span class="k">for</span> <span class="n">spec</span> <span class="ow">in</span> <span class="n">paramspecs</span><span class="p">:</span>
             <span class="n">add_parameter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span> <span class="n">spec</span><span class="p">)</span>
 
-        <span class="n">update_run_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">,</span>
-                               <span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="o">.</span><span class="n">to_json</span><span class="p">())</span>
+        <span class="n">desc_str</span> <span class="o">=</span> <span class="n">serial</span><span class="o">.</span><span class="n">to_json_for_storage</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="p">)</span>
+
+        <span class="n">update_run_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">,</span> <span class="n">desc_str</span><span class="p">)</span>
 
         <span class="n">set_run_timestamp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
 
@@ -1061,6 +1056,7 @@
 
         <span class="k">if</span> <span class="n">param_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Unknown parameter, not in this DataSet&#39;</span><span class="p">)</span>
+
 
         <span class="k">if</span> <span class="n">paramspec</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span><span class="o">.</span><span class="n">dependencies</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Parameter </span><span class="si">{param_name}</span><span class="s1"> has no setpoints.&#39;</span><span class="p">)</span>
