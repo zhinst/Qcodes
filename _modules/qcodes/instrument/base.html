@@ -317,7 +317,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">submodules</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">submodule</span></div>
 
 <div class="viewcode-block" id="InstrumentBase.snapshot_base"><a class="viewcode-back" href="../../../api/instrument/base.html#qcodes.instrument_drivers.Advantech.PCIE_1751.InstrumentBase.snapshot_base">[docs]</a>    <span class="k">def</span> <span class="nf">snapshot_base</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                      <span class="n">params_to_skip_update</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+                      <span class="n">params_to_skip_update</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+                      <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        State of the instrument as a JSON-compatible dict.</span>
 
@@ -327,11 +328,16 @@
 <span class="sd">            params_to_skip_update: List of parameter names that will be skipped</span>
 <span class="sd">                in update even if update is True. This is useful if you have</span>
 <span class="sd">                parameters that are slow to update but can be updated in a</span>
-<span class="sd">                different way (as in the qdac)</span>
+<span class="sd">                different way (as in the qdac). If you want to skip the</span>
+<span class="sd">                update of certain parameters in all snapshots, use the</span>
+<span class="sd">                `snapshot_get`  attribute of those parameters instead.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            dict: base snapshot</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">params_to_skip_update</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">params_to_skip_update</span> <span class="o">=</span> <span class="p">[]</span>
 
         <span class="n">snap</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s2">&quot;functions&quot;</span><span class="p">:</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="n">func</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="n">update</span><span class="p">)</span>
@@ -343,11 +349,10 @@
 
         <span class="n">snap</span><span class="p">[</span><span class="s1">&#39;parameters&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">param</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="n">update</span> <span class="o">=</span> <span class="n">update</span>
-            <span class="k">if</span> <span class="n">params_to_skip_update</span> <span class="ow">and</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">params_to_skip_update</span><span class="p">:</span>
-                <span class="n">update</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">update_this_param</span> <span class="o">=</span> <span class="n">update</span> <span class="ow">and</span> <span class="p">(</span><span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">params_to_skip_update</span><span class="p">)</span>
             <span class="k">try</span><span class="p">:</span>
-                <span class="n">snap</span><span class="p">[</span><span class="s1">&#39;parameters&#39;</span><span class="p">][</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="n">update</span><span class="p">)</span>
+                <span class="n">param_snapshot</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="n">update_this_param</span><span class="p">)</span>
+                <span class="n">snap</span><span class="p">[</span><span class="s1">&#39;parameters&#39;</span><span class="p">][</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">param_snapshot</span>
             <span class="k">except</span><span class="p">:</span>
                 <span class="c1"># really log this twice. Once verbose for the UI and once</span>
                 <span class="c1"># at lower level with more info for file based loggers</span>
