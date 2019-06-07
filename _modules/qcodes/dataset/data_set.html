@@ -162,7 +162,7 @@
 <span></span><span class="kn">import</span> <span class="nn">functools</span>
 <span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="p">(</span><span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Sized</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span>
-                    <span class="n">Sequence</span><span class="p">)</span>
+                    <span class="n">Sequence</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">)</span>
 <span class="kn">from</span> <span class="nn">threading</span> <span class="k">import</span> <span class="n">Thread</span>
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">importlib</span>
@@ -177,14 +177,14 @@
 <span class="kn">from</span> <span class="nn">qcodes.dataset.sqlite.connection</span> <span class="k">import</span> <span class="n">atomic</span><span class="p">,</span> <span class="n">atomic_transaction</span><span class="p">,</span> \
     <span class="n">transaction</span><span class="p">,</span> <span class="n">make_connection_plus_from</span><span class="p">,</span> <span class="n">ConnectionPlus</span>
 <span class="kn">from</span> <span class="nn">qcodes.dataset.sqlite.queries</span> <span class="k">import</span> <span class="n">add_parameter</span><span class="p">,</span> <span class="n">create_run</span><span class="p">,</span> \
-    <span class="n">completed</span><span class="p">,</span> <span class="n">get_parameters</span><span class="p">,</span> <span class="n">get_experiments</span><span class="p">,</span> <span class="n">get_last_experiment</span><span class="p">,</span> \
+    <span class="n">completed</span><span class="p">,</span> <span class="n">get_experiments</span><span class="p">,</span> <span class="n">get_last_experiment</span><span class="p">,</span> \
     <span class="n">add_meta_data</span><span class="p">,</span> <span class="n">mark_run_complete</span><span class="p">,</span> <span class="n">get_data</span><span class="p">,</span> <span class="n">get_parameter_data</span><span class="p">,</span> \
     <span class="n">get_values</span><span class="p">,</span> <span class="n">get_setpoints</span><span class="p">,</span> <span class="n">get_metadata</span><span class="p">,</span> <span class="n">get_metadata_from_run_id</span><span class="p">,</span> \
     <span class="n">get_experiment_name_from_experiment_id</span><span class="p">,</span> \
     <span class="n">get_sample_name_from_experiment_id</span><span class="p">,</span> <span class="n">get_guid_from_run_id</span><span class="p">,</span> \
     <span class="n">get_runid_from_guid</span><span class="p">,</span> <span class="n">get_run_timestamp_from_run_id</span><span class="p">,</span> <span class="n">get_run_description</span><span class="p">,</span>\
     <span class="n">get_completed_timestamp_from_run_id</span><span class="p">,</span> <span class="n">update_run_description</span><span class="p">,</span> <span class="n">run_exists</span><span class="p">,</span>\
-    <span class="n">remove_trigger</span><span class="p">,</span> <span class="n">get_non_dependencies</span><span class="p">,</span> <span class="n">set_run_timestamp</span>
+    <span class="n">remove_trigger</span><span class="p">,</span> <span class="n">set_run_timestamp</span>
 <span class="kn">from</span> <span class="nn">qcodes.dataset.sqlite.query_helpers</span> <span class="k">import</span> <span class="n">select_one_where</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> \
     <span class="n">insert_many_values</span><span class="p">,</span> <span class="n">insert_values</span><span class="p">,</span> <span class="n">VALUE</span><span class="p">,</span> <span class="n">one</span>
 <span class="kn">from</span> <span class="nn">qcodes.dataset.sqlite.database</span> <span class="k">import</span> <span class="n">get_DB_location</span><span class="p">,</span> <span class="n">connect</span>
@@ -194,7 +194,7 @@
                                                       <span class="n">DependencyError</span><span class="p">)</span>
 <span class="kn">from</span> <span class="nn">qcodes.dataset.descriptions.versioning.v0</span> <span class="k">import</span> <span class="n">InterDependencies</span>
 <span class="kn">from</span> <span class="nn">qcodes.dataset.descriptions.versioning.converters</span> <span class="k">import</span> <span class="n">old_to_new</span><span class="p">,</span> \
-    <span class="n">new_to_old</span>
+    <span class="n">new_to_old</span><span class="p">,</span> <span class="n">v1_to_v0</span>
 <span class="kn">from</span> <span class="nn">qcodes.dataset.guids</span> <span class="k">import</span> <span class="n">generate_guid</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.deprecate</span> <span class="k">import</span> <span class="n">deprecate</span>
 <span class="kn">import</span> <span class="nn">qcodes.config</span>
@@ -356,7 +356,8 @@
     <span class="n">persistent_traits</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="s1">&#39;guid&#39;</span><span class="p">,</span> <span class="s1">&#39;number_of_results&#39;</span><span class="p">,</span>
                          <span class="s1">&#39;parameters&#39;</span><span class="p">,</span> <span class="s1">&#39;paramspecs&#39;</span><span class="p">,</span> <span class="s1">&#39;exp_name&#39;</span><span class="p">,</span> <span class="s1">&#39;sample_name&#39;</span><span class="p">,</span>
                          <span class="s1">&#39;completed&#39;</span><span class="p">,</span> <span class="s1">&#39;snapshot&#39;</span><span class="p">,</span> <span class="s1">&#39;run_timestamp_raw&#39;</span><span class="p">,</span>
-                         <span class="s1">&#39;description&#39;</span><span class="p">,</span> <span class="s1">&#39;completed_timestamp_raw&#39;</span><span class="p">,</span> <span class="s1">&#39;metadata&#39;</span><span class="p">)</span>
+                         <span class="s1">&#39;description&#39;</span><span class="p">,</span> <span class="s1">&#39;completed_timestamp_raw&#39;</span><span class="p">,</span> <span class="s1">&#39;metadata&#39;</span><span class="p">,</span>
+                         <span class="s1">&#39;dependent_parameters&#39;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path_to_db</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">run_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -511,6 +512,13 @@
         <span class="k">return</span> <span class="p">{</span><span class="n">ps</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">ps</span> <span class="k">for</span> <span class="n">ps</span> <span class="ow">in</span> <span class="n">params</span><span class="p">}</span>
 
     <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">dependent_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">ParamSpecBase</span><span class="p">,</span> <span class="o">...</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return all the parameters that explicitly depend on other parameters</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span><span class="o">.</span><span class="n">dependencies</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+    <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">exp_id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">select_one_where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="s2">&quot;runs&quot;</span><span class="p">,</span>
                                 <span class="s2">&quot;exp_id&quot;</span><span class="p">,</span> <span class="s2">&quot;run_id&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
@@ -655,7 +663,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span> <span class="o">=</span> <span class="n">interdeps</span></div>
 
 <div class="viewcode-block" id="DataSet.get_parameters"><a class="viewcode-back" href="../../../api/dataset/data_set.html#qcodes.dataset.data_set.DataSet.get_parameters">[docs]</a>    <span class="k">def</span> <span class="nf">get_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SPECS</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">get_parameters</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span></div>
+        <span class="n">rd_v0</span> <span class="o">=</span> <span class="n">v1_to_v0</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">description</span><span class="p">)</span>
+        <span class="n">old_interdeps</span> <span class="o">=</span> <span class="n">rd_v0</span><span class="o">.</span><span class="n">interdeps</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">old_interdeps</span><span class="o">.</span><span class="n">paramspecs</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="DataSet.add_metadata"><a class="viewcode-back" href="../../../api/dataset/data_set.html#qcodes.dataset.data_set.DataSet.add_metadata">[docs]</a>    <span class="k">def</span> <span class="nf">add_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tag</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">metadata</span><span class="p">:</span> <span class="n">Any</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -947,8 +957,8 @@
 <span class="sd">            array or string.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">params</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">valid_param_names</span> <span class="o">=</span> <span class="n">get_non_dependencies</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span>
-                                                     <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
+            <span class="n">valid_param_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">ps</span><span class="o">.</span><span class="n">name</span>
+                                 <span class="k">for</span> <span class="n">ps</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span><span class="o">.</span><span class="n">non_dependencies</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">valid_param_names</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_parameters</span><span class="p">(</span><span class="o">*</span><span class="n">params</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">get_parameter_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span>
