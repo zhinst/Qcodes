@@ -438,7 +438,7 @@ div.rendered_html tbody tr:hover {
 <span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="n">Station</span><span class="p">,</span> <span class="n">load_or_create_experiment</span><span class="p">,</span> \
     <span class="n">initialise_database</span><span class="p">,</span> <span class="n">Measurement</span>
 <span class="kn">from</span> <span class="nn">qcodes.tests.instrument_mocks</span> <span class="k">import</span> <span class="n">DummyInstrument</span>
-<span class="kn">from</span> <span class="nn">qcodes.dataset.plotting</span> <span class="k">import</span> <span class="n">plot_by_id</span>
+<span class="kn">from</span> <span class="nn">qcodes.dataset.plotting</span> <span class="k">import</span> <span class="n">plot_dataset</span>
 
 <span class="n">qc</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">start_all_logging</span><span class="p">()</span>
 </pre></div>
@@ -532,25 +532,16 @@ State          : active
 </div>
 <p><strong>Database and experiments may be missing</strong></p>
 <p>If this is the first time you create a dataset, the underlying database file has most likely not been created. The following cell creates the database file. Please refer to documentation on <code class="docutils literal notranslate"><span class="pre">The</span> <span class="pre">Experiment</span> <span class="pre">Container</span></code> for details.</p>
-<p>Furthermore, datasets are appended to existing experiments. If no experiment has been created, we must create one.</p>
-<div class="nbinput docutils container">
+<p>Furthermore, datasets are associated to an experiment. By default the run is appended to the latest existing experiments. If no experiment has been created, we must create one. We do that by calling <code class="docutils literal notranslate"><span class="pre">load_or_create_experiment</span></code></p>
+<p>Here we explicitly pass the loaded or created experiment to the <code class="docutils literal notranslate"><span class="pre">Measurement</span></code> to ensure that we are always useing the <code class="docutils literal notranslate"><span class="pre">dataset_context_manager</span></code> experiment throughout this tutorial.</p>
+<div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
 <span></span><span class="n">initialise_database</span><span class="p">()</span>
-<span class="n">load_or_create_experiment</span><span class="p">(</span><span class="n">experiment_name</span><span class="o">=</span><span class="s1">&#39;dataset_context_manager&#39;</span><span class="p">,</span>
+<span class="n">exp</span> <span class="o">=</span> <span class="n">load_or_create_experiment</span><span class="p">(</span><span class="n">experiment_name</span><span class="o">=</span><span class="s1">&#39;dataset_context_manager&#39;</span><span class="p">,</span>
                           <span class="n">sample_name</span><span class="o">=</span><span class="s2">&quot;no sample&quot;</span><span class="p">)</span>
-</pre></div>
-</div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
-</pre></div>
-</div>
-<div class="output_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>dataset_context_manager#no sample#2@./exp_container_tutorial.db
----------------------------------------------------------------
 </pre></div>
 </div>
 </div>
@@ -561,7 +552,7 @@ State          : active
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
 <span></span><span class="c1"># And then run an experiment</span>
 
-<span class="n">meas</span> <span class="o">=</span> <span class="n">Measurement</span><span class="p">()</span>
+<span class="n">meas</span> <span class="o">=</span> <span class="n">Measurement</span><span class="p">(</span><span class="n">exp</span><span class="o">=</span><span class="n">exp</span><span class="p">)</span>
 <span class="n">meas</span><span class="o">.</span><span class="n">register_parameter</span><span class="p">(</span><span class="n">dac</span><span class="o">.</span><span class="n">ch1</span><span class="p">)</span>  <span class="c1"># register the first independent parameter</span>
 <span class="n">meas</span><span class="o">.</span><span class="n">register_parameter</span><span class="p">(</span><span class="n">dmm</span><span class="o">.</span><span class="n">v1</span><span class="p">,</span> <span class="n">setpoints</span><span class="o">=</span><span class="p">(</span><span class="n">dac</span><span class="o">.</span><span class="n">ch1</span><span class="p">,))</span>  <span class="c1"># now register the dependent oone</span>
 <span class="n">meas</span><span class="o">.</span><span class="n">add_before_run</span><span class="p">(</span><span class="n">veryfirst</span><span class="p">,</span> <span class="p">())</span>  <span class="c1"># add a set-up action</span>
@@ -579,7 +570,7 @@ State          : active
         <span class="n">datasaver</span><span class="o">.</span><span class="n">add_result</span><span class="p">((</span><span class="n">dac</span><span class="o">.</span><span class="n">ch1</span><span class="p">,</span> <span class="n">set_v</span><span class="p">),</span>
                              <span class="p">(</span><span class="n">dmm</span><span class="o">.</span><span class="n">v1</span><span class="p">,</span> <span class="n">get_v</span><span class="p">))</span>
 
-    <span class="n">dataid</span> <span class="o">=</span> <span class="n">datasaver</span><span class="o">.</span><span class="n">run_id</span>  <span class="c1"># convenient to have for plotting</span>
+    <span class="n">dataset</span> <span class="o">=</span> <span class="n">datasaver</span><span class="o">.</span><span class="n">dataset</span>  <span class="c1"># convenient to have for plotting</span>
 
 </pre></div>
 </div>
@@ -600,7 +591,7 @@ End of experiment
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="n">ax</span><span class="p">,</span> <span class="n">cbax</span> <span class="o">=</span> <span class="n">plot_by_id</span><span class="p">(</span><span class="n">dataid</span><span class="p">)</span>
+<span></span><span class="n">ax</span><span class="p">,</span> <span class="n">cbax</span> <span class="o">=</span> <span class="n">plot_dataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -1387,7 +1378,7 @@ if (IPython.notebook.kernel != null) {
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area rendered_html docutils container">
-<div id='78a894bc-fda8-4c8e-a492-18ffa91e5363'></div></div>
+<div id='a0bf0743-280a-4dde-97f1-5f6987180ca4'></div></div>
 </div>
 <div class="section" id="Exporting-data">
 <h2>Exporting data<a class="headerlink" href="#Exporting-data" title="Permalink to this headline">¶</a></h2>
@@ -1407,8 +1398,8 @@ if (IPython.notebook.kernel != null) {
 </pre></div>
 </div>
 <div class="output_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>{&#39;dmm_v1&#39;: {&#39;dmm_v1&#39;: array([ 4.95282719,  2.69194904,  1.58338718,  0.68269504,  0.40922201,
-          0.40866012,  0.16890853,  0.05367464,  0.03679013, -0.15919187]),
+<span></span>{&#39;dmm_v1&#39;: {&#39;dmm_v1&#39;: array([ 5.03237665,  2.85143737,  1.73761253,  1.18390569,  0.60157994,
+          0.43182471,  0.20255885,  0.06096941,  0.08562808, -0.25428168]),
   &#39;dac_ch1&#39;: array([ 0.        ,  2.77777778,  5.55555556,  8.33333333, 11.11111111,
          13.88888889, 16.66666667, 19.44444444, 22.22222222, 25.        ])}}
 </pre></div>
@@ -1429,8 +1420,8 @@ if (IPython.notebook.kernel != null) {
 </pre></div>
 </div>
 <div class="output_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>{&#39;dmm_v1&#39;: {&#39;dmm_v1&#39;: array([ 4.95282719,  2.69194904,  1.58338718,  0.68269504,  0.40922201,
-          0.40866012,  0.16890853,  0.05367464,  0.03679013, -0.15919187]),
+<span></span>{&#39;dmm_v1&#39;: {&#39;dmm_v1&#39;: array([ 5.03237665,  2.85143737,  1.73761253,  1.18390569,  0.60157994,
+          0.43182471,  0.20255885,  0.06096941,  0.08562808, -0.25428168]),
   &#39;dac_ch1&#39;: array([ 0.        ,  2.77777778,  5.55555556,  8.33333333, 11.11111111,
          13.88888889, 16.66666667, 19.44444444, 22.22222222, 25.        ])}}
 </pre></div>
@@ -1499,43 +1490,43 @@ if (IPython.notebook.kernel != null) {
   <tbody>
     <tr>
       <th>0.000000</th>
-      <td>4.952827</td>
+      <td>5.032377</td>
     </tr>
     <tr>
       <th>2.777778</th>
-      <td>2.691949</td>
+      <td>2.851437</td>
     </tr>
     <tr>
       <th>5.555556</th>
-      <td>1.583387</td>
+      <td>1.737613</td>
     </tr>
     <tr>
       <th>8.333333</th>
-      <td>0.682695</td>
+      <td>1.183906</td>
     </tr>
     <tr>
       <th>11.111111</th>
-      <td>0.409222</td>
+      <td>0.601580</td>
     </tr>
     <tr>
       <th>13.888889</th>
-      <td>0.408660</td>
+      <td>0.431825</td>
     </tr>
     <tr>
       <th>16.666667</th>
-      <td>0.168909</td>
+      <td>0.202559</td>
     </tr>
     <tr>
       <th>19.444444</th>
-      <td>0.053675</td>
+      <td>0.060969</td>
     </tr>
     <tr>
       <th>22.222222</th>
-      <td>0.036790</td>
+      <td>0.085628</td>
     </tr>
     <tr>
       <th>25.000000</th>
-      <td>-0.159192</td>
+      <td>-0.254282</td>
     </tr>
   </tbody>
 </table>
@@ -1566,7 +1557,7 @@ if (IPython.notebook.kernel != null) {
             <span class="k">break</span>
 
 
-    <span class="n">dataid</span> <span class="o">=</span> <span class="n">datasaver</span><span class="o">.</span><span class="n">run_id</span>  <span class="c1"># convenient to have for plotting</span>
+    <span class="n">dataset</span> <span class="o">=</span> <span class="n">datasaver</span><span class="o">.</span><span class="n">dataset</span>  <span class="c1"># convenient to have for plotting</span>
 </pre></div>
 </div>
 </div>
@@ -1586,7 +1577,7 @@ End of experiment
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="n">ax</span><span class="p">,</span> <span class="n">cbax</span> <span class="o">=</span> <span class="n">plot_by_id</span><span class="p">(</span><span class="n">dataid</span><span class="p">)</span>
+<span></span><span class="n">ax</span><span class="p">,</span> <span class="n">cbax</span> <span class="o">=</span> <span class="n">plot_dataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -2373,7 +2364,7 @@ if (IPython.notebook.kernel != null) {
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area rendered_html docutils container">
-<div id='62ed429e-8f5a-4d42-a8db-9c184cc870c9'></div></div>
+<div id='1fc0a08e-3513-48f7-bb8f-697a3f41bf1d'></div></div>
 </div>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
@@ -2400,7 +2391,7 @@ if (IPython.notebook.kernel != null) {
         <span class="n">datasaver</span><span class="o">.</span><span class="n">add_result</span><span class="p">((</span><span class="n">dac</span><span class="o">.</span><span class="n">ch1</span><span class="p">,</span> <span class="n">set_v</span><span class="p">),</span>
                              <span class="p">(</span><span class="n">dmm</span><span class="o">.</span><span class="n">v1</span><span class="p">,</span> <span class="n">get_v</span><span class="p">))</span>
 
-    <span class="n">dataid</span> <span class="o">=</span> <span class="n">datasaver</span><span class="o">.</span><span class="n">run_id</span>  <span class="c1"># convenient to have for plotting</span>
+    <span class="n">dataset</span> <span class="o">=</span> <span class="n">datasaver</span><span class="o">.</span><span class="n">dataset</span>  <span class="c1"># convenient to have for plotting</span>
 </pre></div>
 </div>
 </div>
@@ -2420,7 +2411,7 @@ End of experiment
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="n">axes</span><span class="p">,</span> <span class="n">cbaxes</span> <span class="o">=</span> <span class="n">plot_by_id</span><span class="p">(</span><span class="n">dataid</span><span class="p">)</span>
+<span></span><span class="n">axes</span><span class="p">,</span> <span class="n">cbax</span> <span class="o">=</span> <span class="n">plot_dataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
 <span class="c1"># we slightly tweak the plot to better visualise the highly non-standard axis spacing</span>
 <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lines</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_marker</span><span class="p">(</span><span class="s1">&#39;o&#39;</span><span class="p">)</span>
 <span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lines</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_markerfacecolor</span><span class="p">((</span><span class="mf">0.6</span><span class="p">,</span> <span class="mf">0.6</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">))</span>
@@ -3212,7 +3203,7 @@ if (IPython.notebook.kernel != null) {
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area rendered_html docutils container">
-<div id='46925a9d-f9bb-4de1-a4e9-efc63a50ed1d'></div></div>
+<div id='6231561c-4e2c-4a03-badc-71c7675393fc'></div></div>
 </div>
 </div>
 <div class="section" id="Some-2D-examples">
@@ -3226,7 +3217,7 @@ if (IPython.notebook.kernel != null) {
 <span class="c1"># other parameters as setpoints. We therefore define a new Measurement</span>
 <span class="c1"># with new parameters</span>
 
-<span class="n">meas</span> <span class="o">=</span> <span class="n">Measurement</span><span class="p">()</span>
+<span class="n">meas</span> <span class="o">=</span> <span class="n">Measurement</span><span class="p">(</span><span class="n">exp</span><span class="o">=</span><span class="n">exp</span><span class="p">)</span>
 <span class="n">meas</span><span class="o">.</span><span class="n">register_parameter</span><span class="p">(</span><span class="n">dac</span><span class="o">.</span><span class="n">ch1</span><span class="p">)</span>  <span class="c1"># register the first independent parameter</span>
 <span class="n">meas</span><span class="o">.</span><span class="n">register_parameter</span><span class="p">(</span><span class="n">dac</span><span class="o">.</span><span class="n">ch2</span><span class="p">)</span>  <span class="c1"># register the second independent parameter</span>
 <span class="n">meas</span><span class="o">.</span><span class="n">register_parameter</span><span class="p">(</span><span class="n">dmm</span><span class="o">.</span><span class="n">v1</span><span class="p">,</span> <span class="n">setpoints</span><span class="o">=</span><span class="p">(</span><span class="n">dac</span><span class="o">.</span><span class="n">ch1</span><span class="p">,</span> <span class="n">dac</span><span class="o">.</span><span class="n">ch2</span><span class="p">))</span>  <span class="c1"># now register the dependent oone</span>
@@ -3238,7 +3229,7 @@ if (IPython.notebook.kernel != null) {
 </pre></div>
 </div>
 <div class="output_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>&lt;qcodes.dataset.measurements.Measurement at 0x7f2dd46bc3c8&gt;
+<span></span>&lt;qcodes.dataset.measurements.Measurement at 0x7f1652a67cc0&gt;
 </pre></div>
 </div>
 </div>
@@ -3298,7 +3289,7 @@ if (IPython.notebook.kernel != null) {
                                  <span class="p">(</span><span class="n">dac</span><span class="o">.</span><span class="n">ch2</span><span class="p">,</span> <span class="n">v2</span><span class="p">),</span>
                                  <span class="p">(</span><span class="n">dmm</span><span class="o">.</span><span class="n">v1</span><span class="p">,</span> <span class="n">val</span><span class="p">))</span>
 
-    <span class="n">dataid</span> <span class="o">=</span> <span class="n">datasaver</span><span class="o">.</span><span class="n">run_id</span>
+    <span class="n">dataset</span> <span class="o">=</span> <span class="n">datasaver</span><span class="o">.</span><span class="n">dataset</span>  <span class="c1"># convenient to have for plotting</span>
 </pre></div>
 </div>
 </div>
@@ -3356,43 +3347,43 @@ Starting experimental run with id: 11
     <tr>
       <th rowspan="10" valign="top">-1.0</th>
       <th>-1.000000</th>
-      <td>2.655070e-04</td>
+      <td>0.000121</td>
     </tr>
     <tr>
       <th>-0.989950</th>
-      <td>6.095309e-05</td>
+      <td>-0.000160</td>
     </tr>
     <tr>
       <th>-0.979899</th>
-      <td>-4.362372e-05</td>
+      <td>-0.000192</td>
     </tr>
     <tr>
       <th>-0.969849</th>
-      <td>-2.831504e-05</td>
+      <td>0.000475</td>
     </tr>
     <tr>
       <th>-0.959799</th>
-      <td>8.983377e-06</td>
+      <td>-0.000633</td>
     </tr>
     <tr>
       <th>-0.949749</th>
-      <td>-2.617242e-06</td>
+      <td>-0.000067</td>
     </tr>
     <tr>
       <th>-0.939698</th>
-      <td>4.947080e-06</td>
+      <td>0.000186</td>
     </tr>
     <tr>
       <th>-0.929648</th>
-      <td>1.404493e-06</td>
+      <td>0.000278</td>
     </tr>
     <tr>
       <th>-0.919598</th>
-      <td>2.420906e-07</td>
+      <td>0.000568</td>
     </tr>
     <tr>
       <th>-0.909548</th>
-      <td>-1.916424e-07</td>
+      <td>0.000100</td>
     </tr>
   </tbody>
 </table>
@@ -3419,7 +3410,7 @@ Coordinates:
   * dac_ch1  (dac_ch1) float64 -1.0 -0.9899 -0.9799 ... 0.9799 0.9899 1.0
   * dac_ch2  (dac_ch2) float64 -1.0 -0.9899 -0.9799 ... 0.9799 0.9899 1.0
 Data variables:
-    dmm_v1   (dac_ch1, dac_ch2) float64 0.0002655 6.095e-05 ... 1.039e-05
+    dmm_v1   (dac_ch1, dac_ch2) float64 0.0001206 -0.0001596 ... 1.039e-05
 </pre></div>
 </div>
 </div>
@@ -3429,7 +3420,7 @@ Data variables:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="n">ax</span><span class="p">,</span> <span class="n">abax</span> <span class="o">=</span> <span class="n">plot_by_id</span><span class="p">(</span><span class="n">dataid</span><span class="p">)</span>
+<span></span><span class="n">ax</span><span class="p">,</span> <span class="n">cbax</span> <span class="o">=</span> <span class="n">plot_dataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -4216,7 +4207,7 @@ if (IPython.notebook.kernel != null) {
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area rendered_html docutils container">
-<div id='ec13414b-82ba-4d34-bd93-703304a78527'></div></div>
+<div id='bd0ed954-2067-41b8-8c08-c5051f49de62'></div></div>
 </div>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[24]:
@@ -4244,7 +4235,7 @@ if (IPython.notebook.kernel != null) {
                                  <span class="p">(</span><span class="n">dac</span><span class="o">.</span><span class="n">ch2</span><span class="p">,</span> <span class="n">v2</span><span class="p">),</span>
                                  <span class="p">(</span><span class="n">dmm</span><span class="o">.</span><span class="n">v1</span><span class="p">,</span> <span class="n">val</span><span class="p">))</span>
 
-    <span class="n">dataid</span> <span class="o">=</span> <span class="n">datasaver</span><span class="o">.</span><span class="n">run_id</span>
+    <span class="n">dataset</span> <span class="o">=</span> <span class="n">datasaver</span><span class="o">.</span><span class="n">dataset</span>  <span class="c1"># convenient to have for plotting</span>
 </pre></div>
 </div>
 </div>
@@ -4261,7 +4252,7 @@ Starting experimental run with id: 12
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="n">ax</span><span class="p">,</span> <span class="n">cbax</span> <span class="o">=</span> <span class="n">plot_by_id</span><span class="p">(</span><span class="n">dataid</span><span class="p">)</span>
+<span></span><span class="n">ax</span><span class="p">,</span> <span class="n">cbax</span> <span class="o">=</span> <span class="n">plot_dataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -5048,7 +5039,7 @@ if (IPython.notebook.kernel != null) {
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area rendered_html docutils container">
-<div id='1abff75f-33d1-4336-946e-1f347a8d79c3'></div></div>
+<div id='cdd6ddfe-4465-4ce7-a4ec-fc7847b2485b'></div></div>
 </div>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[26]:
@@ -5110,7 +5101,7 @@ if (IPython.notebook.kernel != null) {
                 <span class="n">v1ind</span> <span class="o">+=</span> <span class="n">v1_step</span>
                 <span class="n">rowdone</span> <span class="o">=</span> <span class="kc">False</span>
 
-<span class="n">dataid</span> <span class="o">=</span> <span class="n">datasaver</span><span class="o">.</span><span class="n">run_id</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">datasaver</span><span class="o">.</span><span class="n">dataset</span>  <span class="c1"># convenient to have for plotting</span>
 </pre></div>
 </div>
 </div>
@@ -5129,7 +5120,7 @@ Starting experimental run with id: 13
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="n">ax</span><span class="p">,</span> <span class="n">cbax</span> <span class="o">=</span> <span class="n">plot_by_id</span><span class="p">(</span><span class="n">dataid</span><span class="p">)</span>
+<span></span><span class="n">ax</span><span class="p">,</span> <span class="n">cbax</span> <span class="o">=</span> <span class="n">plot_dataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -5916,7 +5907,7 @@ if (IPython.notebook.kernel != null) {
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area rendered_html docutils container">
-<div id='5848979f-6ecf-4668-8aad-a0e10258c16b'></div></div>
+<div id='2d161487-5e24-449b-94fe-98616633df3e'></div></div>
 </div>
 </div>
 <div class="section" id="Random-sampling">
@@ -5959,7 +5950,7 @@ if (IPython.notebook.kernel != null) {
         <span class="n">datasaver</span><span class="o">.</span><span class="n">add_result</span><span class="p">((</span><span class="n">dac</span><span class="o">.</span><span class="n">ch1</span><span class="p">,</span> <span class="n">x</span><span class="p">),</span>
                      <span class="p">(</span><span class="n">dac</span><span class="o">.</span><span class="n">ch2</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span>
                      <span class="p">(</span><span class="n">dmm</span><span class="o">.</span><span class="n">v1</span><span class="p">,</span> <span class="n">z</span><span class="p">))</span>
-<span class="n">dataid</span> <span class="o">=</span> <span class="n">datasaver</span><span class="o">.</span><span class="n">run_id</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">datasaver</span><span class="o">.</span><span class="n">dataset</span>  <span class="c1"># convenient to have for plotting</span>
 </pre></div>
 </div>
 </div>
@@ -5976,7 +5967,7 @@ Starting experimental run with id: 14
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="n">ax</span><span class="p">,</span> <span class="n">cbax</span> <span class="o">=</span> <span class="n">plot_by_id</span><span class="p">(</span><span class="n">dataid</span><span class="p">)</span>
+<span></span><span class="n">ax</span><span class="p">,</span> <span class="n">cbax</span> <span class="o">=</span> <span class="n">plot_dataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -6763,7 +6754,7 @@ if (IPython.notebook.kernel != null) {
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area rendered_html docutils container">
-<div id='184e67cc-3b94-4bc0-be8b-88007e6ce52f'></div></div>
+<div id='56ed62b5-396a-4045-ba9a-339c51d92a6d'></div></div>
 </div>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[31]:
@@ -6808,54 +6799,54 @@ if (IPython.notebook.kernel != null) {
   </thead>
   <tbody>
     <tr>
-      <th>0.366209</th>
-      <th>-0.672134</th>
-      <td>0.001144</td>
+      <th>0.927604</th>
+      <th>-0.290105</th>
+      <td>6.880809e-04</td>
     </tr>
     <tr>
-      <th>-0.337017</th>
-      <th>0.798235</th>
-      <td>0.013820</td>
+      <th>-0.304270</th>
+      <th>0.695116</th>
+      <td>4.313262e-02</td>
     </tr>
     <tr>
-      <th>0.525893</th>
-      <th>-0.099906</th>
-      <td>0.129054</td>
+      <th>0.042161</th>
+      <th>0.532221</th>
+      <td>4.562433e-01</td>
     </tr>
     <tr>
-      <th>-0.093537</th>
-      <th>-0.508247</th>
-      <td>0.015405</td>
+      <th>-0.769205</th>
+      <th>-0.790567</th>
+      <td>1.517705e-07</td>
     </tr>
     <tr>
-      <th>0.032737</th>
-      <th>0.688097</th>
-      <td>0.162889</td>
+      <th>-0.910464</th>
+      <th>-0.428972</th>
+      <td>1.315058e-05</td>
     </tr>
     <tr>
-      <th>-0.033203</th>
-      <th>-0.228482</th>
-      <td>0.226044</td>
+      <th>0.371451</th>
+      <th>-0.643809</th>
+      <td>2.111139e-03</td>
     </tr>
     <tr>
-      <th>-0.765726</th>
-      <th>0.554622</th>
-      <td>0.001276</td>
+      <th>-0.389978</th>
+      <th>0.892026</th>
+      <td>3.600114e-03</td>
     </tr>
     <tr>
-      <th>0.598925</th>
-      <th>0.989185</th>
-      <td>0.001310</td>
+      <th>-0.935219</th>
+      <th>-0.264671</th>
+      <td>3.811217e-05</td>
     </tr>
     <tr>
-      <th>-0.576332</th>
-      <th>0.298073</th>
-      <td>0.026799</td>
+      <th>-0.262862</th>
+      <th>0.488595</th>
+      <td>2.029807e-01</td>
     </tr>
     <tr>
-      <th>-0.557219</th>
-      <th>0.186977</th>
-      <td>0.035207</td>
+      <th>0.432513</th>
+      <th>0.402830</th>
+      <td>3.366755e-01</td>
     </tr>
   </tbody>
 </table>
@@ -6919,7 +6910,7 @@ if (IPython.notebook.kernel != null) {
     <span class="n">res</span> <span class="o">=</span> <span class="n">minimize</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="o">-</span><span class="n">measure_gauss</span><span class="p">(</span><span class="o">*</span><span class="n">x</span><span class="p">),</span> <span class="n">x0</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;Nelder-Mead&#39;</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-10</span><span class="p">,</span>
                    <span class="n">callback</span><span class="o">=</span><span class="n">mycallback</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;fatol&#39;</span><span class="p">:</span> <span class="n">noise</span><span class="p">})</span>
 
-    <span class="n">run_id</span> <span class="o">=</span> <span class="n">datasaver</span><span class="o">.</span><span class="n">run_id</span>
+    <span class="n">dataset</span> <span class="o">=</span> <span class="n">datasaver</span><span class="o">.</span><span class="n">dataset</span>  <span class="c1"># convenient to have for plotting</span>
 </pre></div>
 </div>
 </div>
@@ -6950,8 +6941,8 @@ Starting experimental run with id: 15
        [0.1, 0.2]]), array([-1.13314845, -1.13314845, -1.13314845]))
            fun: -1.1331484530668263
        message: &#39;Optimization terminated successfully.&#39;
-          nfev: 149
-           nit: 71
+          nfev: 156
+           nit: 75
         status: 0
        success: True
              x: array([0.1, 0.2])
@@ -6963,7 +6954,7 @@ Starting experimental run with id: 15
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="n">ax</span><span class="p">,</span> <span class="n">cbax</span> <span class="o">=</span> <span class="n">plot_by_id</span><span class="p">(</span><span class="n">run_id</span><span class="p">)</span>
+<span></span><span class="n">ax</span><span class="p">,</span> <span class="n">cbax</span> <span class="o">=</span> <span class="n">plot_dataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -7750,7 +7741,7 @@ if (IPython.notebook.kernel != null) {
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area rendered_html docutils container">
-<div id='4446ac29-d160-42b7-8229-28d87df6be30'></div></div>
+<div id='7402f73e-3441-40d5-a5ba-7c791dc07f7a'></div></div>
 </div>
 </div>
 <div class="section" id="Subscriptions">
@@ -7777,7 +7768,7 @@ if (IPython.notebook.kernel != null) {
     <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;The run now holds </span><span class="si">{length}</span><span class="s1"> rows&#39;</span><span class="p">)</span>
 
 
-<span class="n">meas</span> <span class="o">=</span> <span class="n">Measurement</span><span class="p">()</span>
+<span class="n">meas</span> <span class="o">=</span> <span class="n">Measurement</span><span class="p">(</span><span class="n">exp</span><span class="o">=</span><span class="n">exp</span><span class="p">)</span>
 <span class="n">meas</span><span class="o">.</span><span class="n">register_parameter</span><span class="p">(</span><span class="n">dac</span><span class="o">.</span><span class="n">ch1</span><span class="p">)</span>
 <span class="n">meas</span><span class="o">.</span><span class="n">register_parameter</span><span class="p">(</span><span class="n">dmm</span><span class="o">.</span><span class="n">v1</span><span class="p">,</span> <span class="n">setpoints</span><span class="o">=</span><span class="p">(</span><span class="n">dac</span><span class="o">.</span><span class="n">ch1</span><span class="p">,))</span>
 
@@ -7837,7 +7828,7 @@ The run now holds 10 rows
     <span class="n">param_vals</span> <span class="o">=</span> <span class="p">[</span><span class="n">parvals</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">parvals</span> <span class="ow">in</span> <span class="n">results_list</span><span class="p">]</span>
     <span class="n">state</span> <span class="o">+=</span> <span class="n">param_vals</span>
 
-<span class="n">meas</span> <span class="o">=</span> <span class="n">Measurement</span><span class="p">()</span>
+<span class="n">meas</span> <span class="o">=</span> <span class="n">Measurement</span><span class="p">(</span><span class="n">exp</span><span class="o">=</span><span class="n">exp</span><span class="p">)</span>
 <span class="n">meas</span><span class="o">.</span><span class="n">register_parameter</span><span class="p">(</span><span class="n">dac</span><span class="o">.</span><span class="n">ch1</span><span class="p">)</span>
 <span class="n">meas</span><span class="o">.</span><span class="n">register_parameter</span><span class="p">(</span><span class="n">dmm</span><span class="o">.</span><span class="n">v1</span><span class="p">,</span> <span class="n">setpoints</span><span class="o">=</span><span class="p">(</span><span class="n">dac</span><span class="o">.</span><span class="n">ch1</span><span class="p">,))</span>
 
@@ -7974,7 +7965,7 @@ The run now holds 10 rows
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="n">meas</span> <span class="o">=</span> <span class="n">Measurement</span><span class="p">()</span>
+<span></span><span class="n">meas</span> <span class="o">=</span> <span class="n">Measurement</span><span class="p">(</span><span class="n">exp</span><span class="o">=</span><span class="n">exp</span><span class="p">)</span>
 
 <span class="n">meas</span><span class="o">.</span><span class="n">register_parameter</span><span class="p">(</span><span class="n">mydummy</span><span class="o">.</span><span class="n">A</span><span class="o">.</span><span class="n">dummy_2d_multi_parameter</span><span class="p">)</span>
 <span class="n">meas</span><span class="o">.</span><span class="n">parameters</span>
@@ -8018,7 +8009,7 @@ Starting experimental run with id: 18
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="n">plot_by_id</span><span class="p">(</span><span class="n">datasaver</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
+<span></span><span class="n">plot_dataset</span><span class="p">(</span><span class="n">datasaver</span><span class="o">.</span><span class="n">dataset</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -8805,7 +8796,7 @@ if (IPython.notebook.kernel != null) {
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area rendered_html docutils container">
-<div id='c28a770c-73f6-4765-b29c-452d9028e78e'></div></div>
+<div id='0db01e1d-8184-4f0f-99a7-c798ef82c5a4'></div></div>
 </div>
 <div class="nboutput docutils container">
 <div class="prompt empty docutils container">
@@ -9590,17 +9581,17 @@ if (IPython.notebook.kernel != null) {
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area rendered_html docutils container">
-<div id='1a971670-63b0-4774-bd0d-09757f7c9c64'></div></div>
+<div id='015271c4-a09f-4b5e-82ad-b3de264ca75d'></div></div>
 </div>
 <div class="nboutput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[47]:
 </pre></div>
 </div>
 <div class="output_area highlight-none notranslate"><div class="highlight"><pre>
-<span></span>([&lt;matplotlib.axes._subplots.AxesSubplot at 0x7f2dd421e390&gt;,
-  &lt;matplotlib.axes._subplots.AxesSubplot at 0x7f2dd41d5940&gt;],
- [&lt;matplotlib.colorbar.Colorbar at 0x7f2dd416b7b8&gt;,
-  &lt;matplotlib.colorbar.Colorbar at 0x7f2dd411d7b8&gt;])
+<span></span>([&lt;matplotlib.axes._subplots.AxesSubplot at 0x7f165257ac88&gt;,
+  &lt;matplotlib.axes._subplots.AxesSubplot at 0x7f16524e5b00&gt;],
+ [&lt;matplotlib.colorbar.Colorbar at 0x7f16524bbb00&gt;,
+  &lt;matplotlib.colorbar.Colorbar at 0x7f165246cac8&gt;])
 </pre></div>
 </div>
 </div>
@@ -9756,6 +9747,15 @@ Coordinates:
   * MyDummy_ChanA_that_setpoint  (MyDummy_ChanA_that_setpoint) int64 9 10 11
 Data variables:
     that                         (MyDummy_ChanA_this_setpoint, MyDummy_ChanA_that_setpoint) int64 1 ... 1
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span>
 </pre></div>
 </div>
 </div>
