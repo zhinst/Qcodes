@@ -169,6 +169,7 @@
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">uuid</span>
 <span class="kn">from</span> <span class="nn">queue</span> <span class="k">import</span> <span class="n">Queue</span><span class="p">,</span> <span class="n">Empty</span>
+
 <span class="kn">import</span> <span class="nn">numpy</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 
@@ -187,7 +188,8 @@
     <span class="n">remove_trigger</span><span class="p">,</span> <span class="n">set_run_timestamp</span>
 <span class="kn">from</span> <span class="nn">qcodes.dataset.sqlite.query_helpers</span> <span class="k">import</span> <span class="n">select_one_where</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> \
     <span class="n">insert_many_values</span><span class="p">,</span> <span class="n">insert_values</span><span class="p">,</span> <span class="n">VALUE</span><span class="p">,</span> <span class="n">one</span>
-<span class="kn">from</span> <span class="nn">qcodes.dataset.sqlite.database</span> <span class="k">import</span> <span class="n">get_DB_location</span><span class="p">,</span> <span class="n">connect</span>
+<span class="kn">from</span> <span class="nn">qcodes.dataset.sqlite.database</span> <span class="k">import</span> <span class="n">get_DB_location</span><span class="p">,</span> <span class="n">connect</span><span class="p">,</span> \
+    <span class="n">conn_from_dbpath_or_conn</span>
 <span class="kn">from</span> <span class="nn">qcodes.instrument.parameter</span> <span class="k">import</span> <span class="n">_BaseParameter</span>
 <span class="kn">from</span> <span class="nn">qcodes.dataset.descriptions.rundescriber</span> <span class="k">import</span> <span class="n">RunDescriber</span>
 <span class="kn">from</span> <span class="nn">qcodes.dataset.descriptions.dependencies</span> <span class="k">import</span> <span class="p">(</span><span class="n">InterDependencies_</span><span class="p">,</span>
@@ -391,14 +393,7 @@
 <span class="sd">            metadata: metadata to insert into the dataset. Ignored if run_id</span>
 <span class="sd">              is provided.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="n">path_to_db</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">conn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Both `path_to_db` and `conn` arguments have &quot;</span>
-                             <span class="s2">&quot;been passed together with non-None values. &quot;</span>
-                             <span class="s2">&quot;This is not allowed.&quot;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_path_to_db</span> <span class="o">=</span> <span class="n">path_to_db</span> <span class="ow">or</span> <span class="n">get_DB_location</span><span class="p">()</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span> <span class="o">=</span> <span class="n">make_connection_plus_from</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span> <span class="k">if</span> <span class="n">conn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> \
-            <span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path_to_db</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span> <span class="o">=</span> <span class="n">conn_from_dbpath_or_conn</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span> <span class="n">path_to_db</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_run_id</span> <span class="o">=</span> <span class="n">run_id</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_debug</span> <span class="o">=</span> <span class="kc">False</span>
@@ -445,13 +440,14 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span> <span class="o">=</span> <span class="n">InterDependencies_</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_metadata</span> <span class="o">=</span> <span class="n">get_metadata_from_run_id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
 
+
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">run_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_id</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">path_to_db</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_path_to_db</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">path_to_dbfile</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
