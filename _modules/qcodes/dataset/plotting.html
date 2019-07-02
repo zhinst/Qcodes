@@ -186,6 +186,9 @@
 <span class="n">AxesTupleList</span> <span class="o">=</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">matplotlib</span><span class="o">.</span><span class="n">axes</span><span class="o">.</span><span class="n">Axes</span><span class="p">],</span>
                       <span class="n">List</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="n">matplotlib</span><span class="o">.</span><span class="n">colorbar</span><span class="o">.</span><span class="n">Colorbar</span><span class="p">]]]</span>
 <span class="n">Number</span> <span class="o">=</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span>
+<span class="c1"># NamedData is the structure get_data_by_id returns and that plot_by_id</span>
+<span class="c1"># uses internally</span>
+<span class="n">NamedData</span> <span class="o">=</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]]]]</span>
 
 <span class="c1"># list of kwargs for plotting function, so that kwargs can be passed to</span>
 <span class="c1"># :func:`plot_dataset` and will be distributed to the respective plotting func.</span>
@@ -249,6 +252,8 @@
                  <span class="n">auto_color_scale</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">cutoff_percentile</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">Number</span><span class="p">,</span> <span class="n">Number</span><span class="p">],</span>
                                                    <span class="n">Number</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">complex_plot_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;real_and_imag&#39;</span><span class="p">,</span>
+                 <span class="n">complex_plot_phase</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;radians&#39;</span><span class="p">,</span>
                  <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AxesTupleList</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Construct all plots for a given dataset</span>
@@ -292,6 +297,13 @@
 <span class="sd">            on both sides of the distribution.</span>
 <span class="sd">            If given a tuple (a,b) the percentile limits will be a and 100-b.</span>
 <span class="sd">            See also the plotting tuorial notebook.</span>
+<span class="sd">        complex_plot_type: method for converting complex-valued parameters</span>
+<span class="sd">            into two real-valued parameters, either ``&quot;real_and_imag&quot;`` or</span>
+<span class="sd">            ``&quot;mag_and_phase&quot;``. Applicable only for the cases where the</span>
+<span class="sd">            dataset contains complex numbers</span>
+<span class="sd">        complex_plot_phase: format of phase for plotting complex-valued data,</span>
+<span class="sd">            either ``&quot;radians&quot;`` or ``&quot;degrees&quot;``. Applicable only for the</span>
+<span class="sd">            cases where the dataset contains complex numbers</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        a list of axes and a list of colorbars of the same length. The</span>
@@ -305,14 +317,28 @@
     <span class="n">subplots_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
                        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="n">SUBPLOTS_KWARGS</span><span class="p">)}</span>
 
+    <span class="c1"># sanitize the complex plotting kwargs</span>
+    <span class="k">if</span> <span class="n">complex_plot_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;real_and_imag&#39;</span><span class="p">,</span> <span class="s1">&#39;mag_and_phase&#39;</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="n">f</span><span class="s1">&#39;Invalid complex plot type given. Received </span><span class="si">{complex_plot_type}</span><span class="s1"> &#39;</span>
+            <span class="s1">&#39;but can only accept &quot;real_and_imag&quot; or &quot;mag_and_phase&quot;.&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">complex_plot_phase</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;radians&#39;</span><span class="p">,</span> <span class="s1">&#39;degrees&#39;</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="n">f</span><span class="s1">&#39;Invalid complex plot phase given. Received </span><span class="si">{complex_plot_phase}</span><span class="s1"> &#39;</span>
+            <span class="s1">&#39;but can only accept &quot;degrees&quot; or &quot;radians&quot;.&#39;</span><span class="p">)</span>
+    <span class="n">degrees</span> <span class="o">=</span> <span class="n">complex_plot_phase</span> <span class="o">==</span> <span class="s2">&quot;degrees&quot;</span>
+
     <span class="c1"># Retrieve info about the run for the title</span>
 
     <span class="n">experiment_name</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">exp_name</span>
     <span class="n">sample_name</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">sample_name</span>
     <span class="n">title</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;Run #</span><span class="si">{dataset.run_id}</span><span class="s2">, Experiment </span><span class="si">{experiment_name}</span><span class="s2"> (</span><span class="si">{sample_name}</span><span class="s2">)&quot;</span>
 
-    <span class="c1"># todo this should really use dataset.get_parameter_data</span>
-    <span class="n">alldata</span> <span class="o">=</span> <span class="n">get_data_by_id</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
+    <span class="n">alldata</span><span class="p">:</span> <span class="n">NamedData</span> <span class="o">=</span> <span class="n">get_data_by_id</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
+    <span class="n">alldata</span> <span class="o">=</span> <span class="n">_complex_to_real_preparser</span><span class="p">(</span><span class="n">alldata</span><span class="p">,</span>
+                                         <span class="n">conversion</span><span class="o">=</span><span class="n">complex_plot_type</span><span class="p">,</span>
+                                         <span class="n">degrees</span><span class="o">=</span><span class="n">degrees</span><span class="p">)</span>
+
     <span class="n">nplots</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">alldata</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">axes</span><span class="p">,</span> <span class="n">matplotlib</span><span class="o">.</span><span class="n">axes</span><span class="o">.</span><span class="n">Axes</span><span class="p">):</span>
@@ -344,8 +370,8 @@
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>  <span class="c1"># 1D PLOTTING</span>
             <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Doing a 1D plot with kwargs: </span><span class="si">{kwargs}</span><span class="s1">&#39;</span><span class="p">)</span>
 
-            <span class="n">xpoints</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;data&#39;</span><span class="p">]</span>
-            <span class="n">ypoints</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;data&#39;</span><span class="p">]</span>
+            <span class="n">xpoints</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;data&#39;</span><span class="p">]</span>
+            <span class="n">ypoints</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;data&#39;</span><span class="p">]</span>
 
             <span class="n">plottype</span> <span class="o">=</span> <span class="n">get_1D_plottype</span><span class="p">(</span><span class="n">xpoints</span><span class="p">,</span> <span class="n">ypoints</span><span class="p">)</span>
             <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Determined plottype: </span><span class="si">{plottype}</span><span class="s1">&#39;</span><span class="p">)</span>
@@ -441,6 +467,8 @@
                <span class="n">auto_color_scale</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                <span class="n">cutoff_percentile</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">Number</span><span class="p">,</span> <span class="n">Number</span><span class="p">],</span>
                                                  <span class="n">Number</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+               <span class="n">complex_plot_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;real_and_imag&#39;</span><span class="p">,</span>
+               <span class="n">complex_plot_phase</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;radians&#39;</span><span class="p">,</span>
                <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AxesTupleList</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Construct all plots for a given `run_id`. All other arguments are forwarded</span>
@@ -454,7 +482,117 @@
                         <span class="n">rescale_axes</span><span class="p">,</span>
                         <span class="n">auto_color_scale</span><span class="p">,</span>
                         <span class="n">cutoff_percentile</span><span class="p">,</span>
+                        <span class="n">complex_plot_type</span><span class="p">,</span>
+                        <span class="n">complex_plot_phase</span><span class="p">,</span>
                         <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<span class="k">def</span> <span class="nf">_complex_to_real_preparser</span><span class="p">(</span><span class="n">alldata</span><span class="p">:</span> <span class="n">NamedData</span><span class="p">,</span>
+                               <span class="n">conversion</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                               <span class="n">degrees</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">NamedData</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convert complex-valued parameters to two real-valued parameters, either</span>
+<span class="sd">    real and imaginary part or phase and magnitude part</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        alldata: the data to convert, should be the output of get_data_by_id</span>
+<span class="sd">        conversion: the conversion method, either &quot;real_and_imag&quot; or</span>
+<span class="sd">            &quot;mag_and_phase&quot;</span>
+<span class="sd">        degress: whether to return the phase in degrees. The default is to</span>
+<span class="sd">            return the phase in radians</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">conversion</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;real_and_imag&#39;</span><span class="p">,</span> <span class="s1">&#39;mag_and_phase&#39;</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Invalid conversion given. Received </span><span class="si">{conversion}</span><span class="s1">, &#39;</span>
+                         <span class="s1">&#39;but can only accept &quot;real_and_imag&quot; or &#39;</span>
+                         <span class="s1">&#39;&quot;mag_and_phase&quot;.&#39;</span><span class="p">)</span>
+
+    <span class="n">newdata</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="c1"># we build a new NamedData object from the given `alldata` input.</span>
+    <span class="c1"># Note that the length of `newdata` will be larger than that of `alldata`</span>
+    <span class="c1"># in the case of complex top-level parameters, because a single complex</span>
+    <span class="c1"># top-level parameter will be split into two real top-level parameters</span>
+    <span class="c1"># (that have the same setpoints). This is the reason why we</span>
+    <span class="c1"># use two variables below, new_group and new_groups.</span>
+
+    <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">alldata</span><span class="p">:</span>
+        <span class="n">new_group</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">new_groups</span><span class="p">:</span> <span class="n">NamedData</span> <span class="o">=</span> <span class="p">[[],</span> <span class="p">[]]</span>
+        <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">parameter</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">group</span><span class="p">):</span>
+            <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">=</span> <span class="n">parameter</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">kind</span> <span class="o">==</span> <span class="s1">&#39;c&#39;</span><span class="p">:</span>
+                <span class="n">p1</span><span class="p">,</span> <span class="n">p2</span> <span class="o">=</span> <span class="n">_convert_complex_to_real</span><span class="p">(</span><span class="n">parameter</span><span class="p">,</span>
+                                                  <span class="n">conversion</span><span class="o">=</span><span class="n">conversion</span><span class="p">,</span>
+                                                  <span class="n">degrees</span><span class="o">=</span><span class="n">degrees</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">index</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">group</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="c1"># if the above condition is met, we are dealing with</span>
+                    <span class="c1"># complex setpoints</span>
+                    <span class="n">new_group</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p1</span><span class="p">)</span>
+                    <span class="n">new_group</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p2</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># in this case, we are dealing with a complex top-level</span>
+                    <span class="c1"># parameter. Also, all the setpoints will have been handled</span>
+                    <span class="c1"># by now. We split the group into two groups, one for each</span>
+                    <span class="c1"># new (real) top-level parameter</span>
+                    <span class="n">new_groups</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_group</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                    <span class="n">new_groups</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_group</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                    <span class="n">new_groups</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p1</span><span class="p">)</span>
+                    <span class="n">new_groups</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p2</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">new_group</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">parameter</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">new_groups</span> <span class="o">==</span> <span class="p">[[],</span> <span class="p">[]]:</span>
+            <span class="c1"># if the above condition is met, the group did not contain a</span>
+            <span class="c1"># complex top-level parameter and has thus not been split into two</span>
+            <span class="c1"># new groups</span>
+            <span class="n">newdata</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_group</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">newdata</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_groups</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">newdata</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_groups</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="n">newdata</span>
+
+
+<span class="k">def</span> <span class="nf">_convert_complex_to_real</span><span class="p">(</span>
+        <span class="n">parameter</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]],</span>
+        <span class="n">conversion</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">degrees</span><span class="p">:</span> <span class="nb">bool</span>
+        <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]],</span>
+                   <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]]]:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Do the actual conversion and turn one parameter into two.</span>
+<span class="sd">    Should only be called from within _complex_to_real_preparser.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">phase_unit</span> <span class="o">=</span> <span class="s1">&#39;deg&#39;</span> <span class="k">if</span> <span class="n">degrees</span> <span class="k">else</span> <span class="s1">&#39;rad&#39;</span>
+
+    <span class="n">converters</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;data&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;real_and_imag&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">imag</span><span class="p">(</span><span class="n">x</span><span class="p">)),</span>
+                 <span class="s1">&#39;mag_and_phase&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">x</span><span class="p">),</span>
+                                             <span class="n">np</span><span class="o">.</span><span class="n">angle</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">deg</span><span class="o">=</span><span class="n">degrees</span><span class="p">))},</span>
+        <span class="s1">&#39;labels&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;real_and_imag&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">l</span><span class="p">:</span> <span class="p">(</span><span class="n">l</span> <span class="o">+</span> <span class="s1">&#39; [real]&#39;</span><span class="p">,</span> <span class="n">l</span> <span class="o">+</span> <span class="s1">&#39; [imag]&#39;</span><span class="p">),</span>
+                   <span class="s1">&#39;mag_and_phase&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">l</span><span class="p">:</span> <span class="p">(</span><span class="n">l</span> <span class="o">+</span> <span class="s1">&#39; [mag]&#39;</span><span class="p">,</span> <span class="n">l</span> <span class="o">+</span> <span class="s1">&#39; [phase]&#39;</span><span class="p">)},</span>
+        <span class="s1">&#39;units&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;real_and_imag&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">u</span><span class="p">:</span> <span class="p">(</span><span class="n">u</span><span class="p">,</span> <span class="n">u</span><span class="p">),</span>
+                  <span class="s1">&#39;mag_and_phase&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">u</span><span class="p">:</span> <span class="p">(</span><span class="n">u</span><span class="p">,</span> <span class="n">phase_unit</span><span class="p">)},</span>
+        <span class="s1">&#39;names&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;real_and_imag&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">n</span><span class="p">:</span> <span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="s1">&#39;_real&#39;</span><span class="p">,</span> <span class="n">n</span> <span class="o">+</span> <span class="s1">&#39;_imag&#39;</span><span class="p">),</span>
+                  <span class="s1">&#39;mag_and_phase&#39;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">n</span><span class="p">:</span> <span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="s1">&#39;_mag&#39;</span><span class="p">,</span> <span class="n">n</span> <span class="o">+</span> <span class="s1">&#39;_phase&#39;</span><span class="p">)}}</span>
+
+    <span class="n">new_data</span> <span class="o">=</span> <span class="n">converters</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">][</span><span class="n">conversion</span><span class="p">](</span><span class="n">parameter</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">])</span>
+    <span class="n">new_labels</span> <span class="o">=</span> <span class="n">converters</span><span class="p">[</span><span class="s1">&#39;labels&#39;</span><span class="p">][</span><span class="n">conversion</span><span class="p">](</span><span class="n">parameter</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">])</span>
+    <span class="n">new_units</span> <span class="o">=</span> <span class="n">converters</span><span class="p">[</span><span class="s1">&#39;units&#39;</span><span class="p">][</span><span class="n">conversion</span><span class="p">](</span><span class="n">parameter</span><span class="p">[</span><span class="s1">&#39;unit&#39;</span><span class="p">])</span>
+    <span class="n">new_names</span> <span class="o">=</span> <span class="n">converters</span><span class="p">[</span><span class="s1">&#39;names&#39;</span><span class="p">][</span><span class="n">conversion</span><span class="p">](</span><span class="n">parameter</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">])</span>
+
+    <span class="n">new_parameters</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
+        <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">label</span><span class="p">,</span>
+         <span class="s1">&#39;unit&#39;</span><span class="p">:</span> <span class="n">unit</span><span class="p">,</span> <span class="s1">&#39;data&#39;</span><span class="p">:</span> <span class="n">data</span><span class="p">}</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">unit</span><span class="p">,</span> <span class="n">data</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
+            <span class="n">new_names</span><span class="p">,</span> <span class="n">new_labels</span><span class="p">,</span> <span class="n">new_units</span><span class="p">,</span> <span class="n">new_data</span><span class="p">))</span>
+
+    <span class="c1"># The reason we ignore the type in the return is that I cannot figure</span>
+    <span class="c1"># out how to get mypy to correctly infer the type of iterated values</span>
+    <span class="c1"># (the name, label, unit, and data above)</span>
+
+    <span class="k">return</span> <span class="n">new_parameters</span>  <span class="c1"># type: ignore</span>
 
 
 <span class="k">def</span> <span class="nf">_get_label_of_data</span><span class="p">(</span><span class="n">data_dict</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
