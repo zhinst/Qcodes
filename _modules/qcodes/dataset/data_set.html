@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>qcodes.dataset.data_set &mdash; QCoDeS 0.4.0+51.g0b5d7a4d documentation</title>
+  <title>qcodes.dataset.data_set &mdash; QCoDeS 0.4.0+211.ga62a22f17 documentation</title>
   
 
   
@@ -62,7 +62,7 @@
             
             
               <div class="version">
-                0.4.0+51.g0b5d7a4d
+                0.4.0+211.ga62a22f17
               </div>
             
           
@@ -160,47 +160,54 @@
             
   <h1>Source code for qcodes.dataset.data_set</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">functools</span>
-<span class="kn">import</span> <span class="nn">json</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="p">(</span><span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Sized</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span>
-                    <span class="n">Sequence</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">)</span>
-<span class="kn">from</span> <span class="nn">threading</span> <span class="k">import</span> <span class="n">Thread</span>
-<span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">importlib</span>
+<span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">uuid</span>
-<span class="kn">from</span> <span class="nn">queue</span> <span class="k">import</span> <span class="n">Queue</span><span class="p">,</span> <span class="n">Empty</span>
+<span class="kn">from</span> <span class="nn">queue</span> <span class="k">import</span> <span class="n">Empty</span><span class="p">,</span> <span class="n">Queue</span>
+<span class="kn">from</span> <span class="nn">threading</span> <span class="k">import</span> <span class="n">Thread</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="p">(</span><span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Sized</span><span class="p">,</span>
+                    <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span><span class="p">)</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 
-<span class="kn">from</span> <span class="nn">qcodes.dataset.descriptions.param_spec</span> <span class="k">import</span> <span class="n">ParamSpec</span><span class="p">,</span> <span class="n">ParamSpecBase</span>
-<span class="kn">import</span> <span class="nn">qcodes.dataset.descriptions.versioning.serialization</span> <span class="k">as</span> <span class="nn">serial</span>
-<span class="kn">from</span> <span class="nn">qcodes.dataset.sqlite.connection</span> <span class="k">import</span> <span class="n">atomic</span><span class="p">,</span> <span class="n">atomic_transaction</span><span class="p">,</span> \
-    <span class="n">transaction</span><span class="p">,</span> <span class="n">make_connection_plus_from</span><span class="p">,</span> <span class="n">ConnectionPlus</span>
-<span class="kn">from</span> <span class="nn">qcodes.dataset.sqlite.queries</span> <span class="k">import</span> <span class="n">add_parameter</span><span class="p">,</span> <span class="n">create_run</span><span class="p">,</span> \
-    <span class="n">completed</span><span class="p">,</span> <span class="n">get_experiments</span><span class="p">,</span> <span class="n">get_last_experiment</span><span class="p">,</span> \
-    <span class="n">add_meta_data</span><span class="p">,</span> <span class="n">mark_run_complete</span><span class="p">,</span> <span class="n">get_data</span><span class="p">,</span> <span class="n">get_parameter_data</span><span class="p">,</span> \
-    <span class="n">get_values</span><span class="p">,</span> <span class="n">get_setpoints</span><span class="p">,</span> <span class="n">get_metadata</span><span class="p">,</span> <span class="n">get_metadata_from_run_id</span><span class="p">,</span> \
-    <span class="n">get_experiment_name_from_experiment_id</span><span class="p">,</span> \
-    <span class="n">get_sample_name_from_experiment_id</span><span class="p">,</span> <span class="n">get_guid_from_run_id</span><span class="p">,</span> \
-    <span class="n">get_runid_from_guid</span><span class="p">,</span> <span class="n">get_run_timestamp_from_run_id</span><span class="p">,</span> <span class="n">get_run_description</span><span class="p">,</span>\
-    <span class="n">get_completed_timestamp_from_run_id</span><span class="p">,</span> <span class="n">update_run_description</span><span class="p">,</span> <span class="n">run_exists</span><span class="p">,</span>\
-    <span class="n">remove_trigger</span><span class="p">,</span> <span class="n">set_run_timestamp</span>
-<span class="kn">from</span> <span class="nn">qcodes.dataset.sqlite.query_helpers</span> <span class="k">import</span> <span class="n">select_one_where</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> \
-    <span class="n">insert_many_values</span><span class="p">,</span> <span class="n">insert_values</span><span class="p">,</span> <span class="n">VALUE</span><span class="p">,</span> <span class="n">one</span>
-<span class="kn">from</span> <span class="nn">qcodes.dataset.sqlite.database</span> <span class="k">import</span> <span class="n">get_DB_location</span><span class="p">,</span> <span class="n">connect</span><span class="p">,</span> \
-    <span class="n">conn_from_dbpath_or_conn</span>
-<span class="kn">from</span> <span class="nn">qcodes.instrument.parameter</span> <span class="k">import</span> <span class="n">_BaseParameter</span>
-<span class="kn">from</span> <span class="nn">qcodes.dataset.descriptions.rundescriber</span> <span class="k">import</span> <span class="n">RunDescriber</span>
-<span class="kn">from</span> <span class="nn">qcodes.dataset.descriptions.dependencies</span> <span class="k">import</span> <span class="p">(</span><span class="n">InterDependencies_</span><span class="p">,</span>
-                                                      <span class="n">DependencyError</span><span class="p">)</span>
-<span class="kn">from</span> <span class="nn">qcodes.dataset.descriptions.versioning.v0</span> <span class="k">import</span> <span class="n">InterDependencies</span>
-<span class="kn">from</span> <span class="nn">qcodes.dataset.descriptions.versioning.converters</span> <span class="k">import</span> <span class="n">old_to_new</span><span class="p">,</span> \
-    <span class="n">new_to_old</span><span class="p">,</span> <span class="n">v1_to_v0</span>
-<span class="kn">from</span> <span class="nn">qcodes.dataset.guids</span> <span class="k">import</span> <span class="n">generate_guid</span>
-<span class="kn">from</span> <span class="nn">qcodes.utils.deprecate</span> <span class="k">import</span> <span class="n">deprecate</span>
 <span class="kn">import</span> <span class="nn">qcodes.config</span>
-
+<span class="kn">import</span> <span class="nn">qcodes.dataset.descriptions.versioning.serialization</span> <span class="k">as</span> <span class="nn">serial</span>
+<span class="kn">from</span> <span class="nn">qcodes.dataset.descriptions.dependencies</span> <span class="k">import</span> <span class="p">(</span><span class="n">DependencyError</span><span class="p">,</span>
+                                                      <span class="n">InterDependencies_</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">qcodes.dataset.descriptions.param_spec</span> <span class="k">import</span> <span class="n">ParamSpec</span><span class="p">,</span> <span class="n">ParamSpecBase</span>
+<span class="kn">from</span> <span class="nn">qcodes.dataset.descriptions.rundescriber</span> <span class="k">import</span> <span class="n">RunDescriber</span>
+<span class="kn">from</span> <span class="nn">qcodes.dataset.descriptions.versioning.converters</span> <span class="k">import</span> <span class="p">(</span><span class="n">new_to_old</span><span class="p">,</span>
+                                                               <span class="n">old_to_new</span><span class="p">,</span>
+                                                               <span class="n">v1_to_v0</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">qcodes.dataset.descriptions.versioning.v0</span> <span class="k">import</span> <span class="n">InterDependencies</span>
+<span class="kn">from</span> <span class="nn">qcodes.dataset.guids</span> <span class="k">import</span> <span class="p">(</span>
+    <span class="n">filter_guids_by_parts</span><span class="p">,</span> <span class="n">generate_guid</span><span class="p">,</span> <span class="n">parse_guid</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">qcodes.dataset.linked_datasets.links</span> <span class="k">import</span> <span class="p">(</span><span class="n">Link</span><span class="p">,</span> <span class="n">links_to_str</span><span class="p">,</span>
+                                                  <span class="n">str_to_links</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">qcodes.dataset.sqlite.connection</span> <span class="k">import</span> <span class="p">(</span><span class="n">ConnectionPlus</span><span class="p">,</span> <span class="n">atomic</span><span class="p">,</span>
+                                              <span class="n">atomic_transaction</span><span class="p">,</span>
+                                              <span class="n">transaction</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">qcodes.dataset.sqlite.database</span> <span class="k">import</span> <span class="p">(</span>
+    <span class="n">connect</span><span class="p">,</span> <span class="n">get_DB_location</span><span class="p">,</span> <span class="n">conn_from_dbpath_or_conn</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">qcodes.dataset.sqlite.queries</span> <span class="k">import</span> <span class="p">(</span>
+    <span class="n">add_meta_data</span><span class="p">,</span> <span class="n">add_parameter</span><span class="p">,</span> <span class="n">completed</span><span class="p">,</span> <span class="n">create_run</span><span class="p">,</span>
+    <span class="n">get_completed_timestamp_from_run_id</span><span class="p">,</span> <span class="n">get_data</span><span class="p">,</span>
+    <span class="n">get_experiment_name_from_experiment_id</span><span class="p">,</span> <span class="n">get_experiments</span><span class="p">,</span>
+    <span class="n">get_guid_from_run_id</span><span class="p">,</span> <span class="n">get_guids_from_run_spec</span><span class="p">,</span>
+    <span class="n">get_last_experiment</span><span class="p">,</span> <span class="n">get_metadata</span><span class="p">,</span> <span class="n">get_metadata_from_run_id</span><span class="p">,</span>
+    <span class="n">get_parameter_data</span><span class="p">,</span> <span class="n">get_parent_dataset_links</span><span class="p">,</span> <span class="n">get_run_description</span><span class="p">,</span>
+    <span class="n">get_run_timestamp_from_run_id</span><span class="p">,</span> <span class="n">get_runid_from_guid</span><span class="p">,</span>
+    <span class="n">get_sample_name_from_experiment_id</span><span class="p">,</span> <span class="n">get_setpoints</span><span class="p">,</span> <span class="n">get_values</span><span class="p">,</span>
+    <span class="n">mark_run_complete</span><span class="p">,</span> <span class="n">remove_trigger</span><span class="p">,</span> <span class="n">run_exists</span><span class="p">,</span> <span class="n">set_run_timestamp</span><span class="p">,</span>
+    <span class="n">update_parent_datasets</span><span class="p">,</span> <span class="n">update_run_description</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">qcodes.dataset.sqlite.query_helpers</span> <span class="k">import</span> <span class="p">(</span><span class="n">VALUE</span><span class="p">,</span> <span class="n">insert_many_values</span><span class="p">,</span>
+                                                 <span class="n">insert_values</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">one</span><span class="p">,</span>
+                                                 <span class="n">select_one_where</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">qcodes.instrument.parameter</span> <span class="k">import</span> <span class="n">_BaseParameter</span>
+<span class="kn">from</span> <span class="nn">qcodes.utils.deprecate</span> <span class="k">import</span> <span class="n">deprecate</span>
 
 <span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
@@ -359,7 +366,8 @@
                          <span class="s1">&#39;parameters&#39;</span><span class="p">,</span> <span class="s1">&#39;paramspecs&#39;</span><span class="p">,</span> <span class="s1">&#39;exp_name&#39;</span><span class="p">,</span> <span class="s1">&#39;sample_name&#39;</span><span class="p">,</span>
                          <span class="s1">&#39;completed&#39;</span><span class="p">,</span> <span class="s1">&#39;snapshot&#39;</span><span class="p">,</span> <span class="s1">&#39;run_timestamp_raw&#39;</span><span class="p">,</span>
                          <span class="s1">&#39;description&#39;</span><span class="p">,</span> <span class="s1">&#39;completed_timestamp_raw&#39;</span><span class="p">,</span> <span class="s1">&#39;metadata&#39;</span><span class="p">,</span>
-                         <span class="s1">&#39;dependent_parameters&#39;</span><span class="p">)</span>
+                         <span class="s1">&#39;dependent_parameters&#39;</span><span class="p">,</span> <span class="s1">&#39;parent_dataset_links&#39;</span><span class="p">,</span>
+                         <span class="s1">&#39;captured_run_id&#39;</span><span class="p">,</span> <span class="s1">&#39;captured_counter&#39;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path_to_db</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">run_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -399,6 +407,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_debug</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">subscribers</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">_Subscriber</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span><span class="p">:</span> <span class="n">InterDependencies_</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parent_dataset_links</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Link</span><span class="p">]</span>
 
         <span class="k">if</span> <span class="n">run_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">run_exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="n">run_id</span><span class="p">):</span>
@@ -409,7 +418,8 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span> <span class="o">=</span> <span class="n">run_desc</span><span class="o">.</span><span class="n">interdeps</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_metadata</span> <span class="o">=</span> <span class="n">get_metadata_from_run_id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="n">run_id</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_started</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_timestamp_raw</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-
+            <span class="bp">self</span><span class="o">.</span><span class="n">_parent_dataset_links</span> <span class="o">=</span> <span class="n">str_to_links</span><span class="p">(</span>
+                <span class="n">get_parent_dataset_links</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">))</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="c1"># Actually perform all the side effects needed for the creation</span>
             <span class="c1"># of a new dataset. Note that a dataset is created (in the DB)</span>
@@ -439,11 +449,16 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span> <span class="o">=</span> <span class="n">InterDependencies_</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_metadata</span> <span class="o">=</span> <span class="n">get_metadata_from_run_id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
-
+            <span class="bp">self</span><span class="o">.</span><span class="n">_parent_dataset_links</span> <span class="o">=</span> <span class="p">[]</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">run_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_id</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">captured_run_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">select_one_where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="s2">&quot;runs&quot;</span><span class="p">,</span>
+                                <span class="s2">&quot;captured_run_id&quot;</span><span class="p">,</span> <span class="s2">&quot;run_id&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">path_to_db</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -488,6 +503,11 @@
     <span class="k">def</span> <span class="nf">counter</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">select_one_where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="s2">&quot;runs&quot;</span><span class="p">,</span>
                                 <span class="s2">&quot;result_counter&quot;</span><span class="p">,</span> <span class="s2">&quot;run_id&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">captured_counter</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">select_one_where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="s2">&quot;runs&quot;</span><span class="p">,</span>
+                                <span class="s2">&quot;captured_counter&quot;</span><span class="p">,</span> <span class="s2">&quot;run_id&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
@@ -545,6 +565,38 @@
     <span class="k">def</span> <span class="nf">metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_metadata</span>
 
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">parent_dataset_links</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Link</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return a list of Link objects. Each Link object describes a link from</span>
+<span class="sd">        this dataset to one of its parent datasets</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parent_dataset_links</span>
+
+    <span class="nd">@parent_dataset_links</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">parent_dataset_links</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">links</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Link</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Assign one or more links to parent datasets to this dataset. It is an</span>
+<span class="sd">        error to assign links to a non-pristine dataset</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            links: The links to assign to this dataset</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">pristine</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Can not set parent dataset links on a dataset &#39;</span>
+                               <span class="s1">&#39;that has been started.&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">((</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">link</span><span class="p">,</span> <span class="n">Link</span><span class="p">)</span> <span class="k">for</span> <span class="n">link</span> <span class="ow">in</span> <span class="n">links</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Invalid input. Did not receive a list of Links&#39;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">link</span> <span class="ow">in</span> <span class="n">links</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">link</span><span class="o">.</span><span class="n">head</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">guid</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s1">&#39;Invalid input. All links must point to this dataset. &#39;</span>
+                    <span class="s1">&#39;Got link(s) with head(s) pointing to another dataset.&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parent_dataset_links</span> <span class="o">=</span> <span class="n">links</span>
+
 <div class="viewcode-block" id="DataSet.the_same_dataset_as"><a class="viewcode-back" href="../../../api/dataset/data_set.html#qcodes.dataset.data_set.DataSet.the_same_dataset_as">[docs]</a>    <span class="k">def</span> <span class="nf">the_same_dataset_as</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="s1">&#39;DataSet&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Check if two datasets correspond to the same run by comparing</span>
@@ -562,12 +614,16 @@
 
         <span class="n">guids_match</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">guid</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">guid</span>
 
+        <span class="c1"># note that the guid is in itself a persistent trait of the DataSet.</span>
+        <span class="c1"># We therefore do not need to handle the case of guids not equal</span>
+        <span class="c1"># but all persistent traits equal, as this is not possible.</span>
+        <span class="c1"># Thus, if all persistent traits are the same we can safely return True</span>
         <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">DataSet</span><span class="o">.</span><span class="n">persistent_traits</span><span class="p">:</span>
             <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">attr</span><span class="p">):</span>
                 <span class="k">if</span> <span class="n">guids_match</span><span class="p">:</span>
                     <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Critical inconsistency detected! &#39;</span>
-                                       <span class="s1">&#39;The two datasets have the same GUID,&#39;</span>
-                                       <span class="n">f</span><span class="s1">&#39; but their &quot;</span><span class="si">{attr}</span><span class="s1">&quot; differ.&#39;</span><span class="p">)</span>
+                                       <span class="s1">&#39;The two datasets have the same GUID, &#39;</span>
+                                       <span class="n">f</span><span class="s1">&#39;but their &quot;</span><span class="si">{attr}</span><span class="s1">&quot; differ.&#39;</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="k">return</span> <span class="kc">False</span>
 
@@ -756,6 +812,9 @@
         <span class="n">update_run_description</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">,</span> <span class="n">desc_str</span><span class="p">)</span>
 
         <span class="n">set_run_timestamp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
+
+        <span class="n">pdl_str</span> <span class="o">=</span> <span class="n">links_to_str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_parent_dataset_links</span><span class="p">)</span>
+        <span class="n">update_parent_datasets</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_id</span><span class="p">,</span> <span class="n">pdl_str</span><span class="p">)</span>
 
 <div class="viewcode-block" id="DataSet.mark_completed"><a class="viewcode-back" href="../../../api/dataset/data_set.html#qcodes.dataset.data_set.DataSet.mark_completed">[docs]</a>    <span class="k">def</span> <span class="nf">mark_completed</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -1063,7 +1122,6 @@
         <span class="k">if</span> <span class="n">param_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Unknown parameter, not in this DataSet&#39;</span><span class="p">)</span>
 
-
         <span class="k">if</span> <span class="n">paramspec</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span><span class="o">.</span><span class="n">dependencies</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Parameter </span><span class="si">{param_name}</span><span class="s1"> has no setpoints.&#39;</span><span class="p">)</span>
 
@@ -1169,12 +1227,16 @@
 <span class="sd">    If no connection is provided, lookup is performed in the database file that</span>
 <span class="sd">    is specified in the config.</span>
 
+<span class="sd">    Note that the `run_id` used in this function in not preserved when copying</span>
+<span class="sd">    data to another db file. We recommend using :func:`.load_by_run_spec` which</span>
+<span class="sd">    does not have this issue and is significantly more flexible.</span>
+
 <span class="sd">    Args:</span>
 <span class="sd">        run_id: run id of the dataset</span>
 <span class="sd">        conn: connection to the database to load from</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        dataset with the given run id</span>
+<span class="sd">        :class:`.DataSet` with the given run id</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">run_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;run_id has to be a positive integer, not None.&#39;</span><span class="p">)</span>
@@ -1183,6 +1245,64 @@
 
     <span class="n">d</span> <span class="o">=</span> <span class="n">DataSet</span><span class="p">(</span><span class="n">conn</span><span class="o">=</span><span class="n">conn</span><span class="p">,</span> <span class="n">run_id</span><span class="o">=</span><span class="n">run_id</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">d</span></div>
+
+
+<div class="viewcode-block" id="load_by_run_spec"><a class="viewcode-back" href="../../../api/dataset/data_set.html#qcodes.dataset.data_set.load_by_run_spec">[docs]</a><span class="k">def</span> <span class="nf">load_by_run_spec</span><span class="p">(</span><span class="o">*</span><span class="p">,</span>
+                     <span class="n">captured_run_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                     <span class="n">captured_counter</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                     <span class="n">experiment_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                     <span class="n">sample_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                     <span class="c1"># guid parts</span>
+                     <span class="n">sample_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                     <span class="n">location</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                     <span class="n">work_station</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                     <span class="n">conn</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ConnectionPlus</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataSet</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Load a run from one or more pieces of runs specification. All</span>
+<span class="sd">    fields are optional but the function will raise an error if more than one</span>
+<span class="sd">    run matching the supplied specification is found. Along with the error</span>
+<span class="sd">    specs of the runs found will be printed.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        captured_run_id: The run_id that was originally assigned to this</span>
+<span class="sd">          at the time of capture.</span>
+<span class="sd">        captured_counter: The counter that was originally assigned to this</span>
+<span class="sd">          at the time of capture.</span>
+<span class="sd">        experiment_name: name of the experiment that the run was captured</span>
+<span class="sd">        sample_name: The name of the sample given when creating the experiment.</span>
+<span class="sd">        sample_id: The sample_id assigned as part of the GUID.</span>
+<span class="sd">        location: The location code assigned as part of GUID.</span>
+<span class="sd">        work_station: The workstation assigned as part of the GUID.</span>
+<span class="sd">        conn: An optional connection to the database. If no connection is</span>
+<span class="sd">          supplied a connection to the default database will be opened.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        NameError: if no run or more than one run with the given specification</span>
+<span class="sd">         exists in the database</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        :class:`.DataSet` matching the provided specification.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">conn</span> <span class="o">=</span> <span class="n">conn</span> <span class="ow">or</span> <span class="n">connect</span><span class="p">(</span><span class="n">get_DB_location</span><span class="p">())</span>
+    <span class="n">guids</span> <span class="o">=</span> <span class="n">get_guids_from_run_spec</span><span class="p">(</span><span class="n">conn</span><span class="p">,</span>
+                                    <span class="n">captured_run_id</span><span class="o">=</span><span class="n">captured_run_id</span><span class="p">,</span>
+                                    <span class="n">captured_counter</span><span class="o">=</span><span class="n">captured_counter</span><span class="p">,</span>
+                                    <span class="n">experiment_name</span><span class="o">=</span><span class="n">experiment_name</span><span class="p">,</span>
+                                    <span class="n">sample_name</span><span class="o">=</span><span class="n">sample_name</span><span class="p">)</span>
+
+    <span class="n">matched_guids</span> <span class="o">=</span> <span class="n">filter_guids_by_parts</span><span class="p">(</span><span class="n">guids</span><span class="p">,</span> <span class="n">location</span><span class="p">,</span> <span class="n">sample_id</span><span class="p">,</span>
+                                          <span class="n">work_station</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">matched_guids</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">load_by_guid</span><span class="p">(</span><span class="n">matched_guids</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">conn</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">matched_guids</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">generate_dataset_table</span><span class="p">(</span><span class="n">matched_guids</span><span class="p">,</span> <span class="n">conn</span><span class="o">=</span><span class="n">conn</span><span class="p">))</span>
+        <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="s2">&quot;More than one matching dataset found. &quot;</span>
+                        <span class="s2">&quot;Please supply more information to uniquely&quot;</span>
+                        <span class="s2">&quot;identify a dataset&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;No run matching the supplied information &#39;</span>
+                        <span class="n">f</span><span class="s1">&#39;found.&#39;</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="load_by_guid"><a class="viewcode-back" href="../../../api/dataset/data_set.html#qcodes.dataset.data_set.load_by_guid">[docs]</a><span class="k">def</span> <span class="nf">load_by_guid</span><span class="p">(</span><span class="n">guid</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">conn</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ConnectionPlus</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataSet</span><span class="p">:</span>
@@ -1197,7 +1317,7 @@
 <span class="sd">        conn: connection to the database to load from</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        dataset with the given guid</span>
+<span class="sd">        :class:`.DataSet` with the given guid</span>
 
 <span class="sd">    Raises:</span>
 <span class="sd">        NameError: if no run with the given GUID exists in the database</span>
@@ -1221,6 +1341,10 @@
 
 <span class="sd">    Lookup is performed in the database file that is specified in the config.</span>
 
+<span class="sd">    Note that the `counter` used in this function in not preserved when copying</span>
+<span class="sd">    data to another db file. We recommend using :func:`.load_by_run_spec` which</span>
+<span class="sd">    does not have this issue and is significantly more flexible.</span>
+
 <span class="sd">    Args:</span>
 <span class="sd">        counter: counter of the dataset within the given experiment</span>
 <span class="sd">        exp_id: id of the experiment where to look for the dataset</span>
@@ -1228,7 +1352,7 @@
 <span class="sd">          connection to the DB file specified in the config is made</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        dataset of the given counter in the given experiment</span>
+<span class="sd">        :class:`.DataSet` of the given counter in the given experiment</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">conn</span> <span class="o">=</span> <span class="n">conn</span> <span class="ow">or</span> <span class="n">connect</span><span class="p">(</span><span class="n">get_DB_location</span><span class="p">())</span>
     <span class="n">sql</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
@@ -1263,7 +1387,7 @@
 <span class="sd">        metadata: the metadata to associate with the dataset</span>
 
 <span class="sd">    Return:</span>
-<span class="sd">        the newly created dataset</span>
+<span class="sd">        the newly created :class:`.DataSet`</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="c1"># note that passing `conn` is a secret feature that is unfortunately used</span>
     <span class="c1"># in `Runner` to pass a connection from an existing `Experiment`.</span>
@@ -1272,6 +1396,33 @@
                 <span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span><span class="p">,</span> <span class="n">exp_id</span><span class="o">=</span><span class="n">exp_id</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">d</span></div>
+
+
+<div class="viewcode-block" id="generate_dataset_table"><a class="viewcode-back" href="../../../api/dataset/data_set.html#qcodes.dataset.data_set.generate_dataset_table">[docs]</a><span class="k">def</span> <span class="nf">generate_dataset_table</span><span class="p">(</span><span class="n">guids</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+                           <span class="n">conn</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ConnectionPlus</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generate an ASCII art table of information about the runs attached to the</span>
+<span class="sd">    supplied guids.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        guids: Sequence of one or more guids</span>
+<span class="sd">        conn: A ConnectionPlus object with a connection to the database.</span>
+
+<span class="sd">    Returns: ASCII art table of information about the supplied guids.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">tabulate</span> <span class="k">import</span> <span class="n">tabulate</span>
+    <span class="n">headers</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;captured_run_id&quot;</span><span class="p">,</span> <span class="s2">&quot;captured_counter&quot;</span><span class="p">,</span> <span class="s2">&quot;experiment_name&quot;</span><span class="p">,</span>
+               <span class="s2">&quot;sample_name&quot;</span><span class="p">,</span>
+               <span class="s2">&quot;sample_id&quot;</span><span class="p">,</span> <span class="s2">&quot;location&quot;</span><span class="p">,</span> <span class="s2">&quot;work_station&quot;</span><span class="p">]</span>
+    <span class="n">table</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">guid</span> <span class="ow">in</span> <span class="n">guids</span><span class="p">:</span>
+        <span class="n">ds</span> <span class="o">=</span> <span class="n">load_by_guid</span><span class="p">(</span><span class="n">guid</span><span class="p">,</span> <span class="n">conn</span><span class="o">=</span><span class="n">conn</span><span class="p">)</span>
+        <span class="n">parsed_guid</span> <span class="o">=</span> <span class="n">parse_guid</span><span class="p">(</span><span class="n">guid</span><span class="p">)</span>
+        <span class="n">table</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">ds</span><span class="o">.</span><span class="n">captured_run_id</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">captured_counter</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">exp_name</span><span class="p">,</span>
+                      <span class="n">ds</span><span class="o">.</span><span class="n">sample_name</span><span class="p">,</span>
+                      <span class="n">parsed_guid</span><span class="p">[</span><span class="s1">&#39;sample&#39;</span><span class="p">],</span> <span class="n">parsed_guid</span><span class="p">[</span><span class="s1">&#39;location&#39;</span><span class="p">],</span>
+                      <span class="n">parsed_guid</span><span class="p">[</span><span class="s1">&#39;work_station&#39;</span><span class="p">]])</span>
+    <span class="k">return</span> <span class="n">tabulate</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">)</span></div>
 </pre></div>
 
            </div>

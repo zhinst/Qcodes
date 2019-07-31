@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>qcodes.dataset.plotting &mdash; QCoDeS 0.4.0+51.g0b5d7a4d documentation</title>
+  <title>qcodes.dataset.plotting &mdash; QCoDeS 0.4.0+211.ga62a22f17 documentation</title>
   
 
   
@@ -62,7 +62,7 @@
             
             
               <div class="version">
-                0.4.0+51.g0b5d7a4d
+                0.4.0+211.ga62a22f17
               </div>
             
           
@@ -163,7 +163,7 @@
 <span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">OrderedDict</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="k">import</span> <span class="n">partial</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="p">(</span><span class="n">Optional</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span>
-                    <span class="n">Any</span><span class="p">,</span> <span class="n">Set</span><span class="p">)</span>
+                    <span class="n">Any</span><span class="p">,</span> <span class="n">Set</span><span class="p">,</span> <span class="n">cast</span><span class="p">)</span>
 <span class="kn">import</span> <span class="nn">inspect</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">matplotlib</span>
@@ -172,7 +172,7 @@
 <span class="kn">from</span> <span class="nn">contextlib</span> <span class="k">import</span> <span class="n">contextmanager</span>
 
 <span class="kn">import</span> <span class="nn">qcodes</span> <span class="k">as</span> <span class="nn">qc</span>
-<span class="kn">from</span> <span class="nn">qcodes.dataset.data_set</span> <span class="k">import</span> <span class="n">load_by_id</span><span class="p">,</span> <span class="n">DataSet</span>
+<span class="kn">from</span> <span class="nn">qcodes.dataset.data_set</span> <span class="k">import</span> <span class="n">load_by_run_spec</span><span class="p">,</span> <span class="n">DataSet</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.plotting</span> <span class="k">import</span> <span class="n">auto_color_scale_from_config</span>
 
 <span class="kn">from</span> <span class="nn">.data_export</span> <span class="k">import</span> <span class="p">(</span><span class="n">get_data_by_id</span><span class="p">,</span> <span class="n">flatten_1D_data_for_plot</span><span class="p">,</span>
@@ -332,7 +332,8 @@
 
     <span class="n">experiment_name</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">exp_name</span>
     <span class="n">sample_name</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">sample_name</span>
-    <span class="n">title</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;Run #</span><span class="si">{dataset.run_id}</span><span class="s2">, Experiment </span><span class="si">{experiment_name}</span><span class="s2"> (</span><span class="si">{sample_name}</span><span class="s2">)&quot;</span>
+    <span class="n">title</span> <span class="o">=</span> <span class="n">f</span><span class="s2">&quot;Run #</span><span class="si">{dataset.captured_run_id}</span><span class="s2">, &quot;</span> \
+            <span class="n">f</span><span class="s2">&quot;Experiment </span><span class="si">{experiment_name}</span><span class="s2"> (</span><span class="si">{sample_name}</span><span class="s2">)&quot;</span>
 
     <span class="n">alldata</span><span class="p">:</span> <span class="n">NamedData</span> <span class="o">=</span> <span class="n">get_data_by_id</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">run_id</span><span class="p">)</span>
     <span class="n">alldata</span> <span class="o">=</span> <span class="n">_complex_to_real_preparser</span><span class="p">(</span><span class="n">alldata</span><span class="p">,</span>
@@ -342,30 +343,32 @@
     <span class="n">nplots</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">alldata</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">axes</span><span class="p">,</span> <span class="n">matplotlib</span><span class="o">.</span><span class="n">axes</span><span class="o">.</span><span class="n">Axes</span><span class="p">):</span>
-        <span class="n">axes</span> <span class="o">=</span> <span class="p">[</span><span class="n">axes</span><span class="p">]</span>
+        <span class="n">axeslist</span> <span class="o">=</span> <span class="p">[</span><span class="n">axes</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">axeslist</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="n">List</span><span class="p">[</span><span class="n">matplotlib</span><span class="o">.</span><span class="n">axes</span><span class="o">.</span><span class="n">Axes</span><span class="p">],</span> <span class="n">axes</span><span class="p">)</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">colorbars</span><span class="p">,</span> <span class="n">matplotlib</span><span class="o">.</span><span class="n">colorbar</span><span class="o">.</span><span class="n">Colorbar</span><span class="p">):</span>
         <span class="n">colorbars</span> <span class="o">=</span> <span class="p">[</span><span class="n">colorbars</span><span class="p">]</span>
 
-    <span class="k">if</span> <span class="n">axes</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">axes</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">axeslist</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">axeslist</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nplots</span><span class="p">):</span>
             <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">**</span><span class="n">subplots_kwargs</span><span class="p">)</span>
-            <span class="n">axes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ax</span><span class="p">)</span>
+            <span class="n">axeslist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ax</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">subplots_kwargs</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Error: You cannot provide arguments for the &quot;</span>
                                <span class="n">f</span><span class="s2">&quot;axes/figure creation if you supply your own &quot;</span>
                                <span class="n">f</span><span class="s2">&quot;axes. &quot;</span>
                                <span class="n">f</span><span class="s2">&quot;Provided arguments: </span><span class="si">{subplots_kwargs}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">axes</span><span class="p">)</span> <span class="o">!=</span> <span class="n">nplots</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">axeslist</span><span class="p">)</span> <span class="o">!=</span> <span class="n">nplots</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Trying to make </span><span class="si">{nplots}</span><span class="s2"> plots, but&quot;</span>
-                               <span class="n">f</span><span class="s2">&quot;received {len(axes)} axes objects.&quot;</span><span class="p">)</span>
+                               <span class="n">f</span><span class="s2">&quot;received {len(axeslist)} axes objects.&quot;</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">colorbars</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">colorbars</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">axes</span><span class="p">)</span><span class="o">*</span><span class="p">[</span><span class="kc">None</span><span class="p">]</span>
+        <span class="n">colorbars</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">axeslist</span><span class="p">)</span><span class="o">*</span><span class="p">[</span><span class="kc">None</span><span class="p">]</span>
     <span class="n">new_colorbars</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">matplotlib</span><span class="o">.</span><span class="n">colorbar</span><span class="o">.</span><span class="n">Colorbar</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
 
-    <span class="k">for</span> <span class="n">data</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">colorbar</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">alldata</span><span class="p">,</span> <span class="n">axes</span><span class="p">,</span> <span class="n">colorbars</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">data</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">colorbar</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">alldata</span><span class="p">,</span> <span class="n">axeslist</span><span class="p">,</span> <span class="n">colorbars</span><span class="p">):</span>
 
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>  <span class="c1"># 1D PLOTTING</span>
             <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Doing a 1D plot with kwargs: </span><span class="si">{kwargs}</span><span class="s1">&#39;</span><span class="p">)</span>
@@ -451,10 +454,10 @@
                         <span class="n">f</span><span class="s1">&#39;that.&#39;</span><span class="p">)</span>
             <span class="n">new_colorbars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
 
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">axes</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">new_colorbars</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">axeslist</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">new_colorbars</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Non equal number of axes. Perhaps colorbar is &quot;</span>
                            <span class="s2">&quot;missing from one of the cases above&quot;</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">axes</span><span class="p">,</span> <span class="n">new_colorbars</span></div>
+    <span class="k">return</span> <span class="n">axeslist</span><span class="p">,</span> <span class="n">new_colorbars</span></div>
 
 
 <div class="viewcode-block" id="plot_by_id"><a class="viewcode-back" href="../../../api/dataset/plotting.html#qcodes.dataset.plotting.plot_by_id">[docs]</a><span class="k">def</span> <span class="nf">plot_by_id</span><span class="p">(</span><span class="n">run_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
@@ -471,11 +474,14 @@
                <span class="n">complex_plot_phase</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;radians&#39;</span><span class="p">,</span>
                <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AxesTupleList</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Construct all plots for a given `run_id`. All other arguments are forwarded</span>
+<span class="sd">    Construct all plots for a given `run_id`. Here `run_id` is an</span>
+<span class="sd">    alias for `captured_run_id` for historical reasons. See the docs</span>
+<span class="sd">    of :func:`.load_by_run_spec` for details of loading runs.</span>
+<span class="sd">    All other arguments are forwarded</span>
 <span class="sd">    to :func:`.plot_dataset`, see this for more details.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="n">dataset</span> <span class="o">=</span> <span class="n">load_by_id</span><span class="p">(</span><span class="n">run_id</span><span class="p">)</span>
+    <span class="n">dataset</span> <span class="o">=</span> <span class="n">load_by_run_spec</span><span class="p">(</span><span class="n">captured_run_id</span><span class="o">=</span><span class="n">run_id</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">plot_dataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span>
                         <span class="n">axes</span><span class="p">,</span>
                         <span class="n">colorbars</span><span class="p">,</span>

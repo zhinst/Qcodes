@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>qcodes.dataset.measurements &mdash; QCoDeS 0.4.0+51.g0b5d7a4d documentation</title>
+  <title>qcodes.dataset.measurements &mdash; QCoDeS 0.4.0+211.ga62a22f17 documentation</title>
   
 
   
@@ -62,7 +62,7 @@
             
             
               <div class="version">
-                0.4.0+51.g0b5d7a4d
+                0.4.0+211.ga62a22f17
               </div>
             
           
@@ -185,7 +185,8 @@
 <span class="kn">from</span> <span class="nn">qcodes.dataset.descriptions.param_spec</span> <span class="k">import</span> <span class="n">ParamSpec</span><span class="p">,</span> <span class="n">ParamSpecBase</span>
 <span class="kn">from</span> <span class="nn">qcodes.dataset.descriptions.dependencies</span> <span class="k">import</span> <span class="p">(</span>
     <span class="n">InterDependencies_</span><span class="p">,</span> <span class="n">DependencyError</span><span class="p">,</span> <span class="n">InferenceError</span><span class="p">)</span>
-<span class="kn">from</span> <span class="nn">qcodes.dataset.data_set</span> <span class="k">import</span> <span class="n">DataSet</span><span class="p">,</span> <span class="n">VALUE</span>
+<span class="kn">from</span> <span class="nn">qcodes.dataset.data_set</span> <span class="k">import</span> <span class="n">DataSet</span><span class="p">,</span> <span class="n">VALUE</span><span class="p">,</span> <span class="n">load_by_guid</span>
+<span class="kn">from</span> <span class="nn">qcodes.dataset.linked_datasets.links</span> <span class="k">import</span> <span class="n">Link</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.helpers</span> <span class="k">import</span> <span class="n">NumpyJSONEncoder</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.deprecate</span> <span class="k">import</span> <span class="n">deprecate</span>
 <span class="kn">import</span> <span class="nn">qcodes.utils.validators</span> <span class="k">as</span> <span class="nn">vals</span>
@@ -263,6 +264,10 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_results</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">VALUE</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_last_save_time</span> <span class="o">=</span> <span class="n">perf_counter</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_known_dependencies</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parent_datasets</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">DataSet</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">link</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dataset</span><span class="o">.</span><span class="n">parent_dataset_links</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">parent_datasets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">load_by_guid</span><span class="p">(</span><span class="n">link</span><span class="o">.</span><span class="n">tail</span><span class="p">))</span>
 
 <div class="viewcode-block" id="DataSaver.add_result"><a class="viewcode-back" href="../../../api/dataset/measurements.html#qcodes.dataset.measurements.DataSaver.add_result">[docs]</a>    <span class="k">def</span> <span class="nf">add_result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">res_tuple</span><span class="p">:</span> <span class="n">res_type</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -712,7 +717,8 @@
             <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
             <span class="n">subscribers</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span>
                                         <span class="n">Union</span><span class="p">[</span><span class="n">MutableSequence</span><span class="p">,</span>
-                                              <span class="n">MutableMapping</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+                                              <span class="n">MutableMapping</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">parent_datasets</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">[])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">enteractions</span> <span class="o">=</span> <span class="n">enteractions</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">exitactions</span> <span class="o">=</span> <span class="n">exitactions</span>
@@ -731,6 +737,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">write_period</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">write_period</span><span class="p">)</span> \
             <span class="k">if</span> <span class="n">write_period</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mf">5.0</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span> <span class="k">if</span> <span class="n">name</span> <span class="k">else</span> <span class="s1">&#39;results&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parent_datasets</span> <span class="o">=</span> <span class="n">parent_datasets</span>
 
     <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataSaver</span><span class="p">:</span>
         <span class="c1"># TODO: should user actions really precede the dataset?</span>
@@ -761,6 +768,9 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">ds</span><span class="o">.</span><span class="n">set_interdependencies</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_interdependencies</span><span class="p">)</span>
 
+        <span class="n">links</span> <span class="o">=</span> <span class="p">[</span><span class="n">Link</span><span class="p">(</span><span class="n">head</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ds</span><span class="o">.</span><span class="n">guid</span><span class="p">,</span> <span class="o">**</span><span class="n">pdict</span><span class="p">)</span>
+                 <span class="k">for</span> <span class="n">pdict</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parent_datasets</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ds</span><span class="o">.</span><span class="n">parent_dataset_links</span> <span class="o">=</span> <span class="n">links</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ds</span><span class="o">.</span><span class="n">mark_started</span><span class="p">()</span>
 
         <span class="c1"># register all subscribers</span>
@@ -820,6 +830,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_write_period</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span> <span class="o">=</span> <span class="n">InterDependencies_</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parent_datasets</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ParamSpecBase</span><span class="p">]:</span>
@@ -881,6 +892,27 @@
                                      <span class="s1">&#39; Please register that parameter first.&#39;</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">depends_on</span><span class="p">),</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">inf_from</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Measurement.register_parent"><a class="viewcode-back" href="../../../api/dataset/measurements.html#qcodes.dataset.measurements.Measurement.register_parent">[docs]</a>    <span class="k">def</span> <span class="nf">register_parent</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">:</span> <span class="n">T</span><span class="p">,</span> <span class="n">parent</span><span class="p">:</span> <span class="n">DataSet</span><span class="p">,</span> <span class="n">link_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+            <span class="n">description</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Register a parent for the outcome of this measurement</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            parent: the parent dataset</span>
+<span class="sd">            link_type: a name for the type of parent-child link</span>
+<span class="sd">            description: a free-text description of the relationship</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># we save the information in a way that is very compatible with the</span>
+        <span class="c1"># Link object we will eventually make out of this information. We</span>
+        <span class="c1"># cannot create a Link object just yet, because the DataSet of this</span>
+        <span class="c1"># Measurement has not been given a GUID yet</span>
+        <span class="n">parent_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;tail&#39;</span><span class="p">:</span> <span class="n">parent</span><span class="o">.</span><span class="n">guid</span><span class="p">,</span> <span class="s1">&#39;edge_type&#39;</span><span class="p">:</span> <span class="n">link_type</span><span class="p">,</span>
+                       <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="n">description</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parent_datasets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">parent_dict</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span></div>
 
 <div class="viewcode-block" id="Measurement.register_parameter"><a class="viewcode-back" href="../../../api/dataset/measurements.html#qcodes.dataset.measurements.Measurement.register_parameter">[docs]</a>    <span class="k">def</span> <span class="nf">register_parameter</span><span class="p">(</span>
             <span class="bp">self</span><span class="p">:</span> <span class="n">T</span><span class="p">,</span> <span class="n">parameter</span><span class="p">:</span> <span class="n">_BaseParameter</span><span class="p">,</span>
@@ -1287,7 +1319,8 @@
                       <span class="n">write_period</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_write_period</span><span class="p">,</span>
                       <span class="n">interdeps</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_interdeps</span><span class="p">,</span>
                       <span class="n">name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
-                      <span class="n">subscribers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">subscribers</span><span class="p">)</span></div></div>
+                      <span class="n">subscribers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">subscribers</span><span class="p">,</span>
+                      <span class="n">parent_datasets</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_parent_datasets</span><span class="p">)</span></div></div>
 </pre></div>
 
            </div>
