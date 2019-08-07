@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>qcodes.instrument.base &mdash; QCoDeS 0.4.0+233.g9fc4301c8 documentation</title>
+  <title>qcodes.instrument.base &mdash; QCoDeS 0.4.0+242.g6cc5c2ef2 documentation</title>
   
 
   
@@ -62,7 +62,7 @@
             
             
               <div class="version">
-                0.4.0+233.g9fc4301c8
+                0.4.0+242.g6cc5c2ef2
               </div>
             
           
@@ -321,7 +321,8 @@
                       <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        State of the instrument as a JSON-compatible dict (everything that</span>
-<span class="sd">        the custom JSON encoder class :class:&#39;qcodes.utils.helpers.NumpyJSONEncoder&#39;</span>
+<span class="sd">        the custom JSON encoder class</span>
+<span class="sd">        :class:&#39;qcodes.utils.helpers.NumpyJSONEncoder&#39;</span>
 <span class="sd">        supports).</span>
 
 <span class="sd">        Args:</span>
@@ -351,19 +352,23 @@
 
         <span class="n">snap</span><span class="p">[</span><span class="s1">&#39;parameters&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">param</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="n">update_this_param</span> <span class="o">=</span> <span class="n">update</span> <span class="ow">and</span> <span class="p">(</span><span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">params_to_skip_update</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">snapshot_exclude</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">params_to_skip_update</span> <span class="ow">and</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">params_to_skip_update</span><span class="p">:</span>
+                <span class="n">update_par</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">update_par</span> <span class="o">=</span> <span class="n">update</span>
+
             <span class="k">try</span><span class="p">:</span>
-                <span class="n">param_snapshot</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="n">update_this_param</span><span class="p">)</span>
-                <span class="n">snap</span><span class="p">[</span><span class="s1">&#39;parameters&#39;</span><span class="p">][</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">param_snapshot</span>
+                <span class="n">snap</span><span class="p">[</span><span class="s1">&#39;parameters&#39;</span><span class="p">][</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="n">update_par</span><span class="p">)</span>
             <span class="k">except</span><span class="p">:</span>
                 <span class="c1"># really log this twice. Once verbose for the UI and once</span>
                 <span class="c1"># at lower level with more info for file based loggers</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Snapshot: Could not update parameter: &quot;</span>
-                                 <span class="n">f</span><span class="s2">&quot;</span><span class="si">{name}</span><span class="s2">&quot;</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Details for Snapshot:&quot;</span><span class="p">,</span>
-                              <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Snapshot: Could not update &quot;</span>
+                                 <span class="n">f</span><span class="s2">&quot;parameter: </span><span class="si">{name}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Details for Snapshot:&quot;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
                 <span class="n">snap</span><span class="p">[</span><span class="s1">&#39;parameters&#39;</span><span class="p">][</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
         <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_meta_attrs</span><span class="p">):</span>
             <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">):</span>
                 <span class="n">snap</span><span class="p">[</span><span class="n">attr</span><span class="p">]</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
