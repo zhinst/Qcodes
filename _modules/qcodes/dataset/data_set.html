@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>qcodes.dataset.data_set &mdash; QCoDeS 0.4.0+251.gc71d17c41 documentation</title>
+  <title>qcodes.dataset.data_set &mdash; QCoDeS 0.4.0+260.g4cb4164d9 documentation</title>
   
 
   
@@ -62,7 +62,7 @@
             
             
               <div class="version">
-                0.4.0+251.gc71d17c41
+                0.4.0+260.g4cb4164d9
               </div>
             
           
@@ -163,6 +163,7 @@
 <span class="kn">import</span> <span class="nn">importlib</span>
 <span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">uuid</span>
 <span class="kn">from</span> <span class="nn">queue</span> <span class="k">import</span> <span class="n">Empty</span><span class="p">,</span> <span class="n">Queue</span>
@@ -236,6 +237,12 @@
 
 
 <div class="viewcode-block" id="CompletedError"><a class="viewcode-back" href="../../../api/dataset/data_set.html#qcodes.dataset.data_set.CompletedError">[docs]</a><span class="k">class</span> <span class="nc">CompletedError</span><span class="p">(</span><span class="ne">RuntimeError</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="DataLengthException"><a class="viewcode-back" href="../../../api/dataset/data_set.html#qcodes.dataset.data_set.DataLengthException">[docs]</a><span class="k">class</span> <span class="nc">DataLengthException</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="DataPathException"><a class="viewcode-back" href="../../../api/dataset/data_set.html#qcodes.dataset.data_set.DataPathException">[docs]</a><span class="k">class</span> <span class="nc">DataPathException</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
     <span class="k">pass</span></div>
 
 
@@ -1096,6 +1103,64 @@
                               <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="n">keys</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
             <span class="n">dfs</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span>
         <span class="k">return</span> <span class="n">dfs</span></div>
+
+<div class="viewcode-block" id="DataSet.write_data_to_text_file"><a class="viewcode-back" href="../../../api/dataset/data_set.html#qcodes.dataset.data_set.DataSet.write_data_to_text_file">[docs]</a>    <span class="k">def</span> <span class="nf">write_data_to_text_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                                <span class="n">single_file</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                                <span class="n">single_file_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        An auxiliary function to export data to a text file. When the data with more</span>
+<span class="sd">        than one dependent variables, say &quot;y(x)&quot; and &quot;z(x)&quot;, is concatenated to a single file</span>
+<span class="sd">        it reads:</span>
+
+<span class="sd">                    x1  y1(x1)  z1(x1)</span>
+<span class="sd">                    x2  y2(x2)  z2(x2)</span>
+<span class="sd">                    ..    ..      ..</span>
+<span class="sd">                    xN  yN(xN)  zN(xN)</span>
+
+<span class="sd">        For each new independent variable, say &quot;k&quot;, the expansion is in the y-axis:</span>
+
+<span class="sd">                    x1  y1(x1)  z1(x1)</span>
+<span class="sd">                    x2  y2(x2)  z2(x2)</span>
+<span class="sd">                    ..    ..      ..</span>
+<span class="sd">                    xN  yN(xN)  zN(xN)</span>
+<span class="sd">                    k1  y1(k1)  z1(k1)</span>
+<span class="sd">                    k2  y2(k2)  z2(k2)</span>
+<span class="sd">                    ..    ..      ..</span>
+<span class="sd">                    kN  yN(kN)  zN(kN)</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            path: User defined path where the data to be exported</span>
+<span class="sd">            single_file: If true, merges the data of same length of multiple</span>
+<span class="sd">                         dependent parameters to a single file.</span>
+<span class="sd">            single_file_name: User defined name for the data to be concatenated.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            DataLengthException: If the data of multiple parameters have not same</span>
+<span class="sd">                                 length and wanted to be merged in a single file.</span>
+<span class="sd">            DataPathException: If the data of multiple parameters are wanted to be merged</span>
+<span class="sd">                               in a single file but no filename provided.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">dfdict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_data_as_pandas_dataframe</span><span class="p">()</span>
+        <span class="n">dfs_to_save</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">parametername</span><span class="p">,</span> <span class="n">df</span> <span class="ow">in</span> <span class="n">dfdict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">single_file</span><span class="p">:</span>
+                <span class="n">dst</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{parametername}</span><span class="s1">.dat&#39;</span><span class="p">)</span>
+                <span class="n">df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">path_or_buf</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">dfs_to_save</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">single_file</span><span class="p">:</span>
+            <span class="n">df_length</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">dfs_to_save</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="p">)</span> <span class="o">!=</span> <span class="n">df_length</span> <span class="k">for</span> <span class="n">df</span> <span class="ow">in</span> <span class="n">dfs_to_save</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="n">DataLengthException</span><span class="p">(</span><span class="s2">&quot;You cannot concatenate data &quot;</span> <span class="o">+</span>
+                                          <span class="s2">&quot;with different length to a &quot;</span> <span class="o">+</span>
+                                          <span class="s2">&quot;single file.&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">single_file_name</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">DataPathException</span><span class="p">(</span><span class="s2">&quot;Please provide the desired file name &quot;</span> <span class="o">+</span>
+                                        <span class="s2">&quot;for the concatenated data.&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">dst</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{single_file_name}</span><span class="s1">.dat&#39;</span><span class="p">)</span>
+                <span class="n">df_to_save</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">dfs_to_save</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">df_to_save</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">path_or_buf</span><span class="o">=</span><span class="n">dst</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="DataSet.get_values"><a class="viewcode-back" href="../../../api/dataset/data_set.html#qcodes.dataset.data_set.DataSet.get_values">[docs]</a>    <span class="k">def</span> <span class="nf">get_values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
