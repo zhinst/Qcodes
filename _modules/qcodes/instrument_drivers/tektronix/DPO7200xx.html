@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>qcodes.instrument_drivers.tektronix.DPO7200xx &mdash; QCoDeS 0.4.0+242.g6cc5c2ef2 documentation</title>
+  <title>qcodes.instrument_drivers.tektronix.DPO7200xx &mdash; QCoDeS 0.4.0+251.gc71d17c41 documentation</title>
   
 
   
@@ -62,7 +62,7 @@
             
             
               <div class="version">
-                0.4.0+242.g6cc5c2ef2
+                0.4.0+251.gc71d17c41
               </div>
             
           
@@ -164,17 +164,18 @@
 <span class="sd">DPO70000/B/C/D/DX/SX, DSA70000/B/C/D, and</span>
 <span class="sd">MSO70000/C/DX Series Digital Oscilloscopes</span>
 <span class="sd">&quot;&quot;&quot;</span>
-<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Callable</span>
-<span class="kn">from</span> <span class="nn">functools</span> <span class="k">import</span> <span class="n">partial</span>
-<span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">textwrap</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="k">import</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">cast</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
 <span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="p">(</span>
     <span class="n">Instrument</span><span class="p">,</span> <span class="n">VisaInstrument</span><span class="p">,</span> <span class="n">InstrumentChannel</span><span class="p">,</span> <span class="n">ParameterWithSetpoints</span><span class="p">,</span>
-    <span class="n">ChannelList</span>
+    <span class="n">ChannelList</span><span class="p">,</span> <span class="n">Parameter</span>
 <span class="p">)</span>
-
+<span class="kn">from</span> <span class="nn">qcodes.utils.helpers</span> <span class="k">import</span> <span class="n">create_on_off_val_mapping</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="k">import</span> <span class="n">Enum</span><span class="p">,</span> <span class="n">Arrays</span>
 
 
@@ -246,6 +247,12 @@
             <span class="n">measurement_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">measurement_module</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">add_submodule</span><span class="p">(</span><span class="s2">&quot;measurement&quot;</span><span class="p">,</span> <span class="n">measurement_list</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_submodule</span><span class="p">(</span>
+            <span class="s2">&quot;statistics&quot;</span><span class="p">,</span>
+            <span class="n">TektronixDPOMeasurementStatistics</span><span class="p">(</span>
+                <span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;statistics&quot;</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
 
         <span class="n">channel_list</span> <span class="o">=</span> <span class="n">ChannelList</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;channel&quot;</span><span class="p">,</span> <span class="n">TektronixDPOChannel</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">channel_number</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">number_of_channels</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
@@ -853,6 +860,51 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;TRIGger:</span><span class="si">{self._identifier}</span><span class="s2">:TYPE </span><span class="si">{value}</span><span class="s2">&quot;</span><span class="p">)</span></div>
 
 
+<div class="viewcode-block" id="TektronixDPOMeasurementParameter"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.DPO7200xx.TektronixDPOMeasurementParameter">[docs]</a><span class="k">class</span> <span class="nc">TektronixDPOMeasurementParameter</span><span class="p">(</span><span class="n">Parameter</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A measurement parameter does not only return the instantaneous value</span>
+<span class="sd">    of a measurement, but can also return some statistics. The accumulation</span>
+<span class="sd">    time over which these statistics are gathered can be controlled through</span>
+<span class="sd">    the &#39;time_constant&#39; parameter on the submodule</span>
+<span class="sd">    &#39;TektronixDPOMeasurementStatistics&#39;. Here we also find the method &#39;reset&#39;</span>
+<span class="sd">    to reset the values over which the statistics are gathered.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># pylint: disable=method-hidden</span>
+    <span class="k">def</span> <span class="nf">_get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">metric</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+
+        <span class="n">measurement_channel</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="n">TektronixDPOMeasurement</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">instrument</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">measurement_channel</span><span class="o">.</span><span class="n">type</span><span class="o">.</span><span class="n">get_latest</span><span class="p">()</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+            <span class="n">measurement_channel</span><span class="o">.</span><span class="n">type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+        <span class="n">measurement_channel</span><span class="o">.</span><span class="n">state</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">measurement_channel</span><span class="o">.</span><span class="n">wait_adjustment_time</span><span class="p">()</span>
+        <span class="n">measurement_number</span> <span class="o">=</span> <span class="n">measurement_channel</span><span class="o">.</span><span class="n">measurement_number</span>
+
+        <span class="n">str_value</span> <span class="o">=</span> <span class="n">measurement_channel</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span>
+            <span class="n">f</span><span class="s2">&quot;MEASUrement:MEAS</span><span class="si">{measurement_number}</span><span class="s2">:</span><span class="si">{metric}</span><span class="s2">?&quot;</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">str_value</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TektronixDPOMeasurementParameter.mean"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.DPO7200xx.TektronixDPOMeasurementParameter.mean">[docs]</a>    <span class="k">def</span> <span class="nf">mean</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span><span class="s2">&quot;MEAN&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TektronixDPOMeasurementParameter.max"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.DPO7200xx.TektronixDPOMeasurementParameter.max">[docs]</a>    <span class="k">def</span> <span class="nf">max</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span><span class="s2">&quot;MAX&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TektronixDPOMeasurementParameter.min"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.DPO7200xx.TektronixDPOMeasurementParameter.min">[docs]</a>    <span class="k">def</span> <span class="nf">min</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span><span class="s2">&quot;MINI&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TektronixDPOMeasurementParameter.stdev"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.DPO7200xx.TektronixDPOMeasurementParameter.stdev">[docs]</a>    <span class="k">def</span> <span class="nf">stdev</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span><span class="s2">&quot;STDdev&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TektronixDPOMeasurementParameter.get_raw"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.DPO7200xx.TektronixDPOMeasurementParameter.get_raw">[docs]</a>    <span class="k">def</span> <span class="nf">get_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span><span class="s2">&quot;VALue&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TektronixDPOMeasurementParameter.set_raw"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.DPO7200xx.TektronixDPOMeasurementParameter.set_raw">[docs]</a>    <span class="k">def</span> <span class="nf">set_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;A measurement cannot be set&quot;</span><span class="p">)</span></div></div>
+
+
 <div class="viewcode-block" id="TektronixDPOMeasurement"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.DPO7200xx.TektronixDPOMeasurement">[docs]</a><span class="k">class</span> <span class="nc">TektronixDPOMeasurement</span><span class="p">(</span><span class="n">InstrumentChannel</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    The measurement submodule</span>
@@ -894,6 +946,13 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_adjustment_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s2">&quot;state&quot;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="n">f</span><span class="s2">&quot;MEASUrement:MEAS</span><span class="si">{self._measurement_number}</span><span class="s2">:STATe?&quot;</span><span class="p">,</span>
+            <span class="n">set_cmd</span><span class="o">=</span><span class="n">f</span><span class="s2">&quot;MEASUrement:MEAS</span><span class="si">{self._measurement_number}</span><span class="s2">:STATe {{}}&quot;</span><span class="p">,</span>
+            <span class="n">val_mapping</span><span class="o">=</span><span class="n">create_on_off_val_mapping</span><span class="p">(</span><span class="n">on_val</span><span class="o">=</span><span class="s2">&quot;1&quot;</span><span class="p">,</span> <span class="n">off_val</span><span class="o">=</span><span class="s2">&quot;0&quot;</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
             <span class="s2">&quot;type&quot;</span><span class="p">,</span>
             <span class="n">get_cmd</span><span class="o">=</span><span class="n">f</span><span class="s2">&quot;MEASUrement:MEAS</span><span class="si">{self._measurement_number}</span><span class="s2">:TYPe?&quot;</span><span class="p">,</span>
             <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_measurement_type</span><span class="p">,</span>
@@ -908,10 +967,9 @@
 
         <span class="k">for</span> <span class="n">measurement</span><span class="p">,</span> <span class="n">unit</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">measurements</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
-                <span class="n">measurement</span><span class="p">,</span>
-                <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_measure</span><span class="p">,</span> <span class="n">measurement</span><span class="p">),</span>
-                <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
-                <span class="n">unit</span><span class="o">=</span><span class="n">unit</span>
+                <span class="n">name</span><span class="o">=</span><span class="n">measurement</span><span class="p">,</span>
+                <span class="n">unit</span><span class="o">=</span><span class="n">unit</span><span class="p">,</span>
+                <span class="n">parameter_class</span><span class="o">=</span><span class="n">TektronixDPOMeasurementParameter</span>
             <span class="p">)</span>
 
         <span class="k">for</span> <span class="n">src</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]:</span>
@@ -924,6 +982,10 @@
                     <span class="o">*</span><span class="p">(</span><span class="n">TekronixDPOWaveform</span><span class="o">.</span><span class="n">valid_identifiers</span> <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;HISTogram&quot;</span><span class="p">])</span>
                 <span class="p">)</span>
             <span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">measurement_number</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_measurement_number</span>
 
     <span class="k">def</span> <span class="nf">_set_measurement_type</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_adjustment_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
@@ -938,20 +1000,59 @@
             <span class="n">f</span><span class="s2">&quot;</span><span class="si">{value}</span><span class="s2">&quot;</span>
         <span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_measure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">measurement</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<div class="viewcode-block" id="TektronixDPOMeasurement.wait_adjustment_time"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.DPO7200xx.TektronixDPOMeasurement.wait_adjustment_time">[docs]</a>    <span class="k">def</span> <span class="nf">wait_adjustment_time</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Args:</span>
-<span class="sd">            measurement: The type of measurement we wish to perform</span>
+<span class="sd">        Wait until the minimum time after adjusting the measurement source or</span>
+<span class="sd">        type has elapsed</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="o">.</span><span class="n">get_latest</span><span class="p">()</span> <span class="o">!=</span> <span class="n">measurement</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">(</span><span class="n">measurement</span><span class="p">)</span>
-
         <span class="n">time_since_adjust</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_adjustment_time</span>
         <span class="k">if</span> <span class="n">time_since_adjust</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_minimum_adjustment_time</span><span class="p">:</span>
             <span class="n">time_remaining</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_minimum_adjustment_time</span> <span class="o">-</span> <span class="n">time_since_adjust</span>
-            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">time_remaining</span><span class="p">)</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">time_remaining</span><span class="p">)</span></div></div>
 
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;MEASUrement:MEAS</span><span class="si">{self._measurement_number}</span><span class="s2">:VALue?&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TektronixDPOMeasurementStatistics"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.DPO7200xx.TektronixDPOMeasurementStatistics">[docs]</a><span class="k">class</span> <span class="nc">TektronixDPOMeasurementStatistics</span><span class="p">(</span><span class="n">InstrumentChannel</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s2">&quot;mode&quot;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="s2">&quot;MEASUrement:STATIstics:MODe?&quot;</span><span class="p">,</span>
+            <span class="n">set_cmd</span><span class="o">=</span><span class="s2">&quot;MEASUrement:STATIstics:MODe </span><span class="si">{}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">vals</span><span class="o">=</span><span class="n">Enum</span><span class="p">(</span>
+                <span class="s2">&quot;OFF&quot;</span><span class="p">,</span> <span class="s2">&quot;ALL&quot;</span><span class="p">,</span> <span class="s2">&quot;VALUEMean&quot;</span><span class="p">,</span> <span class="s2">&quot;MINMax&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;MEANSTDdev&quot;</span>
+            <span class="p">),</span>
+            <span class="n">docstring</span><span class="o">=</span><span class="n">textwrap</span><span class="o">.</span><span class="n">dedent</span><span class="p">(</span>
+                <span class="s2">&quot;This command controls the operation and display of measurement &quot;</span>
+                <span class="s2">&quot;statistics. &quot;</span>
+                <span class="s2">&quot;1. OFF turns off all measurements. This is the default value &quot;</span>
+                <span class="s2">&quot;2. ALL turns on statistics and displays all statistics for &quot;</span>
+                <span class="s2">&quot;each measurement. &quot;</span>
+                <span class="s2">&quot;3. VALUEMean turns on statistics and displays the value and the &quot;</span>
+                <span class="s2">&quot;mean (μ) of each measurement. &quot;</span>
+                <span class="s2">&quot;4. MINMax turns on statistics and displays the min and max of &quot;</span>
+                <span class="s2">&quot;each measurement. &quot;</span>
+                <span class="s2">&quot;5. MEANSTDdev turns on statistics and displays the mean and &quot;</span>
+                <span class="s2">&quot;standard deviation of each measurement.&quot;</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s2">&quot;time_constant&quot;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="s2">&quot;MEASUrement:STATIstics:WEIghting?&quot;</span><span class="p">,</span>
+            <span class="n">set_cmd</span><span class="o">=</span><span class="s2">&quot;MEASUrement:STATIstics:WEIghting </span><span class="si">{}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">get_parser</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+            <span class="n">docstring</span><span class="o">=</span><span class="n">textwrap</span><span class="o">.</span><span class="n">dedent</span><span class="p">(</span>
+                <span class="s2">&quot;This command sets or queries the time constant for mean and &quot;</span>
+                <span class="s2">&quot;standard deviation statistical accumulations, which is equivalent &quot;</span>
+                <span class="s2">&quot;to selecting Measurement Setup from the Measure menu, clicking &quot;</span>
+                <span class="s2">&quot;the Statistics button and entering the desired Weight n= value.&quot;</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="TektronixDPOMeasurementStatistics.reset"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.DPO7200xx.TektronixDPOMeasurementStatistics.reset">[docs]</a>    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;MEASUrement:STATIstics:COUNt RESEt&quot;</span><span class="p">)</span></div></div>
 </pre></div>
 
            </div>
