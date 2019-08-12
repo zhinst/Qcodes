@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>qcodes.logger.logger &mdash; QCoDeS 0.4.0+260.g4cb4164d9 documentation</title>
+  <title>qcodes.logger.logger &mdash; QCoDeS 0.4.0+282.ga777a65e9 documentation</title>
   
 
   
@@ -62,7 +62,7 @@
             
             
               <div class="version">
-                0.4.0+260.g4cb4164d9
+                0.4.0+282.ga777a65e9
               </div>
             
           
@@ -177,10 +177,18 @@
 <span class="kn">from</span> <span class="nn">contextlib</span> <span class="k">import</span> <span class="n">contextmanager</span>
 <span class="kn">from</span> <span class="nn">copy</span> <span class="k">import</span> <span class="n">copy</span>
 
-<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Sequence</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">TYPE_CHECKING</span>
+
+<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">applicationinsights.logging.LoggingHandler</span> <span class="k">import</span> <span class="n">LoggingHandler</span>
 
 <span class="kn">import</span> <span class="nn">qcodes</span> <span class="k">as</span> <span class="nn">qc</span>
 <span class="kn">import</span> <span class="nn">qcodes.utils.installation_info</span> <span class="k">as</span> <span class="nn">ii</span>
+
+<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="c1"># We need to declare the type of this global variable up here. See</span>
+    <span class="c1"># https://github.com/python/mypy/issues/5732 for reference</span>
+    <span class="n">telemetry_handler</span><span class="p">:</span> <span class="n">LoggingHandler</span>
 
 <span class="n">log</span><span class="p">:</span> <span class="n">logging</span><span class="o">.</span><span class="n">Logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
@@ -306,6 +314,17 @@
                         <span class="n">PYTHON_LOG_NAME</span><span class="p">)</span></div>
 
 
+
+<div class="viewcode-block" id="flush_telemetry_traces"><a class="viewcode-back" href="../../../api/logger/logger.html#qcodes.logger.logger.flush_telemetry_traces">[docs]</a><span class="k">def</span> <span class="nf">flush_telemetry_traces</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Flush the traces of the telemetry logger. If telemetry is not enabled, this</span>
+<span class="sd">    function does nothing.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">qc</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">telemetry</span><span class="o">.</span><span class="n">enabled</span><span class="p">:</span>
+        <span class="k">global</span> <span class="n">telemetry_handler</span>
+        <span class="n">telemetry_handler</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span></div>
+
+
 <div class="viewcode-block" id="start_logger"><a class="viewcode-back" href="../../../api/logger/logger.html#qcodes.logger.logger.start_logger">[docs]</a><span class="k">def</span> <span class="nf">start_logger</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Start logging of messages passed through the python logging module.</span>
@@ -354,6 +373,32 @@
 
     <span class="c1"># capture any warnings from the warnings module</span>
     <span class="n">logging</span><span class="o">.</span><span class="n">captureWarnings</span><span class="p">(</span><span class="n">capture</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">qc</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">telemetry</span><span class="o">.</span><span class="n">enabled</span><span class="p">:</span>
+
+        <span class="kn">from</span> <span class="nn">applicationinsights</span> <span class="k">import</span> <span class="n">channel</span>
+        <span class="kn">from</span> <span class="nn">applicationinsights.logging</span> <span class="k">import</span> <span class="n">enable</span>
+
+        <span class="c1"># the telemetry_handler can be flushed</span>
+        <span class="k">global</span> <span class="n">telemetry_handler</span>
+
+        <span class="n">loc</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">GUID_components</span><span class="o">.</span><span class="n">location</span>
+        <span class="n">stat</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">GUID_components</span><span class="o">.</span><span class="n">work_station</span>
+        <span class="n">sender</span> <span class="o">=</span> <span class="n">channel</span><span class="o">.</span><span class="n">AsynchronousSender</span><span class="p">()</span>
+        <span class="n">queue</span> <span class="o">=</span> <span class="n">channel</span><span class="o">.</span><span class="n">AsynchronousQueue</span><span class="p">(</span><span class="n">sender</span><span class="p">)</span>
+        <span class="n">appin_channel</span> <span class="o">=</span> <span class="n">channel</span><span class="o">.</span><span class="n">TelemetryChannel</span><span class="p">(</span><span class="n">context</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">queue</span><span class="o">=</span><span class="n">queue</span><span class="p">)</span>
+        <span class="n">appin_channel</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="n">f</span><span class="s1">&#39;</span><span class="si">{loc:02x}</span><span class="s1">-</span><span class="si">{stat:06x}</span><span class="s1">&#39;</span>
+
+        <span class="c1"># it is not completely clear which context fields get sent up.</span>
+        <span class="c1"># Here we shuffle some info from one field to another.</span>
+        <span class="n">acc_name</span> <span class="o">=</span> <span class="n">appin_channel</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">device</span><span class="o">.</span><span class="n">id</span>
+        <span class="n">appin_channel</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">user</span><span class="o">.</span><span class="n">account_id</span> <span class="o">=</span> <span class="n">acc_name</span>
+
+        <span class="c1"># note that the following function will simply silently fail if an</span>
+        <span class="c1"># invalid instrumentation key is used. There is thus no exception to</span>
+        <span class="c1"># catch</span>
+        <span class="n">telemetry_handler</span> <span class="o">=</span> <span class="n">enable</span><span class="p">(</span><span class="n">qc</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">telemetry</span><span class="o">.</span><span class="n">instrumentation_key</span><span class="p">,</span>
+                                   <span class="n">telemetry_channel</span><span class="o">=</span><span class="n">appin_channel</span><span class="p">)</span>
 
     <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;QCoDes logger setup completed&quot;</span><span class="p">)</span>
 
