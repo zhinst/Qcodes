@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>unittest.case &mdash; QCoDeS 0.5.2+226.g9daeb69e3 documentation</title>
+  <title>unittest.case &mdash; QCoDeS 0.5.2+228.g134ddc1de documentation</title>
   
 
   
@@ -62,7 +62,7 @@
             
             
               <div class="version">
-                0.5.2+226.g9daeb69e3
+                0.5.2+228.g134ddc1de
               </div>
             
           
@@ -499,6 +499,16 @@
                 <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">getLevelName</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
 
 
+<span class="k">class</span> <span class="nc">_OrderedChainMap</span><span class="p">(</span><span class="n">collections</span><span class="o">.</span><span class="n">ChainMap</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">seen</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">mapping</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">maps</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">mapping</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">seen</span><span class="p">:</span>
+                    <span class="n">seen</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+                    <span class="k">yield</span> <span class="n">k</span>
+
+
 <span class="k">class</span> <span class="nc">TestCase</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;A class whose instances are single test cases.</span>
 
@@ -593,12 +603,25 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_type_equality_funcs</span><span class="p">[</span><span class="n">typeobj</span><span class="p">]</span> <span class="o">=</span> <span class="n">function</span>
 
-    <span class="k">def</span> <span class="nf">addCleanup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">function</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">addCleanup</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Add a function, with arguments, to be called when the test is</span>
 <span class="sd">        completed. Functions added are called on a LIFO basis and are</span>
 <span class="sd">        called after tearDown on test failure or success.</span>
 
 <span class="sd">        Cleanup items are called even if setUp fails (unlike tearDown).&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">function</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span> <span class="o">=</span> <span class="n">args</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="n">args</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;descriptor &#39;addCleanup&#39; of &#39;TestCase&#39; object &quot;</span>
+                            <span class="s2">&quot;needs an argument&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="s1">&#39;function&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="n">function</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;function&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span> <span class="o">=</span> <span class="n">args</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;addCleanup expected at least 1 positional &#39;</span>
+                            <span class="s1">&#39;argument, got </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">_cleanups</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">function</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -675,7 +698,7 @@
             <span class="k">return</span>
         <span class="n">parent</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_subtest</span>
         <span class="k">if</span> <span class="n">parent</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">params_map</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">ChainMap</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+            <span class="n">params_map</span> <span class="o">=</span> <span class="n">_OrderedChainMap</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">params_map</span> <span class="o">=</span> <span class="n">parent</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">new_child</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_subtest</span> <span class="o">=</span> <span class="n">_SubTest</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">,</span> <span class="n">params_map</span><span class="p">)</span>
@@ -1018,23 +1041,28 @@
         <span class="k">if</span> <span class="n">delta</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">places</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;specify delta or places not both&quot;</span><span class="p">)</span>
 
+        <span class="n">diff</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">first</span> <span class="o">-</span> <span class="n">second</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">delta</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">first</span> <span class="o">-</span> <span class="n">second</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">delta</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">diff</span> <span class="o">&lt;=</span> <span class="n">delta</span><span class="p">:</span>
                 <span class="k">return</span>
 
-            <span class="n">standardMsg</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> != </span><span class="si">%s</span><span class="s1"> within </span><span class="si">%s</span><span class="s1"> delta&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">safe_repr</span><span class="p">(</span><span class="n">first</span><span class="p">),</span>
-                                                        <span class="n">safe_repr</span><span class="p">(</span><span class="n">second</span><span class="p">),</span>
-                                                        <span class="n">safe_repr</span><span class="p">(</span><span class="n">delta</span><span class="p">))</span>
+            <span class="n">standardMsg</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> != </span><span class="si">%s</span><span class="s1"> within </span><span class="si">%s</span><span class="s1"> delta (</span><span class="si">%s</span><span class="s1"> difference)&#39;</span> <span class="o">%</span> <span class="p">(</span>
+                <span class="n">safe_repr</span><span class="p">(</span><span class="n">first</span><span class="p">),</span>
+                <span class="n">safe_repr</span><span class="p">(</span><span class="n">second</span><span class="p">),</span>
+                <span class="n">safe_repr</span><span class="p">(</span><span class="n">delta</span><span class="p">),</span>
+                <span class="n">safe_repr</span><span class="p">(</span><span class="n">diff</span><span class="p">))</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">places</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">places</span> <span class="o">=</span> <span class="mi">7</span>
 
-            <span class="k">if</span> <span class="nb">round</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">second</span><span class="o">-</span><span class="n">first</span><span class="p">),</span> <span class="n">places</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">round</span><span class="p">(</span><span class="n">diff</span><span class="p">,</span> <span class="n">places</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="k">return</span>
 
-            <span class="n">standardMsg</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> != </span><span class="si">%s</span><span class="s1"> within </span><span class="si">%r</span><span class="s1"> places&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">safe_repr</span><span class="p">(</span><span class="n">first</span><span class="p">),</span>
-                                                          <span class="n">safe_repr</span><span class="p">(</span><span class="n">second</span><span class="p">),</span>
-                                                          <span class="n">places</span><span class="p">)</span>
+            <span class="n">standardMsg</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> != </span><span class="si">%s</span><span class="s1"> within </span><span class="si">%r</span><span class="s1"> places (</span><span class="si">%s</span><span class="s1"> difference)&#39;</span> <span class="o">%</span> <span class="p">(</span>
+                <span class="n">safe_repr</span><span class="p">(</span><span class="n">first</span><span class="p">),</span>
+                <span class="n">safe_repr</span><span class="p">(</span><span class="n">second</span><span class="p">),</span>
+                <span class="n">places</span><span class="p">,</span>
+                <span class="n">safe_repr</span><span class="p">(</span><span class="n">diff</span><span class="p">))</span>
         <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_formatMessage</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">standardMsg</span><span class="p">)</span>
         <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">failureException</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
@@ -1052,16 +1080,19 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">delta</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">places</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;specify delta or places not both&quot;</span><span class="p">)</span>
+        <span class="n">diff</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">first</span> <span class="o">-</span> <span class="n">second</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">delta</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">first</span> <span class="o">==</span> <span class="n">second</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">abs</span><span class="p">(</span><span class="n">first</span> <span class="o">-</span> <span class="n">second</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">delta</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">first</span> <span class="o">==</span> <span class="n">second</span><span class="p">)</span> <span class="ow">and</span> <span class="n">diff</span> <span class="o">&gt;</span> <span class="n">delta</span><span class="p">:</span>
                 <span class="k">return</span>
-            <span class="n">standardMsg</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> == </span><span class="si">%s</span><span class="s1"> within </span><span class="si">%s</span><span class="s1"> delta&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">safe_repr</span><span class="p">(</span><span class="n">first</span><span class="p">),</span>
-                                                        <span class="n">safe_repr</span><span class="p">(</span><span class="n">second</span><span class="p">),</span>
-                                                        <span class="n">safe_repr</span><span class="p">(</span><span class="n">delta</span><span class="p">))</span>
+            <span class="n">standardMsg</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> == </span><span class="si">%s</span><span class="s1"> within </span><span class="si">%s</span><span class="s1"> delta (</span><span class="si">%s</span><span class="s1"> difference)&#39;</span> <span class="o">%</span> <span class="p">(</span>
+                <span class="n">safe_repr</span><span class="p">(</span><span class="n">first</span><span class="p">),</span>
+                <span class="n">safe_repr</span><span class="p">(</span><span class="n">second</span><span class="p">),</span>
+                <span class="n">safe_repr</span><span class="p">(</span><span class="n">delta</span><span class="p">),</span>
+                <span class="n">safe_repr</span><span class="p">(</span><span class="n">diff</span><span class="p">))</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">places</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">places</span> <span class="o">=</span> <span class="mi">7</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">first</span> <span class="o">==</span> <span class="n">second</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">round</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">second</span><span class="o">-</span><span class="n">first</span><span class="p">),</span> <span class="n">places</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">first</span> <span class="o">==</span> <span class="n">second</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">round</span><span class="p">(</span><span class="n">diff</span><span class="p">,</span> <span class="n">places</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="k">return</span>
             <span class="n">standardMsg</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> == </span><span class="si">%s</span><span class="s1"> within </span><span class="si">%r</span><span class="s1"> places&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">safe_repr</span><span class="p">(</span><span class="n">first</span><span class="p">),</span>
                                                          <span class="n">safe_repr</span><span class="p">(</span><span class="n">second</span><span class="p">),</span>
@@ -1069,7 +1100,6 @@
 
         <span class="n">msg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_formatMessage</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">standardMsg</span><span class="p">)</span>
         <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">failureException</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-
 
     <span class="k">def</span> <span class="nf">assertSequenceEqual</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seq1</span><span class="p">,</span> <span class="n">seq2</span><span class="p">,</span> <span class="n">msg</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">seq_type</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;An equality assertion for ordered sequences (like lists and tuples).</span>
@@ -1418,7 +1448,7 @@
 
 <span class="sd">        Args:</span>
 <span class="sd">            expected_exception: Exception class expected to be raised.</span>
-<span class="sd">            expected_regex: Regex (re pattern object or string) expected</span>
+<span class="sd">            expected_regex: Regex (re.Pattern object or string) expected</span>
 <span class="sd">                    to be found in error message.</span>
 <span class="sd">            args: Function to be called and extra positional args.</span>
 <span class="sd">            kwargs: Extra kwargs.</span>
@@ -1437,7 +1467,7 @@
 
 <span class="sd">        Args:</span>
 <span class="sd">            expected_warning: Warning class expected to be triggered.</span>
-<span class="sd">            expected_regex: Regex (re pattern object or string) expected</span>
+<span class="sd">            expected_regex: Regex (re.Pattern object or string) expected</span>
 <span class="sd">                    to be found in error message.</span>
 <span class="sd">            args: Function to be called and extra positional args.</span>
 <span class="sd">            kwargs: Extra kwargs.</span>
@@ -1573,7 +1603,7 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">:</span>
             <span class="n">params_desc</span> <span class="o">=</span> <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
                 <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">=</span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
-                <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">items</span><span class="p">()))</span>
+                <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
             <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;(</span><span class="si">{}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">params_desc</span><span class="p">))</span>
         <span class="k">return</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="ow">or</span> <span class="s1">&#39;(&lt;subtest&gt;)&#39;</span>
 
