@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>qcodes.dataset.measurements &mdash; QCoDeS 0.5.2+280.g1dca8b547 documentation</title>
+  <title>qcodes.dataset.measurements &mdash; QCoDeS 0.5.2+284.gcf817d510 documentation</title>
   
 
   
@@ -62,7 +62,7 @@
             
             
               <div class="version">
-                0.5.2+280.g1dca8b547
+                0.5.2+284.gcf817d510
               </div>
             
           
@@ -174,6 +174,8 @@
 <span class="kn">from</span> <span class="nn">inspect</span> <span class="k">import</span> <span class="n">signature</span>
 <span class="kn">from</span> <span class="nn">numbers</span> <span class="k">import</span> <span class="n">Number</span>
 <span class="kn">from</span> <span class="nn">copy</span> <span class="k">import</span> <span class="n">deepcopy</span>
+<span class="kn">import</span> <span class="nn">traceback</span> <span class="k">as</span> <span class="nn">tb_module</span>
+<span class="kn">import</span> <span class="nn">io</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
@@ -800,10 +802,21 @@
         <span class="k">for</span> <span class="n">func</span><span class="p">,</span> <span class="n">args</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">exitactions</span><span class="p">:</span>
             <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
 
+        <span class="k">if</span> <span class="n">exception_type</span><span class="p">:</span>
+            <span class="c1"># if an exception happened during the measurement,</span>
+            <span class="c1"># log the exception</span>
+            <span class="n">stream</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+            <span class="n">tb_module</span><span class="o">.</span><span class="n">print_exception</span><span class="p">(</span><span class="n">exception_type</span><span class="p">,</span>
+                                      <span class="n">exception_value</span><span class="p">,</span>
+                                      <span class="n">traceback</span><span class="p">,</span>
+                                      <span class="n">file</span><span class="o">=</span><span class="n">stream</span><span class="p">)</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;An exception occured in measurement with guid: &#39;</span>
+                        <span class="n">f</span><span class="s1">&#39;</span><span class="si">{self.ds.guid}</span><span class="s1">;</span><span class="se">\n</span><span class="s1">Traceback:</span><span class="se">\n</span><span class="s1">{stream.getvalue()}&#39;</span><span class="p">)</span>
+
         <span class="c1"># and finally mark the dataset as closed, thus</span>
         <span class="c1"># finishing the measurement</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ds</span><span class="o">.</span><span class="n">mark_completed</span><span class="p">()</span>
-
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Finished measurement with guid: </span><span class="si">{self.ds.guid}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ds</span><span class="o">.</span><span class="n">unsubscribe_all</span><span class="p">()</span></div>
 
 
