@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>qcodes.station &mdash; QCoDeS 0.5.2+381.g70fe9d309 documentation</title>
+  <title>qcodes.station &mdash; QCoDeS 0.5.2+410.g02dedc92b documentation</title>
   
 
   
@@ -62,7 +62,7 @@
             
             
               <div class="version">
-                0.5.2+381.g70fe9d309
+                0.5.2+410.g02dedc92b
               </div>
             
           
@@ -159,7 +159,11 @@
            <div itemprop="articleBody">
             
   <h1>Source code for qcodes.station</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;Station objects - collect all the equipment you use to do an experiment.&quot;&quot;&quot;</span>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Station objects - collect all the equipment you use to do an experiment.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+
 <span class="kn">from</span> <span class="nn">contextlib</span> <span class="k">import</span> <span class="n">suppress</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="p">(</span>
     <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">cast</span><span class="p">,</span> <span class="n">AnyStr</span><span class="p">,</span> <span class="n">IO</span><span class="p">)</span>
@@ -214,29 +218,22 @@
 <span class="sd">    A representation of the entire physical setup.</span>
 
 <span class="sd">    Lists all the connected Components and the current default</span>
-<span class="sd">    measurement (a list of actions). Contains a convenience method</span>
-<span class="sd">    `.measure()` to measure these defaults right now, but this is separate</span>
-<span class="sd">    from the code used by `Loop`.</span>
+<span class="sd">    measurement (a list of actions).</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        *components (list[Any]): components to add immediately to the</span>
-<span class="sd">             Station. Can be added later via self.add_component</span>
-
+<span class="sd">            Station. Can be added later via ``self.add_component``.</span>
 <span class="sd">        monitor (None): Not implemented, the object that monitors the system</span>
-<span class="sd">            continuously</span>
-
-<span class="sd">        default (bool): is this station the default, which gets</span>
-<span class="sd">            used in Loops and elsewhere that a Station can be specified,</span>
-<span class="sd">            default true</span>
-
-<span class="sd">        update_snapshot (bool): immediately update the snapshot</span>
-<span class="sd">            of each component as it is added to the Station, default true</span>
+<span class="sd">            continuously.</span>
+<span class="sd">        default (bool): Is this station the default?</span>
+<span class="sd">        update_snapshot (bool): Immediately update the snapshot of each</span>
+<span class="sd">            component as it is added to the Station.</span>
 
 <span class="sd">    Attributes:</span>
-<span class="sd">        default (Station): class attribute to store the default station</span>
-<span class="sd">        delegate_attr_dicts (list): a list of names (strings) of dictionaries</span>
-<span class="sd">            which are (or will be) attributes of self, whose keys should be</span>
-<span class="sd">            treated as attributes of self</span>
+<span class="sd">        default (Station): Class attribute to store the default station.</span>
+<span class="sd">        delegate_attr_dicts (list): A list of names (strings) of dictionaries</span>
+<span class="sd">            which are (or will be) attributes of ``self``,</span>
+<span class="sd">            whose keys should be treated as attributes of ``self``.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">default</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;Station&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
@@ -273,22 +270,23 @@
                       <span class="n">params_to_skip_update</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
                       <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        State of the station as a JSON-compatible dict (everything that</span>
-<span class="sd">        the custom JSON encoder class :class:&#39;qcodes.utils.helpers.NumpyJSONEncoder&#39;</span>
+<span class="sd">        State of the station as a JSON-compatible dictionary (everything that</span>
+<span class="sd">        the custom JSON encoder class :class:`qcodes.utils.helpers.NumpyJSONEncoder`</span>
 <span class="sd">        supports).</span>
 
-<span class="sd">        Note: in the station contains an instrument that has already been</span>
+<span class="sd">        Note: If the station contains an instrument that has already been</span>
 <span class="sd">        closed, not only will it not be snapshotted, it will also be removed</span>
 <span class="sd">        from the station during the execution of this function.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            update (bool): If True, update the state by querying the</span>
-<span class="sd">             all the children: f.ex. instruments, parameters, components, etc.</span>
-<span class="sd">             If False, just use the latest values in memory.</span>
-<span class="sd">            params_to_skip_update: Not used</span>
+<span class="sd">            update: If ``True``, update the state by querying the</span>
+<span class="sd">                all the children: f.ex. instruments, parameters,</span>
+<span class="sd">                components, etc. If ``False``, just use the latest</span>
+<span class="sd">                values in memory.</span>
+<span class="sd">            params_to_skip_update: Not used.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            dict: base snapshot</span>
+<span class="sd">            dict: Base snapshot.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">snap</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s1">&#39;instruments&#39;</span><span class="p">:</span> <span class="p">{},</span>
@@ -328,15 +326,14 @@
 <span class="sd">        Record one component as part of this Station.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            component (Any): components to add to the Station.</span>
-<span class="sd">            name (str): name of the component</span>
-<span class="sd">            update_snapshot (bool): immediately update the snapshot</span>
-<span class="sd">                of each component as it is added to the Station, default true</span>
+<span class="sd">            component: Components to add to the Station.</span>
+<span class="sd">            name: Name of the component.</span>
+<span class="sd">            update_snapshot: Immediately update the snapshot</span>
+<span class="sd">                of each component as it is added to the Station.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            str: The name assigned this component, which may have been changed</span>
-<span class="sd">                 to make it unique among previously added components.</span>
-
+<span class="sd">                to make it unique among previously added components.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">component</span><span class="o">.</span><span class="n">snapshot</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="n">update_snapshot</span><span class="p">)</span>
@@ -358,15 +355,15 @@
 <span class="sd">        Remove a component with a given name from this Station.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            name: name of the component</span>
+<span class="sd">            name: Name of the component.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            the component that has been removed (this behavior is the same as</span>
-<span class="sd">            for python dictionaries)</span>
+<span class="sd">            The component that has been removed (this behavior is the same as</span>
+<span class="sd">            for Python dictionaries).</span>
 
 <span class="sd">        Raises:</span>
-<span class="sd">            KeyError: if a component with the given name is not part of this</span>
-<span class="sd">                station</span>
+<span class="sd">            KeyError: If a component with the given name is not part of this</span>
+<span class="sd">                station.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
@@ -382,7 +379,8 @@
 
 <span class="sd">        These actions will be executed by default by a Loop if this is the</span>
 <span class="sd">        default Station, and any measurements among them can be done once</span>
-<span class="sd">        by .measure</span>
+<span class="sd">        by ``.measure``.</span>
+
 <span class="sd">        Args:</span>
 <span class="sd">            *actions: parameters to set as default  measurement</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -400,7 +398,7 @@
 <span class="sd">        Measure the default measurement, or parameters in actions.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            *actions: parameters to mesure</span>
+<span class="sd">            *actions: Parameters to mesure.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">actions</span><span class="p">:</span>
             <span class="n">actions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_measurement</span>
@@ -423,7 +421,7 @@
     <span class="c1"># shortcuts to station.components[&#39;someitem&#39;]</span>
     <span class="c1"># (assuming &#39;someitem&#39; doesn&#39;t have another meaning in Station)</span>
 <div class="viewcode-block" id="Station.__getitem__"><a class="viewcode-back" href="../../api/station.html#qcodes.station.Station.__getitem__">[docs]</a>    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Shortcut to components dict.&quot;&quot;&quot;</span>
+        <span class="sd">&quot;&quot;&quot;Shortcut to components dictionary.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="n">key</span><span class="p">]</span></div>
 
     <span class="n">delegate_attr_dicts</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;components&#39;</span><span class="p">]</span>
@@ -431,13 +429,13 @@
 <div class="viewcode-block" id="Station.load_config_file"><a class="viewcode-back" href="../../api/station.html#qcodes.station.Station.load_config_file">[docs]</a>    <span class="k">def</span> <span class="nf">load_config_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Loads a configuration from a YAML file. If `filename` is not specified</span>
-<span class="sd">        the default file name from the qcodes config will be used.</span>
+<span class="sd">        the default file name from the qcodes configuration will be used.</span>
 
 <span class="sd">        Loading of a configuration will update the snapshot of the station and</span>
 <span class="sd">        make the instruments described in the config file available for</span>
 <span class="sd">        instantiation with the :meth:`load_instrument` method.</span>
 
-<span class="sd">        Additionally the shortcut methods `load_&lt;instrument_name&gt;` will be</span>
+<span class="sd">        Additionally the shortcut methods ``load_&lt;instrument_name&gt;`` will be</span>
 <span class="sd">        updated.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">def</span> <span class="nf">get_config_file_path</span><span class="p">(</span>
@@ -473,13 +471,13 @@
 
 <div class="viewcode-block" id="Station.load_config"><a class="viewcode-back" href="../../api/station.html#qcodes.station.Station.load_config">[docs]</a>    <span class="k">def</span> <span class="nf">load_config</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">IO</span><span class="p">[</span><span class="n">AnyStr</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Loads a config from a supplied string or file/stream handle.</span>
+<span class="sd">        Loads a configuration from a supplied string or file/stream handle.</span>
 
 <span class="sd">        Loading of a configuration will update the snapshot of the station and</span>
 <span class="sd">        make the instruments described in the config file available for</span>
 <span class="sd">        instantiation with the :meth:`load_instrument` method.</span>
 
-<span class="sd">        Additionally the shortcut methods `load_&lt;instrument_name&gt;` will be</span>
+<span class="sd">        Additionally the shortcut methods ``load_&lt;instrument_name&gt;`` will be</span>
 <span class="sd">        updated.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">def</span> <span class="nf">update_station_configuration_snapshot</span><span class="p">():</span>
@@ -518,7 +516,7 @@
                                     <span class="n">instrument</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Instrument</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
                                     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Safely close instrument and remove from station and monitor list</span>
+<span class="sd">        Safely close instrument and remove from station and monitor list.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># remove parameters related to this instrument from the</span>
         <span class="c1"># monitor list</span>
@@ -538,15 +536,15 @@
                         <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Instrument</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Creates an :class:`~.Instrument` instance as described by the</span>
-<span class="sd">        loaded config file.</span>
+<span class="sd">        loaded configuration file.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            identifier: the identfying string that is looked up in the yaml</span>
-<span class="sd">                configuration file, which identifies the instrument to be added</span>
-<span class="sd">            revive_instance: If true, try to return an instrument with the</span>
+<span class="sd">            identifier: The identfying string that is looked up in the yaml</span>
+<span class="sd">                configuration file, which identifies the instrument to be added.</span>
+<span class="sd">            revive_instance: If ``True``, try to return an instrument with the</span>
 <span class="sd">                specified name instead of closing it and creating a new one.</span>
-<span class="sd">            **kwargs: additional keyword arguments that get passed on to the</span>
-<span class="sd">                __init__-method of the instrument to be added.</span>
+<span class="sd">            **kwargs: Additional keyword arguments that get passed on to the</span>
+<span class="sd">                ``__init__``-method of the instrument to be added.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># try to revive the instrument</span>
         <span class="k">if</span> <span class="n">revive_instance</span> <span class="ow">and</span> <span class="n">Instrument</span><span class="o">.</span><span class="n">exist</span><span class="p">(</span><span class="n">identifier</span><span class="p">):</span>
