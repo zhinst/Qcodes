@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>qcodes.instrument_drivers.QuTech.IVVI &mdash; QCoDeS 0.6.0+3.g4a7469afe documentation</title>
+  <title>qcodes.instrument_drivers.QuTech.IVVI &mdash; QCoDeS 0.6.0+24.g3691f6603 documentation</title>
   
 
   
@@ -62,7 +62,7 @@
             
             
               <div class="version">
-                0.6.0+3.g4a7469afe
+                0.6.0+24.g3691f6603
               </div>
             
           
@@ -165,6 +165,7 @@
 <span class="kn">import</span> <span class="nn">visa</span>  <span class="c1"># used for the parity constant</span>
 <span class="kn">import</span> <span class="nn">traceback</span>
 <span class="kn">import</span> <span class="nn">threading</span>
+<span class="kn">import</span> <span class="nn">math</span>
 
 <span class="kn">from</span> <span class="nn">qcodes</span> <span class="k">import</span> <span class="n">VisaInstrument</span><span class="p">,</span> <span class="n">validators</span> <span class="k">as</span> <span class="n">vals</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="k">import</span> <span class="n">Bool</span><span class="p">,</span> <span class="n">Numbers</span>
@@ -186,8 +187,11 @@
 <span class="sd">    http://qtwork.tudelft.nl/~schouten/ivvi/doc-d5/rs232linkformat.txt</span>
 <span class="sd">    A copy of this file can be found at the bottom of this file.</span>
 <span class="sd">    &#39;&#39;&#39;</span>
-    <span class="n">Fullrange</span> <span class="o">=</span> <span class="mi">4000</span>
-    <span class="n">Halfrange</span> <span class="o">=</span> <span class="n">Fullrange</span> <span class="o">/</span> <span class="mi">2</span>
+    
+    <span class="n">full_range</span> <span class="o">=</span> <span class="mf">4000.0</span>
+    <span class="n">half_range</span> <span class="o">=</span> <span class="n">full_range</span> <span class="o">/</span> <span class="mi">2</span>
+    <span class="n">resolution</span> <span class="o">=</span> <span class="mi">16</span>
+    <span class="n">dac_quata</span> <span class="o">=</span> <span class="n">full_range</span> <span class="o">/</span> <span class="mi">2</span><span class="o">**</span><span class="n">resolution</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">address</span><span class="p">,</span> <span class="n">reset</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">numdacs</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span> <span class="n">dac_step</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
                  <span class="n">dac_delay</span><span class="o">=.</span><span class="mi">1</span><span class="p">,</span> <span class="n">safe_version</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
@@ -291,7 +295,7 @@
                 <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_gen_ch_get_func</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_dac</span><span class="p">,</span> <span class="n">i</span><span class="p">),</span>
                 <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_gen_ch_set_func</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_dac</span><span class="p">,</span> <span class="n">i</span><span class="p">),</span>
                 <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pol_num</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span>
-                                  <span class="bp">self</span><span class="o">.</span><span class="n">pol_num</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">Fullrange</span><span class="p">),</span>
+                                  <span class="bp">self</span><span class="o">.</span><span class="n">pol_num</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_range</span><span class="p">),</span>
                 <span class="n">step</span><span class="o">=</span><span class="n">dac_step</span><span class="p">,</span>
                 <span class="n">inter_delay</span><span class="o">=</span><span class="n">dac_delay</span><span class="p">,</span>
                 <span class="n">max_val_age</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
@@ -352,6 +356,110 @@
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_numdacs</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s1">&#39;dac</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span></div>
 
+<div class="viewcode-block" id="IVVI.linspace"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.QuTech.html#qcodes.instrument_drivers.QuTech.IVVI.IVVI.linspace">[docs]</a>    <span class="k">def</span> <span class="nf">linspace</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">end</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">samples</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">flexible</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">bip</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Creates array of voltages, with correct alignment to the DAC</span>
+<span class="sd">        quantisation, in a similar manner to numpy.linspace.</span>
+<span class="sd">        This guarantees an even spacing and no double sampling inside</span>
+<span class="sd">        the requested range.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            start: the start of the voltage range, in millivolts</span>
+<span class="sd">            end: the end of the voltage range, in millivolts</span>
+<span class="sd">            samples: number of sample voltages</span>
+<span class="sd">            flexible: occasionally get a different number of samples if</span>
+<span class="sd">                they can still fit inside the range.</span>
+<span class="sd">            bip: if the dac set to bi-polar (-2V to +2V) or</span>
+<span class="sd">                not (-4 to -0, or 0 to +4),</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            list of voltages in millivolts suitable for the ivvi DAC.</span>
+<span class="sd">            Voltages are inside [start:end]</span>
+<span class="sd">            Voltages are evenly spaced</span>
+<span class="sd">            Voltages align with the DAC quantisation.</span>
+
+<span class="sd">        Examples:</span>
+<span class="sd">            normal usage::</span>
+
+<span class="sd">                linspace(-100,100,8) -&gt; [-99.88555733577478, .. 6 more ..</span>
+<span class="sd">                                        , 99.64141298542764]</span>
+<span class="sd">            </span>
+<span class="sd">                linspace(-1000, 1000, 2000) -&gt;</span>
+<span class="sd">                    [-976.4858472571908, .. 1998 more .., 975.6923781185626 ]</span>
+
+<span class="sd">            A flexable number of points::</span>
+
+<span class="sd">                linspace(-1000, 1000, 2000, True) -&gt;</span>
+<span class="sd">                    [-999.9237048905165, .. 2046 more .., 999.1302357518883]</span>
+
+<span class="sd">                4 bits is the optimal spacing, so this gives 2048 (= 2^11)</span>
+<span class="sd">                points in a 2 V range</span>
+
+<span class="sd">            Insufficient resolution::</span>
+
+<span class="sd">                linspace(500, 502, 100) -&gt; ValueError: Insufficient resolution</span>
+<span class="sd">                    for 100 samples in the range 500 to 502. Maximum :16</span>
+
+<span class="sd">                This prevents oversampling. Use flexable = True to adapt the number</span>
+<span class="sd">                of points.</span>
+<span class="sd">                                     </span>
+<span class="sd">            Resolution limited sweep using the flexable option::</span>
+
+<span class="sd">                linspace(500, 502, 100, True) -&gt; [500.0991836423285, .. 14 more ..</span>
+<span class="sd">                                                 , 501.9302662699321]</span>
+<span class="sd">            </span>
+<span class="sd">            A too narrow range::</span>
+
+<span class="sd">                linspace(0, 0.01, 100, True) # -&gt; ValueError: No DAC values exist</span>
+<span class="sd">                                                  in the range 0 : 0.01</span>
+
+<span class="sd">                Even using the flexable option can not help if there are no</span>
+<span class="sd">                valid values in the requested range.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">samples</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;samples: must be an integer&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;start: must be a number&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">end</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;end: must be a number&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">samples</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;points: needs to be 2 or more&#39;</span><span class="p">)</span>
+
+        <span class="n">use_reversed</span> <span class="o">=</span> <span class="n">end</span> <span class="o">&lt;</span> <span class="n">start</span>
+        <span class="k">if</span> <span class="n">use_reversed</span><span class="p">:</span>
+            <span class="n">start</span><span class="p">,</span><span class="n">end</span> <span class="o">=</span> <span class="n">end</span><span class="p">,</span><span class="n">start</span>
+        <span class="n">half</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="k">if</span> <span class="n">bip</span> <span class="k">else</span> <span class="mf">0.0</span> <span class="c1"># half bit difference between bip and neg,pos</span>
+        <span class="n">byte_start</span> <span class="o">=</span>  <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">half</span> <span class="o">+</span> <span class="n">start</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">dac_quata</span><span class="p">))</span>
+        <span class="n">byte_end</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">half</span> <span class="o">+</span> <span class="n">end</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">dac_quata</span><span class="p">))</span>
+        <span class="n">delta_bytes</span> <span class="o">=</span>  <span class="nb">abs</span><span class="p">(</span><span class="n">byte_end</span> <span class="o">-</span> <span class="n">byte_start</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span>
+        <span class="n">spacing</span> <span class="o">=</span>  <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">delta_bytes</span> <span class="o">/</span> <span class="p">(</span><span class="n">samples</span><span class="o">-</span><span class="mi">1</span><span class="p">))),</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">l</span> <span class="o">=</span>  <span class="p">[(</span><span class="n">el</span><span class="o">+</span><span class="n">half</span><span class="p">)</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">dac_quata</span>
+              <span class="k">for</span> <span class="n">el</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">byte_start</span><span class="p">,</span> <span class="n">byte_end</span><span class="p">,</span><span class="n">spacing</span><span class="p">)]</span>
+        <span class="c1"># Adjust the points until the length is correct</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">flexible</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">l</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">samples</span><span class="p">:</span>
+                <span class="k">if</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">l</span><span class="p">)</span> <span class="o">-</span> <span class="n">samples</span><span class="p">)</span><span class="o">%</span><span class="mi">2</span><span class="o">==</span><span class="mi">1</span><span class="p">:</span>
+                    <span class="n">l</span> <span class="o">=</span> <span class="n">l</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+                <span class="n">s</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">l</span><span class="p">)</span> <span class="o">-</span> <span class="n">samples</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">s</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">l</span> <span class="o">=</span> <span class="n">l</span><span class="p">[</span><span class="n">s</span><span class="p">:</span><span class="o">-</span><span class="n">s</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">l</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">samples</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span> <span class="s1">&#39;Insufficient resolution for &#39;</span><span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span>
+                       <span class="o">+</span> <span class="s1">&#39; samples in the range &#39;</span>
+                       <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">start</span><span class="p">)</span><span class="o">+</span><span class="s1">&#39; to &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">end</span><span class="p">)</span> <span class="p">)</span>
+                <span class="n">msg</span> <span class="o">+=</span> <span class="s1">&#39;. Maximum :&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">l</span><span class="p">))</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">l</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;No DAC values exist in the range &#39;</span> <span class="o">+</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">start</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; : &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">end</span><span class="p">)</span>
+                  <span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">use_reversed</span><span class="p">:</span>
+             <span class="n">l</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="n">l</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">l</span></div>
+
     <span class="c1"># Conversion of data</span>
     <span class="k">def</span> <span class="nf">_mvoltage_to_bytes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mvoltage</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;</span>
@@ -366,7 +474,7 @@
 <span class="sd">        Output:</span>
 <span class="sd">            (dataH, dataL) (int, int) : The high and low value byte equivalent</span>
 <span class="sd">        &#39;&#39;&#39;</span>
-        <span class="n">bytevalue</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">mvoltage</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">Fullrange</span> <span class="o">*</span> <span class="mi">65535</span><span class="p">))</span>
+        <span class="n">bytevalue</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">mvoltage</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_range</span> <span class="o">*</span> <span class="mi">65535</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">bytevalue</span><span class="o">.</span><span class="n">to_bytes</span><span class="p">(</span><span class="n">length</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">byteorder</span><span class="o">=</span><span class="s1">&#39;big&#39;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_bytes_to_mvoltages</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">byte_mess</span><span class="p">):</span>
@@ -379,7 +487,7 @@
             <span class="c1"># takes two bytes, converts it to a 16 bit int and then divides by</span>
             <span class="c1"># the range and adds the offset due to the polarity</span>
             <span class="n">values</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">((</span><span class="n">byte_mess</span><span class="p">[</span><span class="mi">2</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">i</span><span class="p">]</span> <span class="o">*</span> <span class="mi">256</span> <span class="o">+</span> <span class="n">byte_mess</span><span class="p">[</span><span class="mi">3</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">i</span><span class="p">])</span> <span class="o">/</span>
-                         <span class="mf">65535.0</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">Fullrange</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">pol_num</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                         <span class="mf">65535.0</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_range</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">pol_num</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
         <span class="k">return</span> <span class="n">values</span>
 
     <span class="c1"># Communication with device</span>
@@ -412,7 +520,7 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_setpoints</span><span class="p">():</span>
             <span class="n">cur_val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;dac</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">channel</span><span class="p">))</span>
             <span class="c1"># dac range in mV / 16 bits FIXME make range depend on polarity</span>
-            <span class="n">byte_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Fullrange</span> <span class="o">/</span> <span class="mi">2</span><span class="o">**</span><span class="mi">16</span>
+            <span class="n">byte_res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_range</span> <span class="o">/</span> <span class="mi">2</span><span class="o">**</span><span class="mi">16</span>
             <span class="c1"># eps is a magic number to correct for an offset in the values</span>
             <span class="c1"># the IVVI returns (i.e. setting 0 returns byte_res/2 = 0.030518</span>
             <span class="c1"># with rounding</span>
@@ -588,7 +696,7 @@
 <span class="sd">        Output:</span>
 <span class="sd">            None</span>
 <span class="sd">        &#39;&#39;&#39;</span>
-        <span class="n">flagmap</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;NEG&#39;</span><span class="p">:</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">Fullrange</span><span class="p">,</span> <span class="s1">&#39;BIP&#39;</span><span class="p">:</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">Halfrange</span><span class="p">,</span> <span class="s1">&#39;POS&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
+        <span class="n">flagmap</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;NEG&#39;</span><span class="p">:</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">full_range</span><span class="p">,</span> <span class="s1">&#39;BIP&#39;</span><span class="p">:</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">half_range</span><span class="p">,</span> <span class="s1">&#39;POS&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
         <span class="k">if</span> <span class="n">flag</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">flagmap</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s1">&#39;Tried to set invalid dac polarity </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">flag</span><span class="p">)</span>
 
@@ -597,7 +705,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">pol_num</span><span class="p">[</span><span class="n">ch</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
             <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;dac&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">ch</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">set_parameter_bounds</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">val</span><span class="p">,</span>
-                                      <span class="n">val</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">Fullrange</span><span class="p">)</span>
+                                      <span class="n">val</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_range</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">get_all</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">get_all</span><span class="p">()</span></div>
@@ -614,9 +722,9 @@
 <span class="sd">        &#39;&#39;&#39;</span>
         <span class="n">val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pol_num</span><span class="p">[</span><span class="n">channel</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
 
-        <span class="k">if</span> <span class="p">(</span><span class="n">val</span> <span class="o">==</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">Fullrange</span><span class="p">):</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">val</span> <span class="o">==</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">full_range</span><span class="p">):</span>
             <span class="k">return</span> <span class="s1">&#39;NEG&#39;</span>
-        <span class="k">elif</span> <span class="p">(</span><span class="n">val</span> <span class="o">==</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">Halfrange</span><span class="p">):</span>
+        <span class="k">elif</span> <span class="p">(</span><span class="n">val</span> <span class="o">==</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">half_range</span><span class="p">):</span>
             <span class="k">return</span> <span class="s1">&#39;BIP&#39;</span>
         <span class="k">elif</span> <span class="p">(</span><span class="n">val</span> <span class="o">==</span> <span class="mi">0</span><span class="p">):</span>
             <span class="k">return</span> <span class="s1">&#39;POS&#39;</span>
@@ -665,7 +773,7 @@
         <span class="n">value_pol_corr</span> <span class="o">=</span> <span class="n">value</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">pol_num</span><span class="p">[</span><span class="n">dacidx</span><span class="p">]</span>
         <span class="n">value_bytes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mvoltage_to_bytes</span><span class="p">(</span><span class="n">value_pol_corr</span><span class="p">)</span>
         <span class="n">value_round</span> <span class="o">=</span> <span class="p">(</span><span class="n">value_bytes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">256</span> <span class="o">+</span> <span class="n">value_bytes</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">/</span> \
-            <span class="mf">65535.0</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">Fullrange</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">pol_num</span><span class="p">[</span><span class="n">dacidx</span><span class="p">]</span>
+            <span class="mf">65535.0</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_range</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">pol_num</span><span class="p">[</span><span class="n">dacidx</span><span class="p">]</span>
         <span class="k">return</span> <span class="n">value_round</span></div>
 
 <div class="viewcode-block" id="IVVI.adjust_parameter_validator"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.QuTech.html#qcodes.instrument_drivers.QuTech.IVVI.IVVI.adjust_parameter_validator">[docs]</a>    <span class="k">def</span> <span class="nf">adjust_parameter_validator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param</span><span class="p">):</span>
