@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>qcodes.utils.slack &mdash; QCoDeS 0.6.0+175.gee46b76a6 documentation</title>
+  <title>qcodes.utils.slack &mdash; QCoDeS 0.6.0+195.gbaa1dc3c3 documentation</title>
   
 
   
@@ -62,7 +62,7 @@
             
             
               <div class="version">
-                0.6.0+175.gee46b76a6
+                0.6.0+195.gbaa1dc3c3
               </div>
             
           
@@ -159,7 +159,41 @@
            <div itemprop="articleBody">
             
   <h1>Source code for qcodes.utils.slack</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Slack bot is used to send information about qcodes via Slack IMs.</span>
+<span class="sd">Some default commands are provided, and custom commands/tasks can be</span>
+<span class="sd">attached (see below).</span>
+
+<span class="sd">To setup the Slack bot, a bot first has to be registered via Slack</span>
+<span class="sd">by clicking &#39;creating a new bot user&#39; on https://api.slack.com/bot-users.</span>
+<span class="sd">Once registered, the bot will have a name and unique token.</span>
+<span class="sd">These and other settings have to be saved in a config dict (see init( or</span>
+<span class="sd">Parameters) in :class:`Slack`).</span>
+
+<span class="sd">Communication with the Slack bot is performed via instant messaging.</span>
+<span class="sd">When an IM is sent to the Slack bot, it will be processed during the next</span>
+<span class="sd">`update()` call (provided the username is registered in the config).</span>
+<span class="sd">Standard commands provided to the Slack bot are:</span>
+
+<span class="sd">- plot: Upload latest qcodes plot.</span>
+<span class="sd">- msmt/measurement: Print information about latest measurement.</span>
+<span class="sd">- notify finished: Send message once measurement is finished.</span>
+
+<span class="sd">Custom commands can be added as (cmd, func) key-value pairs to</span>
+<span class="sd">`self.commands`. When `cmd` is sent to the bot, `func` is evaluated.</span>
+
+<span class="sd">Custom tasks can be added as well. These are functions that are performed</span>
+<span class="sd">every time an update is called. The function must return a boolean that</span>
+<span class="sd">indicates if the task should be removed from the list of tasks.</span>
+<span class="sd">A custom task can be added as a (cmd, func) key-value pair  to</span>
+<span class="sd">`self.task_commands`.</span>
+<span class="sd">They can then be called through Slack IM via:</span>
+
+<span class="sd">``notify/task {cmd} *args:`` register task with name `cmd` that is</span>
+<span class="sd">performed every time `update()` is called.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">tempfile</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="k">import</span> <span class="n">partial</span>
 <span class="kn">from</span> <span class="nn">time</span> <span class="k">import</span> <span class="n">sleep</span>
@@ -221,38 +255,6 @@
 
 
 <div class="viewcode-block" id="Slack"><a class="viewcode-back" href="../../../api/utils/slack.html#qcodes.utils.slack.Slack">[docs]</a><span class="k">class</span> <span class="nc">Slack</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Slack bot used to send information about qcodes via Slack IMs.</span>
-<span class="sd">    Some default commands are provided, and custom commands/tasks can be</span>
-<span class="sd">    attached (see below).</span>
-
-<span class="sd">    To setup the Slack bot, a bot first has to be registered via Slack</span>
-<span class="sd">    by clicking &#39;creating a new bot user&#39; on https://api.slack.com/bot-users.</span>
-<span class="sd">    Once registered, the bot will have a name and unique token.</span>
-<span class="sd">    These and other settings have to be saved in a config dict (see init).</span>
-
-<span class="sd">    Communication with the Slack bot is performed via instant messaging.</span>
-<span class="sd">    When an IM is sent to the Slack bot, it will be processed during the next</span>
-<span class="sd">    `update()` call (provided the username is registered in the config).</span>
-<span class="sd">    Standard commands provided to the Slack bot are:</span>
-
-<span class="sd">    - plot: Upload latest qcodes plot</span>
-<span class="sd">    - msmt/measurement: Print information about latest measurement</span>
-<span class="sd">    - notify finished: Send message once measurement is finished</span>
-
-<span class="sd">    Custom commands can be added as (cmd, func) key-value pairs to</span>
-<span class="sd">    `self.commands`. When `cmd` is sent to the bot, `func` is evaluated.</span>
-
-<span class="sd">    Custom tasks can be added as well. These are functions that are performed</span>
-<span class="sd">    every time an update is called. The function must return a boolean that</span>
-<span class="sd">    indicates if the task should be removed from the list of tasks.</span>
-<span class="sd">    A custom task can be added as a (cmd, func) key-value pair  to</span>
-<span class="sd">    `self.task_commands`.</span>
-<span class="sd">    They can then be called through Slack IM via:</span>
-
-<span class="sd">    ``notify/task {cmd} *args:`` register task with name `cmd` that is</span>
-<span class="sd">    performed every time `update()` is called.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">interval</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">auto_start</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">commands</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -319,9 +321,9 @@
 <div class="viewcode-block" id="Slack.run"><a class="viewcode-back" href="../../../api/utils/slack.html#qcodes.utils.slack.Slack.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Thread event loop that periodically checks for updates.</span>
-<span class="sd">        Can be stopped via self.stop(), after which the Thread is stopped</span>
+<span class="sd">        Can be stopped via  :meth:`stop` , after which the Thread is stopped.</span>
 <span class="sd">        Returns:</span>
-<span class="sd">            None</span>
+<span class="sd">            None.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">while</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_exit</span><span class="p">:</span>
             <span class="c1"># Continue event loop</span>
@@ -332,9 +334,9 @@
 
 <div class="viewcode-block" id="Slack.stop"><a class="viewcode-back" href="../../../api/utils/slack.html#qcodes.utils.slack.Slack.stop">[docs]</a>    <span class="k">def</span> <span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Stop checking for updates. Can be started again via self.start()</span>
+<span class="sd">        Stop checking for updates. Can be started again via :meth:`start`.</span>
 <span class="sd">        Returns:</span>
-<span class="sd">            None</span>
+<span class="sd">            None.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_is_active</span> <span class="o">=</span> <span class="kc">False</span></div>
 
@@ -350,10 +352,10 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Retrieve user from user id.</span>
 <span class="sd">        Args:</span>
-<span class="sd">            user_id: Id from which to retrieve user information</span>
+<span class="sd">            user_id: Id from which to retrieve user information.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            dict: user information</span>
+<span class="sd">            dict: User information.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">users</span> <span class="o">=</span> <span class="p">[</span><span class="n">user</span> <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">users</span> <span class="k">if</span>
                  <span class="bp">self</span><span class="o">.</span><span class="n">users</span><span class="p">[</span><span class="n">user</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">user_id</span><span class="p">]</span>
@@ -363,9 +365,9 @@
 
 <div class="viewcode-block" id="Slack.get_users"><a class="viewcode-back" href="../../../api/utils/slack.html#qcodes.utils.slack.Slack.get_users">[docs]</a>    <span class="k">def</span> <span class="nf">get_users</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">usernames</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Extracts user information for users</span>
+<span class="sd">        Extracts user information for users.</span>
 <span class="sd">        Args:</span>
-<span class="sd">            usernames: Slack usernames of users</span>
+<span class="sd">            usernames: Slack usernames of users.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            dict: {username: user}</span>
@@ -384,12 +386,12 @@
 <div class="viewcode-block" id="Slack.get_im_ids"><a class="viewcode-back" href="../../../api/utils/slack.html#qcodes.utils.slack.Slack.get_im_ids">[docs]</a>    <span class="k">def</span> <span class="nf">get_im_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">users</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Adds IM ids of users to users dict.</span>
-<span class="sd">        Also adds last_ts to the latest IM message</span>
+<span class="sd">        Also adds `last_ts` to the latest IM message</span>
 <span class="sd">        Args:</span>
 <span class="sd">            users (dict): {username: user}</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            None</span>
+<span class="sd">            None.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slack</span><span class="o">.</span><span class="n">im</span><span class="o">.</span><span class="n">list</span><span class="p">()</span>
         <span class="n">user_ids</span> <span class="o">=</span> <span class="p">{</span><span class="n">user</span><span class="p">:</span> <span class="n">users</span><span class="p">[</span><span class="n">user</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">users</span><span class="p">}</span>
@@ -403,13 +405,13 @@
 
 <div class="viewcode-block" id="Slack.get_im_messages"><a class="viewcode-back" href="../../../api/utils/slack.html#qcodes.utils.slack.Slack.get_im_messages">[docs]</a>    <span class="k">def</span> <span class="nf">get_im_messages</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Retrieves IM messages from username</span>
+<span class="sd">        Retrieves IM messages from username.</span>
 <span class="sd">        Args:</span>
-<span class="sd">            username: Name of user</span>
-<span class="sd">            **kwargs: Additional kwargs for retrieving IM messages</span>
+<span class="sd">            username: Name of user.</span>
+<span class="sd">            **kwargs: Additional kwargs for retrieving IM messages.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            List of IM messages</span>
+<span class="sd">            List of IM messages.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">channel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">users</span><span class="p">[</span><span class="n">username</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;im_id&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">channel</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -422,9 +424,9 @@
 <div class="viewcode-block" id="Slack.get_new_im_messages"><a class="viewcode-back" href="../../../api/utils/slack.html#qcodes.utils.slack.Slack.get_new_im_messages">[docs]</a>    <span class="k">def</span> <span class="nf">get_new_im_messages</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Retrieves new IM messages for each user in self.users.</span>
-<span class="sd">        Updates user[&#39;last_ts&#39;] to ts of newest message</span>
+<span class="sd">        Updates user[&#39;last_ts&#39;] to ts of newest message.</span>
 <span class="sd">        Returns:</span>
-<span class="sd">            im_messages (Dict): {username: [messages list]} newer than last_ts</span>
+<span class="sd">            im_messages (Dict): {username: [messages list]} newer than last_ts.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">im_messages</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">for</span> <span class="n">username</span><span class="p">,</span> <span class="n">user</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">users</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
@@ -444,7 +446,7 @@
 <span class="sd">        Performs tasks, and checks for new messages.</span>
 <span class="sd">        Periodically called from widget update.</span>
 <span class="sd">        Returns:</span>
-<span class="sd">            None</span>
+<span class="sd">            None.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">new_tasks</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
@@ -522,13 +524,13 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Add a task to self.tasks, which will be executed during each update</span>
 <span class="sd">        Args:</span>
-<span class="sd">            command: task command</span>
-<span class="sd">            *args: Additional args for command</span>
-<span class="sd">            channel: Slack channel (can also be IM channel)</span>
-<span class="sd">            **kwargs: Additional kwargs for particular</span>
+<span class="sd">            command: Task command.</span>
+<span class="sd">            *args: Additional args for command.</span>
+<span class="sd">            channel: Slack channel (can also be IM channel).</span>
+<span class="sd">            **kwargs: Additional kwargs for particular.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            None</span>
+<span class="sd">            None.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">command</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">task_commands</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">slack</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">post_message</span><span class="p">(</span>
@@ -544,14 +546,15 @@
 <div class="viewcode-block" id="Slack.upload_latest_plot"><a class="viewcode-back" href="../../../api/utils/slack.html#qcodes.utils.slack.Slack.upload_latest_plot">[docs]</a>    <span class="k">def</span> <span class="nf">upload_latest_plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Uploads latest plot (if any) to slack channel.</span>
-<span class="sd">        The latest plot is retrieved from BasePlot, which is updated every</span>
-<span class="sd">        time a new qcodes plot is instantiated.</span>
+<span class="sd">        The latest plot is retrieved from</span>
+<span class="sd">        :class:`qcodes.plots.base.BasePlot`, which is updated</span>
+<span class="sd">        every time a new qcodes plot is instantiated.</span>
 <span class="sd">        Args:</span>
-<span class="sd">            channel: Slack channel (can also be IM channel)</span>
-<span class="sd">            **kwargs: Not used</span>
+<span class="sd">            channel: Slack channel (can also be IM channel).</span>
+<span class="sd">            **kwargs: Not used.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            None</span>
+<span class="sd">            None.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># Create temporary filename</span>
         <span class="n">temp_filename</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mktemp</span><span class="p">(</span><span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;.jpg&#39;</span><span class="p">)</span>
@@ -574,11 +577,11 @@
 <span class="sd">        Dataset is retrieved from DataSet.latest_dataset, which updates itself</span>
 <span class="sd">        every time a new dataset is created</span>
 <span class="sd">        Args:</span>
-<span class="sd">            channel: Slack channel (can also be IM channel)</span>
-<span class="sd">            **kwargs: Not used</span>
+<span class="sd">            channel: Slack channel (can also be IM channel).</span>
+<span class="sd">            **kwargs: Not used.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            None</span>
+<span class="sd">            None.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">dataset</span> <span class="o">=</span> <span class="n">active_data_set</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">dataset</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -597,11 +600,11 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Checks if the latest measurement is completed.</span>
 <span class="sd">        Args:</span>
-<span class="sd">            channel: Slack channel (can also be IM channel)</span>
-<span class="sd">            **kwargs: Not used</span>
+<span class="sd">            channel: Slack channel (can also be IM channel).</span>
+<span class="sd">            **kwargs: Not used.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            bool: True if measurement is finished, False otherwise</span>
+<span class="sd">            bool: True if measurement is finished, False otherwise.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">active_loop</span><span class="p">()</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">slack</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">post_message</span><span class="p">(</span>
