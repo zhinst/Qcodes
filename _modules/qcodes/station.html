@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>qcodes.station &mdash; QCoDeS 0.6.0+376.gf3c9985f5 documentation</title>
+  <title>qcodes.station &mdash; QCoDeS 0.6.0+383.gfdade4f04 documentation</title>
   
 
   
@@ -63,7 +63,7 @@
             
             
               <div class="version">
-                0.6.0+376.gf3c9985f5
+                0.6.0+383.gfdade4f04
               </div>
             
           
@@ -179,7 +179,8 @@
 <span class="kn">import</span> <span class="nn">qcodes</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.metadata</span> <span class="k">import</span> <span class="n">Metadatable</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.helpers</span> <span class="k">import</span> <span class="p">(</span>
-    <span class="n">DelegateAttributes</span><span class="p">,</span> <span class="n">YAML</span><span class="p">,</span> <span class="n">checked_getattr</span><span class="p">)</span>
+    <span class="n">DelegateAttributes</span><span class="p">,</span> <span class="n">YAML</span><span class="p">,</span> <span class="n">checked_getattr</span><span class="p">,</span> <span class="n">get_qcodes_path</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">qcodes.utils.deprecate</span> <span class="k">import</span> <span class="n">issue_deprecation_warning</span>
 
 <span class="kn">from</span> <span class="nn">qcodes.instrument.base</span> <span class="k">import</span> <span class="n">Instrument</span><span class="p">,</span> <span class="n">InstrumentBase</span>
 <span class="kn">from</span> <span class="nn">qcodes.instrument.parameter</span> <span class="k">import</span> <span class="p">(</span>
@@ -601,8 +602,18 @@
         <span class="n">instr_kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="n">name</span> <span class="o">=</span> <span class="n">instr_kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">,</span> <span class="n">identifier</span><span class="p">)</span>
 
-        <span class="n">module</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="n">instr_cfg</span><span class="p">[</span><span class="s1">&#39;driver&#39;</span><span class="p">])</span>
-        <span class="n">instr_class</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">instr_cfg</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">])</span>
+        <span class="k">if</span> <span class="s1">&#39;type&#39;</span> <span class="ow">in</span> <span class="n">instr_cfg</span><span class="p">:</span>
+            <span class="n">issue_deprecation_warning</span><span class="p">(</span>
+                <span class="s1">&#39;use of the &quot;type&quot;-keyword in the station configuration file&#39;</span><span class="p">,</span>
+                <span class="n">alternative</span><span class="o">=</span><span class="s1">&#39;the &quot;driver&quot;-keyword instead by append the type&#39;</span>
+                <span class="s1">&#39; to it&#39;</span><span class="p">)</span>
+            <span class="n">module_name</span> <span class="o">=</span> <span class="n">instr_cfg</span><span class="p">[</span><span class="s1">&#39;driver&#39;</span><span class="p">]</span>
+            <span class="n">instr_class_name</span> <span class="o">=</span> <span class="n">instr_cfg</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">module_name</span> <span class="o">=</span> <span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">instr_cfg</span><span class="p">[</span><span class="s1">&#39;driver&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">instr_class_name</span> <span class="o">=</span> <span class="n">instr_cfg</span><span class="p">[</span><span class="s1">&#39;driver&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">module</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="n">module_name</span><span class="p">)</span>
+        <span class="n">instr_class</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">instr_class_name</span><span class="p">)</span>
         <span class="n">instr</span> <span class="o">=</span> <span class="n">instr_class</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">instr_kwargs</span><span class="p">)</span>
 
         <span class="c1"># local function to refactor common code from defining new parameter</span>
