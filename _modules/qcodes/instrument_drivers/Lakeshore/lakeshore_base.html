@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>qcodes.instrument_drivers.Lakeshore.lakeshore_base &mdash; QCoDeS 0.6.0+407.g72890d034 documentation</title>
+  <title>qcodes.instrument_drivers.Lakeshore.lakeshore_base &mdash; QCoDeS 0.6.0+425.g5a198290e documentation</title>
   
 
   
@@ -63,7 +63,7 @@
             
             
               <div class="version">
-                0.6.0+407.g72890d034
+                0.6.0+425.g5a198290e
               </div>
             
           
@@ -268,6 +268,17 @@
                            <span class="n">set_cmd</span><span class="o">=</span><span class="n">f</span><span class="s1">&#39;RANGE </span><span class="si">{output_index}</span><span class="s1">, {{}}&#39;</span><span class="p">,</span>
                            <span class="n">get_cmd</span><span class="o">=</span><span class="n">f</span><span class="s1">&#39;RANGE? </span><span class="si">{output_index}</span><span class="s1">&#39;</span><span class="p">)</span>
 
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;output&#39;</span><span class="p">,</span>
+                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Output&#39;</span><span class="p">,</span>
+                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">% o</span><span class="s1">f heater range&#39;</span><span class="p">,</span>
+                           <span class="n">docstring</span><span class="o">=</span><span class="s1">&#39;Specifies heater output in percent of &#39;</span>
+                                     <span class="s1">&#39;the current heater output range.</span><span class="se">\n</span><span class="s1">&#39;</span>
+                                     <span class="s1">&#39;Note that when the heater is off, &#39;</span>
+                                     <span class="s1">&#39;this parameter will return the value of 0.005.&#39;</span><span class="p">,</span>
+                           <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="n">f</span><span class="s1">&#39;HTR? </span><span class="si">{output_index}</span><span class="s1">&#39;</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;setpoint&#39;</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Setpoint value (in sensor units)&#39;</span><span class="p">,</span>
                            <span class="n">docstring</span><span class="o">=</span><span class="s1">&#39;The value of the setpoint in the &#39;</span>
@@ -338,8 +349,8 @@
                                      <span class="s1">&#39;cannot be reached within the current &#39;</span>
                                      <span class="s1">&#39;range.&#39;</span><span class="p">,</span>
                            <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">400</span><span class="p">),</span>
-                           <span class="n">get_parser</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
-                           <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_blocking_t</span><span class="p">)</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_blocking_t</span><span class="p">,</span>
+                           <span class="n">snapshotable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_set_blocking_t</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">temperature</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">set_range_from_temperature</span><span class="p">(</span><span class="n">temperature</span><span class="p">)</span>
@@ -626,14 +637,16 @@
         <span class="c1"># Allow access to channels either by referring to the channel name</span>
         <span class="c1"># or through a channel list, i.e. instr.A.temperature() and</span>
         <span class="c1"># instr.channels[0].temperature() refer to the same parameter.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">channels</span> <span class="o">=</span> <span class="n">ChannelList</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;TempSensors&quot;</span><span class="p">,</span>
-                                    <span class="bp">self</span><span class="o">.</span><span class="n">CHANNEL_CLASS</span><span class="p">,</span> <span class="n">snapshotable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="c1"># Note that `snapshotable` is set to false in order to avoid duplicate</span>
+        <span class="c1"># snapshotting which otherwise will happen because each channel is also</span>
+        <span class="c1"># added as a submodule to the instrument.</span>
+        <span class="n">channels</span> <span class="o">=</span> <span class="n">ChannelList</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;TempSensors&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">CHANNEL_CLASS</span><span class="p">,</span> <span class="n">snapshotable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">command</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">channel_name_command</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
             <span class="n">channel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">CHANNEL_CLASS</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">command</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">channel</span><span class="p">)</span>
+            <span class="n">channels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">channel</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">add_submodule</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">channel</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="o">.</span><span class="n">lock</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_submodule</span><span class="p">(</span><span class="s2">&quot;channels&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="p">)</span>
+        <span class="n">channels</span><span class="o">.</span><span class="n">lock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_submodule</span><span class="p">(</span><span class="s2">&quot;channels&quot;</span><span class="p">,</span> <span class="n">channels</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">connect_message</span><span class="p">()</span></div>
 </pre></div>
