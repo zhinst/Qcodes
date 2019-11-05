@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Creating QCoDeS instrument drivers &mdash; QCoDeS 0.7.0+466.g07cf82428 documentation</title>
+  <title>Creating QCoDeS instrument drivers &mdash; QCoDeS 0.7.0+487.g1ee3aac9a documentation</title>
   
 
   
@@ -65,7 +65,7 @@
             
             
               <div class="version">
-                0.7.0+466.g07cf82428
+                0.7.0+487.g1ee3aac9a
               </div>
             
           
@@ -117,6 +117,7 @@
 <li class="toctree-l4"><a class="reference internal" href="#Manual-instruments">Manual instruments</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#Custom-Parameter-classes">Custom Parameter classes</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#Dynamically-adding-and-removing-parameters">Dynamically adding and removing parameters</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Handling-interruption-of-measurements">Handling interruption of measurements</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#Organization">Organization</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#Documentation">Documentation</a></li>
 </ul>
@@ -856,6 +857,49 @@ a value of such a parameter, the user will not get <code class="docutils literal
 <p>And to add more, do the same thing as you did initially:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">new_name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 </pre></div>
+</div>
+</div>
+<div class="section" id="Handling-interruption-of-measurements">
+<h2>Handling interruption of measurements<a class="headerlink" href="#Handling-interruption-of-measurements" title="Permalink to this headline">¶</a></h2>
+<p>A QCoDeS driver should be prepared for interruptions of the measurement triggered by a KeyboardInterrupt from the enduser. If an interrupt happens at an unfortunate time i.e. while communicating with the instrument or writing results of a measurement this may leave the program in an inconsistent state e.g. with a command in the output buffer of a VISA instrument. To protect against this QCoDeS ships with a context manager that intercepts KeyBoardInterrupts and delays them until it is safe to
+stop the program. By default QCoDeS protects writing to the database and communicating with VISA instruments in this way.</p>
+<p>However, there may be situations where a driver needs additional protection around a critical piece of code. The following example shows how a critical piece of code can be protected. The reader is encouraged to experiment with this using the <code class="docutils literal notranslate"><span class="pre">interrupt</span> <span class="pre">the</span> <span class="pre">kernel</span></code> button in this notebook. Note how the first KeyBoardInterrupt triggers a message to the screen and then executes the code within the context manager but not the code outside. Furthermore 2 KeyBoardInterrupts rapidly after each other
+will trigger an immediate interrupt that does not complete the code within the context manager. The context manager can therefore be wrapped around any piece of code that the end user should not normally be allowed to interrupt.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">qcodes.utils.delaykeyboardinterrupt</span> <span class="k">import</span> <span class="n">DelayedKeyboardInterrupt</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+<span class="k">with</span> <span class="n">DelayedKeyboardInterrupt</span><span class="p">():</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.2</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Loop completed&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Executing code after context manager&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+Loop completed
+Executing code after context manager
+</pre></div></div>
 </div>
 </div>
 <div class="section" id="Organization">
