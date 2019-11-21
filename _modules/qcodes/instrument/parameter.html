@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>qcodes.instrument.parameter &mdash; QCoDeS 0.7.0+667.g1c2c74a88 documentation</title>
+  <title>qcodes.instrument.parameter &mdash; QCoDeS 0.7.0+692.ge3c5182c0 documentation</title>
   
 
   
@@ -63,7 +63,7 @@
             
             
               <div class="version">
-                0.7.0+667.g1c2c74a88
+                0.7.0+692.ge3c5182c0
               </div>
             
           
@@ -197,11 +197,11 @@
 <span class="sd">    using :class:`.ParameterWithSetpoints`.</span>
 
 <span class="sd">    :class:`.ParameterWithSetpoints` is supported in a</span>
-<span class="sd">    :class:`qcodes.dataset.measurements.Measurement` but is not supported by the</span>
-<span class="sd">    legacy :class:`qcodes.loops.Loop` and :class:`qcodes.measure.Measure`</span>
+<span class="sd">    :class:`qcodes.dataset.measurements.Measurement` but is not supported by</span>
+<span class="sd">    the legacy :class:`qcodes.loops.Loop` and :class:`qcodes.measure.Measure`</span>
 <span class="sd">    measurement types.</span>
 
-<span class="sd">- :class:`.DelegateParameter` is intended proxy-ing other parameters.</span>
+<span class="sd">- :class:`.DelegateParameter` is intended for proxy-ing other parameters.</span>
 <span class="sd">    It forwards its ``get`` and ``set`` to the underlying source parameter,</span>
 <span class="sd">    while allowing to specify label/unit/etc that is different from the</span>
 <span class="sd">    source parameter.</span>
@@ -276,7 +276,7 @@
 
 <span class="k">class</span> <span class="nc">_SetParamContext</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    This class is returned by the ``set_to`` method of parameters</span>
+<span class="sd">    This class is returned by the ``set_to`` method of parameter</span>
 
 <span class="sd">    Example usage:</span>
 
@@ -346,7 +346,7 @@
 
 <span class="sd">        scale: Scale to multiply value with before</span>
 <span class="sd">            performing set. the internally multiplied value is stored in</span>
-<span class="sd">            `raw_value`. Can account for a voltage divider.</span>
+<span class="sd">            ``cache.raw_value``. Can account for a voltage divider.</span>
 
 <span class="sd">        offset: Compensate for a parameter specific offset. (just as scale)</span>
 <span class="sd">            get value = raw value - offset.</span>
@@ -384,7 +384,7 @@
 <span class="sd">        vals: a Validator object for this parameter</span>
 
 <span class="sd">        max_val_age: The max time (in seconds) to trust a saved value obtained</span>
-<span class="sd">            from get_latest(). If this parameter has not</span>
+<span class="sd">            from ``cache.get`` (or ``get_latest``). If this parameter has not</span>
 <span class="sd">            been set or measured more recently than this, perform an</span>
 <span class="sd">            additional measurement.</span>
 
@@ -444,29 +444,39 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">get_parser</span> <span class="o">=</span> <span class="n">get_parser</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">set_parser</span> <span class="o">=</span> <span class="n">set_parser</span>
 
-        <span class="c1"># record of latest value and when it was set or measured</span>
-        <span class="c1"># what exactly this means is different for different subclasses</span>
-        <span class="c1"># but they all use the same attributes so snapshot is consistent.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_latest</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">ParamDataType</span><span class="p">,</span>
-                                               <span class="n">ParamRawDataType</span><span class="p">,</span>
-                                               <span class="n">datetime</span><span class="p">]]]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_latest</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;raw_value&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
+        <span class="c1"># ``_Cache`` stores &quot;latest&quot; value (and raw value) and timestamp</span>
+        <span class="c1"># when it was set or measured</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cache</span> <span class="o">=</span> <span class="n">_Cache</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">max_val_age</span><span class="o">=</span><span class="n">max_val_age</span><span class="p">)</span>
+        <span class="c1"># ``GetLatest`` is left from previous versions where it would</span>
+        <span class="c1"># implement a subset of features which ``_Cache`` has.</span>
+        <span class="c1"># It is left for now for backwards compatibility reasons and shall</span>
+        <span class="c1"># be deprecated and removed in the future versions.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">get_latest</span><span class="p">:</span> <span class="n">GetLatest</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">get_latest</span> <span class="o">=</span> <span class="n">GetLatest</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">max_val_age</span><span class="o">=</span><span class="n">max_val_age</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_latest</span> <span class="o">=</span> <span class="n">GetLatest</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">ParamDataType</span><span class="p">]</span>
-        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;get_raw&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_raw</span><span class="p">,</span> <span class="s1">&#39;__qcodes_is_abstract_method__&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+        <span class="n">implements_get_raw</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;get_raw&#39;</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_raw</span><span class="p">,</span>
+                            <span class="s1">&#39;__qcodes_is_abstract_method__&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">implements_get_raw</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">get</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_wrap_get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_raw</span><span class="p">)</span>
         <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;get&#39;</span><span class="p">):</span>
-            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Wrapping get method of parameter: </span><span class="si">{self.full_name}</span><span class="s1">,&#39;</span>
-                          <span class="n">f</span><span class="s1">&#39; original get method will not &#39;</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Wrapping get method of parameter: &#39;</span>
+                          <span class="n">f</span><span class="s1">&#39;</span><span class="si">{self.full_name}</span><span class="s1">, original get method will not &#39;</span>
                           <span class="n">f</span><span class="s1">&#39;be directly accessible. It is recommended to &#39;</span>
                           <span class="n">f</span><span class="s1">&#39;define get_raw in your subclass instead. &#39;</span>
                           <span class="n">f</span><span class="s1">&#39;Overwriting get will be an error in the future.&#39;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">get</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_wrap_get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">set</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
-        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;set_raw&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">set_raw</span><span class="p">,</span> <span class="s1">&#39;__qcodes_is_abstract_method__&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+        <span class="n">implements_set_raw</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;set_raw&#39;</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">set_raw</span><span class="p">,</span>
+                            <span class="s1">&#39;__qcodes_is_abstract_method__&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">implements_set_raw</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">set</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_wrap_set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">set_raw</span><span class="p">)</span>
         <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;set&#39;</span><span class="p">):</span>
             <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;Wrapping set method of parameter: &#39;</span>
@@ -493,35 +503,23 @@
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">raw_value</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ParamRawDataType</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Represents the cached raw value of the parameter.</span>
+<span class="sd">        Note that this property will be deprecated soon. Use</span>
+<span class="sd">        ``cache.raw_value`` instead.</span>
 
-<span class="sd">        Note that this property will be deprecated soon.</span>
+<span class="sd">        Represents the cached raw value of the parameter.</span>
 
 <span class="sd">        :getter: Returns the cached raw value of the parameter.</span>
 <span class="sd">        :setter: Setting the ``raw_value`` is not recommended as it may lead to</span>
 <span class="sd">            inconsistent state of the parameter.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_cache_raw</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">raw_value</span>
 
     <span class="nd">@raw_value</span><span class="o">.</span><span class="n">setter</span>
     <span class="k">def</span> <span class="nf">raw_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_raw_value</span><span class="p">:</span> <span class="n">ParamRawDataType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_set_cache_raw</span><span class="p">(</span><span class="n">new_raw_value</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">_set_cache_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_value</span><span class="p">:</span> <span class="n">ParamRawDataType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Sets the cached raw value of the parameter.</span>
-
-<span class="sd">        This is a private method for internal QCoDeS use only.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_latest</span><span class="p">[</span><span class="s2">&quot;raw_value&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">raw_value</span>
-
-    <span class="k">def</span> <span class="nf">_get_cache_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ParamRawDataType</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Returns the cached raw value of the parameter.</span>
-
-<span class="sd">        This is a private method for internal QCoDeS use only.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_latest</span><span class="p">[</span><span class="s2">&quot;raw_value&quot;</span><span class="p">]</span>
+        <span class="c1"># Setting of the ``raw_value`` property of the parameter will be</span>
+        <span class="c1"># deprecated soon anyway, hence, until then, it&#39;s ok to refer to</span>
+        <span class="c1"># ``cache``s private ``_raw_value`` attribute here</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">_raw_value</span> <span class="o">=</span> <span class="n">new_raw_value</span>
 
     <span class="nd">@abstractmethod</span>
     <span class="k">def</span> <span class="nf">get_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ParamRawDataType</span><span class="p">:</span>
@@ -582,11 +580,16 @@
 <span class="sd">        the custom JSON encoder class</span>
 <span class="sd">        :class:`qcodes.utils.helpers.NumpyJSONEncoder` supports).</span>
 
+<span class="sd">        If the parameter has been initiated with ``snapshot_value=False``,</span>
+<span class="sd">        the snapshot will NOT include the ``value`` and ``raw_value`` of the</span>
+<span class="sd">        parameter.</span>
+
 <span class="sd">        Args:</span>
-<span class="sd">            update (bool): If True, update the state by calling</span>
-<span class="sd">                parameter.get().</span>
-<span class="sd">                If False, just use the latest values in memory.</span>
-<span class="sd">            params_to_skip_update: No effect but may be passed from super Class:</span>
+<span class="sd">            update: If True, update the state by calling ``parameter.get()``</span>
+<span class="sd">                unless ``snapshot_get`` of the parameter is ``False``.</span>
+<span class="sd">                If ``update`` is ``False``, just use the current value from the</span>
+<span class="sd">                ``cache``.</span>
+<span class="sd">            params_to_skip_update: No effect but may be passed from superclass</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            dict: base snapshot</span>
@@ -600,7 +603,11 @@
                 <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_snapshot_value</span> <span class="ow">and</span> <span class="n">update</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
 
-        <span class="n">state</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_latest</span><span class="p">)</span>
+        <span class="n">state</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">_value</span><span class="p">,</span>
+            <span class="s1">&#39;raw_value&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">raw_value</span><span class="p">,</span>
+            <span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">timestamp</span>
+        <span class="p">}</span>
         <span class="n">state</span><span class="p">[</span><span class="s1">&#39;__class__&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">full_class</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
         <span class="n">state</span><span class="p">[</span><span class="s1">&#39;full_name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 
@@ -666,39 +673,9 @@
 
         <span class="k">return</span> <span class="n">raw_value</span>
 
-    <span class="k">def</span> <span class="nf">set_cache</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">ParamDataType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Set the cached value of the parameter without invoking the</span>
-<span class="sd">        ``set_cmd`` of the parameter (if it has one). For example, in case of</span>
-<span class="sd">        an instrument parameter, calling :meth:`set_cache` as opposed to</span>
-<span class="sd">        calling ``set`` will only change the internally-stored value of</span>
-<span class="sd">        the parameter (that is available when calling ``get_latest``),</span>
-<span class="sd">        and will pass that value to the instrument.</span>
-
-<span class="sd">        Note that this method also respects all the validation, parsing,</span>
-<span class="sd">        offsetting, etc that the ``set`` method respects. However,</span>
-<span class="sd">        if the parameter has :attr:`step` defined, unlike the ``set`` method,</span>
-<span class="sd">        this method does not perform setting the parameter step-by-step.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            value: new value for the parameter</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-        <span class="n">raw_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_from_value_to_raw_value</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_update_cache_with</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">,</span> <span class="n">raw_value</span><span class="o">=</span><span class="n">raw_value</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">_update_cache_with</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span>
-                           <span class="n">value</span><span class="p">:</span> <span class="n">ParamDataType</span><span class="p">,</span>
-                           <span class="n">raw_value</span><span class="p">:</span> <span class="n">ParamRawDataType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_latest</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="n">value</span><span class="p">,</span>
-                        <span class="s1">&#39;raw_value&#39;</span><span class="p">:</span> <span class="n">raw_value</span><span class="p">,</span>
-                        <span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()}</span>
-
     <span class="k">def</span> <span class="nf">_save_val</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">ParamDataType</span><span class="p">,</span> <span class="n">validate</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Use ``set_cache`` instead of this method. It will be deprecated soon.</span>
-
-<span class="sd">        Update latest</span>
+<span class="sd">        Use ``cache.set`` instead of this method. This will be deprecated soon.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">validate</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
@@ -709,8 +686,8 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">offset</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">):</span>
             <span class="n">raw_value</span> <span class="o">=</span> <span class="n">value</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">raw_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_cache_raw</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_update_cache_with</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">,</span> <span class="n">raw_value</span><span class="o">=</span><span class="n">raw_value</span><span class="p">)</span>
+            <span class="n">raw_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">raw_value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">_update_with</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">,</span> <span class="n">raw_value</span><span class="o">=</span><span class="n">raw_value</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_from_raw_value_to_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_value</span><span class="p">:</span> <span class="n">ParamRawDataType</span>
                                  <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ParamDataType</span><span class="p">:</span>
@@ -771,7 +748,7 @@
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_on_get</span><span class="p">:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
 
-                <span class="bp">self</span><span class="o">.</span><span class="n">_update_cache_with</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">,</span> <span class="n">raw_value</span><span class="o">=</span><span class="n">raw_value</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">_update_with</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">,</span> <span class="n">raw_value</span><span class="o">=</span><span class="n">raw_value</span><span class="p">)</span>
 
                 <span class="k">return</span> <span class="n">value</span>
 
@@ -812,9 +789,6 @@
 
                     <span class="n">set_function</span><span class="p">(</span><span class="n">raw_val_step</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
-                    <span class="bp">self</span><span class="o">.</span><span class="n">_update_cache_with</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">val_step</span><span class="p">,</span>
-                                            <span class="n">raw_value</span><span class="o">=</span><span class="n">raw_val_step</span><span class="p">)</span>
-
                     <span class="c1"># Update last set time (used for calculating delays)</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">_t_last_set</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
 
@@ -823,6 +797,9 @@
                     <span class="k">if</span> <span class="n">t_elapsed</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">post_delay</span><span class="p">:</span>
                         <span class="c1"># Sleep until total time is larger than self.post_delay</span>
                         <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">post_delay</span> <span class="o">-</span> <span class="n">t_elapsed</span><span class="p">)</span>
+
+                    <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">_update_with</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">val_step</span><span class="p">,</span>
+                                            <span class="n">raw_value</span><span class="o">=</span><span class="n">raw_val_step</span><span class="p">)</span>
 
             <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
                 <span class="n">e</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">args</span> <span class="o">+</span> <span class="p">(</span><span class="s1">&#39;setting </span><span class="si">{}</span><span class="s1"> to </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">),)</span>
@@ -857,9 +834,9 @@
             <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">start_value</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">))</span> <span class="ow">and</span>
                     <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">))):</span>
                 <span class="c1"># something weird... parameter is numeric but one of the ends</span>
-                <span class="c1"># isn&#39;t, even though it&#39;s valid.</span>
-                <span class="c1"># probably MultiType with a mix of numeric and non-numeric types</span>
-                <span class="c1"># just set the endpoint and move on</span>
+                <span class="c1"># isn&#39;t, even though it&#39;s valid. probably MultiType with a</span>
+                <span class="c1"># mix of numeric and non-numeric types... So just set the</span>
+                <span class="c1"># endpoint and move on.</span>
                 <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">f</span><span class="s1">&#39;cannot sweep </span><span class="si">{self.name}</span><span class="s1"> from </span><span class="si">{start_value!r}</span><span class="s1"> &#39;</span>
                             <span class="n">f</span><span class="s1">&#39;to </span><span class="si">{value!r}</span><span class="s1"> - jumping.&#39;</span><span class="p">)</span>
                 <span class="k">return</span> <span class="p">[]</span>
@@ -963,9 +940,9 @@
 <span class="sd">        the command for setting the parameter returns quickly.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            post_delay: the target time after the *start*</span>
-<span class="sd">                of a set operation. The actual time will not be shorter than</span>
-<span class="sd">                this, but may be longer if the underlying set call takes longer.</span>
+<span class="sd">            post_delay: the target time after the *start* of a set</span>
+<span class="sd">                operation. The actual time will not be shorter than this,</span>
+<span class="sd">                but may be longer if the underlying set call takes longer.</span>
 
 <span class="sd">        Raises:</span>
 <span class="sd">            TypeError: If delay is not int nor float</span>
@@ -994,9 +971,9 @@
 <span class="sd">        *between* sets.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            inter_delay: the minimum time between set calls.</span>
-<span class="sd">                The actual time will not be shorter than this, but may be longer</span>
-<span class="sd">                if the underlying set call takes longer.</span>
+<span class="sd">            inter_delay: the minimum time between set calls. The actual time</span>
+<span class="sd">                will not be shorter than this, but may be longer if the</span>
+<span class="sd">                underlying set call takes longer.</span>
 
 <span class="sd">        Raises:</span>
 <span class="sd">            TypeError: If delay is not int nor float</span>
@@ -1119,10 +1096,14 @@
 <span class="sd">       :meth:`set_raw` methods are automatically wrapped to provide ``get`` and</span>
 <span class="sd">       ``set``.</span>
 
-<span class="sd">    Parameters have a ``.get_latest`` method that simply returns the most</span>
-<span class="sd">    recent set or measured value. This can be called ( ``param.get_latest()`` )</span>
+<span class="sd">    Parameters have a ``cache`` object that stores internally the current</span>
+<span class="sd">    ``value`` and ``raw_value`` of the parameter. Calling ``cache.get()``</span>
+<span class="sd">    (or ``cache()``) simply returns the most recent set or measured value of</span>
+<span class="sd">    the parameter.</span>
 
-
+<span class="sd">    Parameter also has a ``.get_latest`` method that duplicates the behavior</span>
+<span class="sd">    of ``cache()`` call, as in, it also simply returns the most recent set</span>
+<span class="sd">    or measured value.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        name: The local name of the parameter. Should be a valid</span>
@@ -1141,8 +1122,9 @@
 
 <span class="sd">        snapshot_get: ``False`` prevents any update to the</span>
 <span class="sd">            parameter during a snapshot, even if the snapshot was called with</span>
-<span class="sd">            ``update=True``, for example, if it takes too long to update.</span>
-<span class="sd">            Default True.</span>
+<span class="sd">            ``update=True``, for example, if it takes too long to update,</span>
+<span class="sd">            or if the parameter is only meant for measurements hence its value</span>
+<span class="sd">            in the snapshot may not always make sense. Default True.</span>
 
 <span class="sd">        snapshot_value: ``False`` prevents parameter value to be</span>
 <span class="sd">            stored in the snapshot. Useful if the value is large.</span>
@@ -1158,7 +1140,7 @@
 
 <span class="sd">        scale: Scale to multiply value with before</span>
 <span class="sd">            performing set. the internally multiplied value is stored in</span>
-<span class="sd">            `raw_value`. Can account for a voltage divider.</span>
+<span class="sd">            ``cache.raw_value``. Can account for a voltage divider.</span>
 
 <span class="sd">        inter_delay: Minimum time (in seconds)</span>
 <span class="sd">            between successive sets. If the previous set was less than this,</span>
@@ -1193,9 +1175,9 @@
 <span class="sd">            Only relevant if settable. Defaults to ``Numbers()``.</span>
 
 <span class="sd">        max_val_age: The max time (in seconds) to trust a</span>
-<span class="sd">            saved value obtained from ``get_latest()``. If this  parameter</span>
-<span class="sd">            has not been set or measured more recently than this, perform an</span>
-<span class="sd">            additional measurement.</span>
+<span class="sd">            saved value obtained from ``cache()`` (or ``cache.get()``, or</span>
+<span class="sd">            ``get_latest()``. If this parameter has not been set or measured</span>
+<span class="sd">            more recently than this, perform an additional measurement.</span>
 
 <span class="sd">        docstring: Documentation string for the ``__doc__``</span>
 <span class="sd">            field of the object. The ``__doc__``  field of the instance is</span>
@@ -1203,7 +1185,6 @@
 
 <span class="sd">        metadata: Extra information to include with the</span>
 <span class="sd">            JSON snapshot of the parameter.</span>
-
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
@@ -1223,9 +1204,10 @@
         <span class="n">no_get</span> <span class="o">=</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;get&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">get_cmd</span> <span class="ow">is</span> <span class="kc">None</span>
                                                <span class="ow">or</span> <span class="n">get_cmd</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">)</span>
         <span class="c1"># TODO: a matching check should be in _BaseParameter but</span>
-        <span class="c1"># due to the current limited design the _BaseParameter cannot</span>
-        <span class="c1"># know if this subclass will supply a get_cmd</span>
-        <span class="c1"># To work around this a RunTime check is put into get of GetLatest</span>
+        <span class="c1">#   due to the current limited design the _BaseParameter cannot</span>
+        <span class="c1">#   know if this subclass will supply a get_cmd</span>
+        <span class="c1">#   To work around this a RunTime check is put into get of GetLatest</span>
+        <span class="c1">#   and into get of _Cache</span>
         <span class="k">if</span> <span class="n">max_val_age</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">no_get</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">SyntaxError</span><span class="p">(</span><span class="s1">&#39;Must have get method or specify get_cmd &#39;</span>
                               <span class="s1">&#39;when max_val_age is set&#39;</span><span class="p">)</span>
@@ -1233,15 +1215,17 @@
         <span class="c1"># Enable set/get methods from get_cmd/set_cmd if given and</span>
         <span class="c1"># no `get`/`set` or `get_raw`/`set_raw` methods have been defined</span>
         <span class="c1"># in the scope of this class.</span>
-        <span class="c1"># (previous call to `super().__init__` wraps existing get_raw/set_raw to</span>
-        <span class="c1"># get/set methods)</span>
+        <span class="c1"># (previous call to `super().__init__` wraps existing</span>
+        <span class="c1"># get_raw/set_raw into get/set methods)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;get&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">get_cmd</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">False</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">get_cmd</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">get_raw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_cache_raw</span>   <span class="c1"># type: ignore[assignment]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">get_raw</span> <span class="o">=</span> <span class="p">(</span>  <span class="c1"># type: ignore[assignment]</span>
+                    <span class="k">lambda</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">raw_value</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">exec_str_ask</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">instrument</span><span class="p">,</span> <span class="s2">&quot;ask&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> \
                     <span class="k">if</span> <span class="n">instrument</span> <span class="k">else</span> <span class="kc">None</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">get_raw</span> <span class="o">=</span> <span class="n">Command</span><span class="p">(</span><span class="n">arg_count</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">cmd</span><span class="o">=</span><span class="n">get_cmd</span><span class="p">,</span>   <span class="c1"># type: ignore[assignment]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">get_raw</span> <span class="o">=</span> <span class="n">Command</span><span class="p">(</span><span class="n">arg_count</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>  <span class="c1"># type: ignore[assignment]</span>
+                                       <span class="n">cmd</span><span class="o">=</span><span class="n">get_cmd</span><span class="p">,</span>
                                        <span class="n">exec_str</span><span class="o">=</span><span class="n">exec_str_ask</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">get</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_wrap_get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_raw</span><span class="p">)</span>
 
@@ -1676,9 +1660,11 @@
 
 
 <span class="k">def</span> <span class="nf">_is_nested_sequence_or_none</span><span class="p">(</span><span class="n">obj</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
-                                <span class="n">types</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">Type</span><span class="p">[</span><span class="nb">object</span><span class="p">],</span>
-                                                      <span class="n">Tuple</span><span class="p">[</span><span class="n">Type</span><span class="p">[</span><span class="nb">object</span><span class="p">],</span> <span class="o">...</span><span class="p">]]],</span>
-                                <span class="n">shapes</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]]])</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+                                <span class="n">types</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span>
+                                    <span class="n">Type</span><span class="p">[</span><span class="nb">object</span><span class="p">],</span>
+                                    <span class="n">Tuple</span><span class="p">[</span><span class="n">Type</span><span class="p">[</span><span class="nb">object</span><span class="p">],</span> <span class="o">...</span><span class="p">]]],</span>
+                                <span class="n">shapes</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]]]</span>
+                                <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;Validator for MultiParameter setpoints/names/labels&quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">obj</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">return</span> <span class="kc">True</span>
@@ -1873,7 +1859,7 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Names of the parameter components including the name of the instrument</span>
 <span class="sd">        and submodule that the parameter may be bound to. The name parts are</span>
-<span class="sd">        separated by underscores, like this: ``instrument_submodule_parameter``.</span>
+<span class="sd">        separated by underscores, like this: ``instrument_submodule_parameter``</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">inst_name</span> <span class="o">=</span> <span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name_parts</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
         <span class="k">if</span> <span class="n">inst_name</span> <span class="o">!=</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
@@ -1897,7 +1883,8 @@
                 <span class="n">full_sp_names_subgroupd</span> <span class="o">=</span> <span class="p">[]</span>
                 <span class="k">for</span> <span class="n">spname</span> <span class="ow">in</span> <span class="n">sp_group</span><span class="p">:</span>
                     <span class="k">if</span> <span class="n">spname</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                        <span class="n">full_sp_names_subgroupd</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">inst_name</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="n">spname</span><span class="p">)</span>
+                        <span class="n">full_sp_names_subgroupd</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                            <span class="n">inst_name</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span> <span class="o">+</span> <span class="n">spname</span><span class="p">)</span>
                     <span class="k">else</span><span class="p">:</span>
                         <span class="n">full_sp_names_subgroupd</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
                 <span class="n">full_sp_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">full_sp_names_subgroupd</span><span class="p">))</span>
@@ -1907,6 +1894,160 @@
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">setpoint_names</span></div>
 
 
+<span class="k">class</span> <span class="nc">_Cache</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Cache object for parameter to hold its value and raw value</span>
+
+<span class="sd">    It also implements ``set`` method for setting parameter&#39;s value without</span>
+<span class="sd">    invoking its ``set_cmd``, and ``get`` method that allows to retrieve the</span>
+<span class="sd">    cached value of the parameter without calling ``get_cmd`` might be called</span>
+<span class="sd">    unless the cache is invalid.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">         parameter: instance of the parameter that this cache belongs to.</span>
+<span class="sd">         max_val_age: Max time (in seconds) to trust a value stored in cache.</span>
+<span class="sd">            If the parameter has not been set or measured more recently than</span>
+<span class="sd">            this, an additional measurement will be performed in order to</span>
+<span class="sd">            update the cached value. If it is ``None``, this behavior is</span>
+<span class="sd">            disabled. ``max_val_age`` should not be used for a parameter</span>
+<span class="sd">            that does not have a get function.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">parameter</span><span class="p">:</span> <span class="s1">&#39;_BaseParameter&#39;</span><span class="p">,</span>
+                 <span class="n">max_val_age</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parameter</span> <span class="o">=</span> <span class="n">parameter</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_value</span><span class="p">:</span> <span class="n">ParamDataType</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_raw_value</span><span class="p">:</span> <span class="n">ParamRawDataType</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_timestamp</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_max_val_age</span> <span class="o">=</span> <span class="n">max_val_age</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">raw_value</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ParamRawDataType</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Raw value of the parameter&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_raw_value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">timestamp</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Timestamp of the moment when cache was last updated</span>
+
+<span class="sd">        If ``None``, the cache hasn&#39;t been updated yet and shall be seen as</span>
+<span class="sd">        &quot;invalid&quot;.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_timestamp</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">max_val_age</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Max time (in seconds) to trust a value stored in cache. If the</span>
+<span class="sd">        parameter has not been set or measured more recently than this,</span>
+<span class="sd">        perform an additional measurement.</span>
+
+<span class="sd">        If it is ``None``, this behavior is disabled.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_val_age</span>
+
+    <span class="k">def</span> <span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">ParamDataType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set the cached value of the parameter without invoking the</span>
+<span class="sd">        ``set_cmd`` of the parameter (if it has one). For example, in case of</span>
+<span class="sd">        an instrument parameter, calling :meth:`cache.set` as opposed to</span>
+<span class="sd">        calling ``set`` will only change the internally-stored value of</span>
+<span class="sd">        the parameter (that is available when calling ``cache.get()`` or</span>
+<span class="sd">        ``get_latest()``), and will NOT pass that value to the instrument.</span>
+
+<span class="sd">        Note that this method also respects all the validation, parsing,</span>
+<span class="sd">        offsetting, etc that the parameter&#39;s ``set`` method respects. However,</span>
+<span class="sd">        if the parameter has :attr:`step` defined, unlike the ``set`` method,</span>
+<span class="sd">        this method does not perform setting the parameter step-by-step.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            value: new value for the parameter</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parameter</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="n">raw_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parameter</span><span class="o">.</span><span class="n">_from_value_to_raw_value</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_with</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">,</span> <span class="n">raw_value</span><span class="o">=</span><span class="n">raw_value</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_update_with</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span>
+                     <span class="n">value</span><span class="p">:</span> <span class="n">ParamDataType</span><span class="p">,</span>
+                     <span class="n">raw_value</span><span class="p">:</span> <span class="n">ParamRawDataType</span><span class="p">,</span>
+                     <span class="n">timestamp</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+                     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Simply overwrites the value, raw value, and timestamp in this cache</span>
+<span class="sd">        with new ones.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            value: new value of the parameter</span>
+<span class="sd">            raw_value: new raw value of the parameter</span>
+<span class="sd">            timestamp: new timestamp of the parameter; if ``None``,</span>
+<span class="sd">                then timestamp of &quot;now&quot; is used</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_value</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_raw_value</span> <span class="o">=</span> <span class="n">raw_value</span>
+        <span class="k">if</span> <span class="n">timestamp</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_timestamp</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_timestamp</span> <span class="o">=</span> <span class="n">timestamp</span>
+
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">get_if_invalid</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ParamDataType</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return cached value if time since get was less than ``max_val_age``,</span>
+<span class="sd">        otherwise perform ``get()`` on the parameter and return result. A</span>
+<span class="sd">        ``get()`` will also be performed if the parameter has never been</span>
+<span class="sd">        captured but only if ``get_if_invalid`` argument is ``True``.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            get_if_invalid: if set to ``True``, ``get()`` on a parameter</span>
+<span class="sd">                will be performed in case the cached value is invalid (for</span>
+<span class="sd">                example, due to ``max_val_age``, or because the parameter has</span>
+<span class="sd">                never been captured)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">no_get</span> <span class="o">=</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_parameter</span><span class="p">,</span> <span class="s1">&#39;get&#39;</span><span class="p">)</span>
+
+        <span class="c1"># the parameter has never been captured so `get` it but only</span>
+        <span class="c1"># if `get_if_invalid` is True</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_timestamp</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">get_if_invalid</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">no_get</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Value of parameter &quot;</span>
+                                       <span class="n">f</span><span class="s2">&quot;{(self._parameter.full_name)} &quot;</span>
+                                       <span class="n">f</span><span class="s2">&quot;is unknown and the Parameter does &quot;</span>
+                                       <span class="n">f</span><span class="s2">&quot;not have a get command. &quot;</span>
+                                       <span class="n">f</span><span class="s2">&quot;Please set the value before &quot;</span>
+                                       <span class="n">f</span><span class="s2">&quot;attempting to get it.&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parameter</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_value</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_val_age</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Return last value since max_val_age is not specified</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_value</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">no_get</span><span class="p">:</span>
+                <span class="c1"># TODO: this check should really be at the time of setting</span>
+                <span class="c1">#  max_val_age unfortunately this happens in init before</span>
+                <span class="c1">#  get wrapping is performed.</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;`max_val_age` is not supported for a &quot;</span>
+                                   <span class="s2">&quot;parameter without get command.&quot;</span><span class="p">)</span>
+
+            <span class="n">oldest_accepted_timestamp</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">-</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_max_val_age</span><span class="p">))</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_timestamp</span> <span class="o">&lt;</span> <span class="n">oldest_accepted_timestamp</span><span class="p">:</span>
+                <span class="c1"># Time of last get exceeds max_val_age seconds, need to</span>
+                <span class="c1"># perform new .get()</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parameter</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_value</span>
+
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ParamDataType</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Same as :meth:`get` but always call ``get`` on parameter if the</span>
+<span class="sd">        cache is not valid</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">get_if_invalid</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+
 <div class="viewcode-block" id="GetLatest"><a class="viewcode-back" href="../../../api/parameters/parameter.html#qcodes.instrument_drivers.devices.GetLatest">[docs]</a><span class="k">class</span> <span class="nc">GetLatest</span><span class="p">(</span><span class="n">DelegateAttributes</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Wrapper for a class:`.Parameter` that just returns the last set or measured</span>
@@ -1914,8 +2055,13 @@
 <span class="sd">    on the parameter or the time since get was called is larger than</span>
 <span class="sd">    ``max_val_age``, get will be called on the parameter. If the parameter</span>
 <span class="sd">    does not implement get, set should be called (or the initial_value set)</span>
-<span class="sd">    before calling get on this wrapper. It is an error</span>
-<span class="sd">    to set ``max_val_age`` for a parameter that does not have a get function.</span>
+<span class="sd">    before calling get on this wrapper. It is an error to set</span>
+<span class="sd">    ``max_val_age`` for a parameter that does not have a get function.</span>
+
+<span class="sd">    The functionality of this class is subsumed and improved in</span>
+<span class="sd">    parameter&#39;s cache that is accessible via ``.cache`` attribute of the</span>
+<span class="sd">    :class:`.Parameter`. Use of ``parameter.cache`` is recommended over use of</span>
+<span class="sd">    ``parameter.get_latest``.</span>
 
 <span class="sd">    Examples:</span>
 <span class="sd">        &gt;&gt;&gt; # Can be called:</span>
@@ -1925,73 +2071,47 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        parameter: Parameter to be wrapped.</span>
-<span class="sd">        max_val_age: The max time (in seconds) to trust a</span>
-<span class="sd">            saved value obtained from get_latest(). If this parameter has not</span>
-<span class="sd">            been set or measured more recently than this, perform an</span>
-<span class="sd">            additional measurement.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameter</span><span class="p">:</span> <span class="n">_BaseParameter</span><span class="p">,</span>
-                 <span class="n">max_val_age</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Number</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameter</span><span class="p">:</span> <span class="n">_BaseParameter</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span> <span class="o">=</span> <span class="n">parameter</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">max_val_age</span> <span class="o">=</span> <span class="n">max_val_age</span>
 
     <span class="n">delegate_attr_objects</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;parameter&#39;</span><span class="p">]</span>
     <span class="n">omit_delegate_attrs</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;set&#39;</span><span class="p">]</span>
 
 <div class="viewcode-block" id="GetLatest.get"><a class="viewcode-back" href="../../../api/parameters/parameter.html#qcodes.instrument_drivers.devices.GetLatest.get">[docs]</a>    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ParamDataType</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Return latest value if time since get was less than</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return latest value if time since get was less than</span>
 <span class="sd">        `max_val_age`, otherwise perform `get()` and</span>
 <span class="sd">        return result. A `get()` will also be performed if the</span>
 <span class="sd">        parameter never has been captured.</span>
+
+<span class="sd">        It is recommended to use ``parameter.cache.get()`` instead.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span><span class="o">.</span><span class="n">_latest</span>
-
-        <span class="c1"># the parameter has never been captured so `get` it</span>
-        <span class="c1"># unconditionally</span>
-        <span class="k">if</span> <span class="n">state</span><span class="p">[</span><span class="s1">&#39;ts&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameter</span><span class="p">,</span> <span class="s1">&#39;get&#39;</span><span class="p">):</span>
-                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">f</span><span class="s2">&quot;Value of parameter &quot;</span>
-                                   <span class="n">f</span><span class="s2">&quot;{(self.parameter.full_name)} &quot;</span>
-                                   <span class="n">f</span><span class="s2">&quot;is unknown and the Parameter does &quot;</span>
-                                   <span class="n">f</span><span class="s2">&quot;not have a get command. Please set &quot;</span>
-                                   <span class="n">f</span><span class="s2">&quot;the value before attempting to get it.&quot;</span><span class="p">)</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
-
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_val_age</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="c1"># Return last value since max_val_age is not specified</span>
-            <span class="k">return</span> <span class="n">state</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameter</span><span class="p">,</span> <span class="s1">&#39;get&#39;</span><span class="p">):</span>
-                <span class="c1"># TODO: this check should really be at the time of setting</span>
-                <span class="c1"># max_val_age unfortunately this happens in init before</span>
-                <span class="c1"># get wrapping is performed.</span>
-                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;`max_val_age` is not supported for a &quot;</span>
-                                   <span class="s2">&quot;parameter without get command.&quot;</span><span class="p">)</span>
-
-            <span class="n">oldest_ok_val</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span> <span class="o">-</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max_val_age</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">state</span><span class="p">[</span><span class="s1">&#39;ts&#39;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">oldest_ok_val</span><span class="p">:</span>
-                <span class="c1"># Time of last get exceeds max_val_age seconds, need to</span>
-                <span class="c1"># perform new .get()</span>
-                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">return</span> <span class="n">state</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">get</span><span class="p">()</span></div>
 
 <div class="viewcode-block" id="GetLatest.get_timestamp"><a class="viewcode-back" href="../../../api/parameters/parameter.html#qcodes.instrument_drivers.devices.GetLatest.get_timestamp">[docs]</a>    <span class="k">def</span> <span class="nf">get_timestamp</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">datetime</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Return the age of the latest parameter value.</span>
+
+<span class="sd">        It is recommended to use ``parameter.cache.timestamp`` instead.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span><span class="o">.</span><span class="n">_latest</span>
-        <span class="k">return</span> <span class="n">state</span><span class="p">[</span><span class="s2">&quot;ts&quot;</span><span class="p">]</span></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">timestamp</span></div>
 
 <div class="viewcode-block" id="GetLatest.get_raw_value"><a class="viewcode-back" href="../../../api/parameters/parameter.html#qcodes.instrument_drivers.devices.GetLatest.get_raw_value">[docs]</a>    <span class="k">def</span> <span class="nf">get_raw_value</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ParamRawDataType</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Return latest raw value of the parameter.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span><span class="o">.</span><span class="n">_latest</span>
-        <span class="k">return</span> <span class="n">state</span><span class="p">[</span><span class="s2">&quot;raw_value&quot;</span><span class="p">]</span></div>
 
-    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ParamDataType</span><span class="p">:</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">()</span></div>
+<span class="sd">        It is recommended to use ``parameter.cache.raw_value`` instead.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">_raw_value</span></div>
+
+<div class="viewcode-block" id="GetLatest.__call__"><a class="viewcode-back" href="../../../api/parameters/parameter.html#qcodes.instrument_drivers.devices.GetLatest.__call__">[docs]</a>    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ParamDataType</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Same as ``get()``</span>
+
+<span class="sd">        It is recommended to use ``parameter.cache()`` instead.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="p">()</span></div></div>
 
 
 <div class="viewcode-block" id="combine"><a class="viewcode-back" href="../../../api/parameters/parameter.html#qcodes.instrument_drivers.devices.combine">[docs]</a><span class="k">def</span> <span class="nf">combine</span><span class="p">(</span><span class="o">*</span><span class="n">parameters</span><span class="p">:</span> <span class="s1">&#39;Parameter&#39;</span><span class="p">,</span>
@@ -1999,7 +2119,8 @@
             <span class="n">label</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
             <span class="n">unit</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
             <span class="n">units</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-            <span class="n">aggregator</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Any</span><span class="p">]],</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;CombinedParameter&#39;</span><span class="p">:</span>
+            <span class="n">aggregator</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[</span><span class="n">Sequence</span><span class="p">[</span><span class="n">Any</span><span class="p">]],</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;CombinedParameter&#39;</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Combine parameters into one sweepable parameter</span>
 
@@ -2149,11 +2270,12 @@
         <span class="k">return</span> <span class="n">numpy</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">setpoints</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
 <div class="viewcode-block" id="CombinedParameter.snapshot_base"><a class="viewcode-back" href="../../../api/parameters/parameter.html#qcodes.instrument_drivers.devices.CombinedParameter.snapshot_base">[docs]</a>    <span class="k">def</span> <span class="nf">snapshot_base</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-                      <span class="n">params_to_skip_update</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+                      <span class="n">params_to_skip_update</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+                      <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        State of the combined parameter as a JSON-compatible dict (everything that</span>
-<span class="sd">        the custom JSON encoder class :class:`qcodes.utils.helpers.NumpyJSONEncoder`</span>
-<span class="sd">        supports).</span>
+<span class="sd">        State of the combined parameter as a JSON-compatible dict (everything</span>
+<span class="sd">        that the custom JSON encoder class</span>
+<span class="sd">        :class:`qcodes.utils.helpers.NumpyJSONEncoder` supports).</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            update: ``True`` or ``False``.</span>
@@ -2164,9 +2286,10 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">meta_data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">()</span>
         <span class="n">meta_data</span><span class="p">[</span><span class="s1">&#39;__class__&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">full_class</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
-        <span class="n">meta_data</span><span class="p">[</span><span class="s1">&#39;unit&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span><span class="o">.</span><span class="n">unit</span>  <span class="c1"># type: ignore[attr-defined]</span>
-        <span class="n">meta_data</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span><span class="o">.</span><span class="n">label</span>  <span class="c1"># type: ignore[attr-defined]</span>
-        <span class="n">meta_data</span><span class="p">[</span><span class="s1">&#39;full_name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span><span class="o">.</span><span class="n">full_name</span>  <span class="c1"># type: ignore[attr-defined]</span>
+        <span class="n">param</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameter</span>
+        <span class="n">meta_data</span><span class="p">[</span><span class="s1">&#39;unit&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">unit</span>  <span class="c1"># type: ignore[attr-defined]</span>
+        <span class="n">meta_data</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">label</span>  <span class="c1"># type: ignore[attr-defined]</span>
+        <span class="n">meta_data</span><span class="p">[</span><span class="s1">&#39;full_name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">full_name</span>  <span class="c1"># type: ignore[attr-defined]</span>
         <span class="n">meta_data</span><span class="p">[</span><span class="s1">&#39;aggregator&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">repr</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;f&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
         <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">:</span>
             <span class="n">meta_data</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">param</span><span class="p">)]</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">snapshot</span><span class="p">()</span>
@@ -2293,7 +2416,8 @@
 <span class="sd">        &gt;&gt;&gt; vb = ScaledParameter(dac.chan0, gain = 30, name = &#39;Vb&#39;)</span>
 
 <span class="sd">        Transimpedance amplifier</span>
-<span class="sd">        &gt;&gt;&gt; Id = ScaledParameter(multimeter.amplitude, division = 1e6, name = &#39;Id&#39;, unit = &#39;A&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; Id = ScaledParameter(multimeter.amplitude,</span>
+<span class="sd">        ...                      division = 1e6, name = &#39;Id&#39;, unit = &#39;A&#39;)</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        output: Physical Parameter that need conversion.</span>
@@ -2374,7 +2498,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_meta_attrs</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s2">&quot;role&quot;</span><span class="p">])</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;wrapped_parameter&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_wrapped_parameter</span><span class="o">.</span><span class="n">name</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_wrapped_instrument</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;wrapped_instrument&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_wrapped_instrument</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">wrapped_instr_name</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_wrapped_instrument</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;wrapped_instrument&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">wrapped_instr_name</span>
 
     <span class="c1"># Internal handling of the multiplier</span>
     <span class="c1"># can be either a Parameter or a scalar</span>
@@ -2389,7 +2514,8 @@
     <span class="k">def</span> <span class="nf">_multiplier</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">multiplier</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Number</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">multiplier</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_multiplier_parameter</span> <span class="o">=</span> <span class="n">multiplier</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;variable_multiplier&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_multiplier_parameter</span><span class="o">.</span><span class="n">name</span>
+            <span class="n">multiplier_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_multiplier_parameter</span><span class="o">.</span><span class="n">name</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;variable_multiplier&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">multiplier_name</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_multiplier_parameter</span> <span class="o">=</span> <span class="n">ManualParameter</span><span class="p">(</span>
                 <span class="s1">&#39;multiplier&#39;</span><span class="p">,</span> <span class="n">initial_value</span><span class="o">=</span><span class="n">multiplier</span><span class="p">)</span>
