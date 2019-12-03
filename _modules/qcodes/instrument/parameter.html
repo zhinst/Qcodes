@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>qcodes.instrument.parameter &mdash; QCoDeS 0.8.0+131.g4524e588f documentation</title>
+  <title>qcodes.instrument.parameter &mdash; QCoDeS 0.8.0+135.g8c95ae65e documentation</title>
   
 
   
@@ -63,7 +63,7 @@
             
             
               <div class="version">
-                0.8.0+131.g4524e588f
+                0.8.0+135.g8c95ae65e
               </div>
             
           
@@ -528,8 +528,7 @@
 <span class="sd">        instrument. This method should either be overwritten to perform the</span>
 <span class="sd">        desired operation or alternatively for :class:`.Parameter` a</span>
 <span class="sd">        suitable method is automatically generated if ``get_cmd`` is supplied</span>
-<span class="sd">        to the parameter constructor.</span>
-<span class="sd">        The method is automatically wrapped to</span>
+<span class="sd">        to the parameter constructor. The method is automatically wrapped to</span>
 <span class="sd">        provide a ``get`` method on the parameter instance.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span>
@@ -541,8 +540,7 @@
 <span class="sd">        the instrument. This method should either be overwritten to perform the</span>
 <span class="sd">        desired operation or alternatively for :class:`.Parameter` a</span>
 <span class="sd">        suitable method is automatically generated if ``set_cmd`` is supplied</span>
-<span class="sd">        to the parameter constructor.</span>
-<span class="sd">        The method is automatically wrapped to</span>
+<span class="sd">        to the parameter constructor. The method is automatically wrapped to</span>
 <span class="sd">        provide a ``set`` method on the parameter instance.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span>
@@ -873,6 +871,7 @@
 <span class="sd">        If step is a positive number, this is the maximum value change</span>
 <span class="sd">        allowed in one hardware call, so a single set can result in many</span>
 <span class="sd">        calls to the hardware if the starting value is far from the target.</span>
+<span class="sd">        All but the final change will attempt to change by +/- step exactly.</span>
 <span class="sd">        If step is None stepping will not be used.</span>
 
 <span class="sd">        :getter: Returns the current stepsize.</span>
@@ -889,24 +888,6 @@
 
     <span class="nd">@step</span><span class="o">.</span><span class="n">setter</span>
     <span class="k">def</span> <span class="nf">step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Number</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Configure whether this Parameter uses steps during set operations.</span>
-<span class="sd">        If step is a positive number, this is the maximum value change</span>
-<span class="sd">        allowed in one hardware call, so a single set can result in many</span>
-<span class="sd">        calls to the hardware if the starting value is far from the target.</span>
-<span class="sd">        If step is None stepping will not be used.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            step: A positive number or None, the largest change</span>
-<span class="sd">                allowed in one call. All but the final change will attempt to</span>
-<span class="sd">                change by +/- step exactly</span>
-
-<span class="sd">        Raises:</span>
-<span class="sd">            TypeError: if step is not numeric or None</span>
-<span class="sd">            ValueError: if step is negative</span>
-<span class="sd">            TypeError:  if step is not integer or None for an integer parameter</span>
-<span class="sd">            TypeError: if step is not a number on None</span>
-<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">step</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_step</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Number</span><span class="p">]</span> <span class="o">=</span> <span class="n">step</span>
         <span class="k">elif</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vals</span><span class="p">,</span> <span class="s1">&#39;is_numeric&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">):</span>
@@ -924,14 +905,10 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">post_delay</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Number</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Delay time after *start* of set operation, for each set&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_post_delay</span>
-
-    <span class="nd">@post_delay</span><span class="o">.</span><span class="n">setter</span>
-    <span class="k">def</span> <span class="nf">post_delay</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">post_delay</span><span class="p">:</span> <span class="n">Number</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Configure this parameter with a delay after the *start* of every set</span>
-<span class="sd">        operation.</span>
+<span class="sd">        Delay time after *start* of set operation, for each set.</span>
+<span class="sd">        The actual time will not be shorter than this, but may be longer</span>
+<span class="sd">        if the underlying set call takes longer.</span>
 
 <span class="sd">        Typically used in conjunction with `step` to create an effective</span>
 <span class="sd">        ramp rate, but can also be used without a `step` to enforce a delay</span>
@@ -940,15 +917,17 @@
 <span class="sd">        instrument that needs extra time after setting a parameter although</span>
 <span class="sd">        the command for setting the parameter returns quickly.</span>
 
-<span class="sd">        Args:</span>
-<span class="sd">            post_delay: the target time after the *start* of a set</span>
-<span class="sd">                operation. The actual time will not be shorter than this,</span>
-<span class="sd">                but may be longer if the underlying set call takes longer.</span>
+<span class="sd">        :getter: Returns the current post_delay.</span>
+<span class="sd">        :setter: Sets the value of the post_delay.</span>
 
 <span class="sd">        Raises:</span>
 <span class="sd">            TypeError: If delay is not int nor float</span>
 <span class="sd">            ValueError: If delay is negative</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_post_delay</span>
+
+    <span class="nd">@post_delay</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">post_delay</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">post_delay</span><span class="p">:</span> <span class="n">Number</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">post_delay</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)):</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
                 <span class="s1">&#39;post_delay (</span><span class="si">{}</span><span class="s1">) must be a number&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">post_delay</span><span class="p">))</span>
@@ -959,27 +938,26 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">inter_delay</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Number</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Delay time between consecutive set operations&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inter_delay</span>
-
-    <span class="nd">@inter_delay</span><span class="o">.</span><span class="n">setter</span>
-    <span class="k">def</span> <span class="nf">inter_delay</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inter_delay</span><span class="p">:</span> <span class="n">Number</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Configure this parameter with a delay between set operations.</span>
+<span class="sd">        Delay time between consecutive set operations.</span>
+<span class="sd">        The actual time will not be shorter than this, but may be longer</span>
+<span class="sd">        if the underlying set call takes longer.</span>
 
 <span class="sd">        Typically used in conjunction with `step` to create an effective</span>
 <span class="sd">        ramp rate, but can also be used without a `step` to enforce a delay</span>
 <span class="sd">        *between* sets.</span>
 
-<span class="sd">        Args:</span>
-<span class="sd">            inter_delay: the minimum time between set calls. The actual time</span>
-<span class="sd">                will not be shorter than this, but may be longer if the</span>
-<span class="sd">                underlying set call takes longer.</span>
+<span class="sd">        :getter: Returns the current inter_delay.</span>
+<span class="sd">        :setter: Sets the value of the inter_delay.</span>
 
 <span class="sd">        Raises:</span>
 <span class="sd">            TypeError: If delay is not int nor float</span>
 <span class="sd">            ValueError: If delay is negative</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inter_delay</span>
+
+    <span class="nd">@inter_delay</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">inter_delay</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inter_delay</span><span class="p">:</span> <span class="n">Number</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">inter_delay</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)):</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
                 <span class="s1">&#39;inter_delay (</span><span class="si">{}</span><span class="s1">) must be a number&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">inter_delay</span><span class="p">))</span>
@@ -1004,8 +982,7 @@
 <span class="sd">        Deprecated - reassign the `vals` attribute directly instead.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            vals (Validator):  validator to set</span>
-
+<span class="sd">            vals:  validator to set</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
             <span class="s2">&quot;set_validator is deprected use `inst.vals = MyValidator` instead&quot;</span><span class="p">)</span>
@@ -1274,7 +1251,7 @@
         <span class="sd">&quot;&quot;&quot; Increment the parameter with a value</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            value (float): Value to be added to the parameter.</span>
+<span class="sd">            value: Value to be added to the parameter.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">()</span> <span class="o">+</span> <span class="n">value</span><span class="p">)</span></div>
 
@@ -1443,10 +1420,12 @@
 
         <span class="nd">@property</span>
         <span class="k">def</span> <span class="nf">raw_value</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ParamRawDataType</span><span class="p">:</span>
-            <span class="sd">&quot;&quot;&quot;raw_value is an attribute that surfaces the raw value  from the</span>
+            <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            raw_value is an attribute that surfaces the raw value from the</span>
 <span class="sd">            cache. In the case of a :class:`DelegateParameter` it reflects</span>
 <span class="sd">            the value of the cache of the source.</span>
-<span class="sd">            Strictly speaking it should represent that value independent of the</span>
+
+<span class="sd">            Strictly speaking it should represent that value independent of</span>
 <span class="sd">            its validity according to the `max_val_age` but in fact it does</span>
 <span class="sd">            lose its validity when the maximum value age has been reached.</span>
 <span class="sd">            This bug will not be fixed since the `raw_value` property will be</span>
@@ -1741,8 +1720,7 @@
 <div class="viewcode-block" id="MultiParameter"><a class="viewcode-back" href="../../../api/parameters/parameter.html#qcodes.instrument_drivers.devices.MultiParameter">[docs]</a><span class="k">class</span> <span class="nc">MultiParameter</span><span class="p">(</span><span class="n">_BaseParameter</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A gettable parameter that returns multiple values with separate names,</span>
-<span class="sd">    each of arbitrary shape.</span>
-<span class="sd">    Not necessarily part of an instrument.</span>
+<span class="sd">    each of arbitrary shape. Not necessarily part of an instrument.</span>
 
 <span class="sd">    Subclasses should define a ``.get_raw`` method, which returns a sequence of</span>
 <span class="sd">    values. This method is automatically wrapped to provide a ``.get`` method.</span>
@@ -2183,6 +2161,10 @@
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Combine parameters into one sweepable parameter</span>
 
+<span class="sd">    A combined parameter sets all the combined parameters at every point</span>
+<span class="sd">    of the sweep. The sets are called in the same order the parameters are,</span>
+<span class="sd">    and sequentially.</span>
+
 <span class="sd">    Args:</span>
 <span class="sd">        *parameters: The parameters to combine.</span>
 <span class="sd">        name: The name of the paramter.</span>
@@ -2190,11 +2172,6 @@
 <span class="sd">        unit: the unit of the combined parameter.</span>
 <span class="sd">        aggregator: a function to aggregate</span>
 <span class="sd">            the set values into one.</span>
-
-<span class="sd">    A combined parameter sets all the combined parameters at every point of the</span>
-<span class="sd">    sweep.</span>
-<span class="sd">    The sets are called in the same order the parameters are, and</span>
-<span class="sd">    sequentially.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">my_parameters</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
     <span class="n">multi_par</span> <span class="o">=</span> <span class="n">CombinedParameter</span><span class="p">(</span><span class="n">my_parameters</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">unit</span><span class="p">,</span> <span class="n">units</span><span class="p">,</span>
@@ -2203,7 +2180,10 @@
 
 
 <div class="viewcode-block" id="CombinedParameter"><a class="viewcode-back" href="../../../api/parameters/parameter.html#qcodes.instrument_drivers.devices.CombinedParameter">[docs]</a><span class="k">class</span> <span class="nc">CombinedParameter</span><span class="p">(</span><span class="n">Metadatable</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot; A combined parameter</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A combined parameter. It sets all the combined parameters at every</span>
+<span class="sd">    point of the sweep. The sets are called in the same order</span>
+<span class="sd">    the parameters are, and sequentially.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        *parameters: The parameters to combine.</span>
@@ -2211,11 +2191,6 @@
 <span class="sd">        label: The label of the combined parameter</span>
 <span class="sd">        unit: The unit of the combined parameter</span>
 <span class="sd">        aggregator: A function to aggregate the set values into one</span>
-
-<span class="sd">    A combined parameter sets all the combined parameters at every point of the</span>
-<span class="sd">    sweep.</span>
-<span class="sd">    The sets are called in the same order the parameters are, and</span>
-<span class="sd">    sequentially.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Parameter</span><span class="p">],</span>
@@ -2262,10 +2237,10 @@
 <span class="sd">        Set multiple parameters.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            index (int): the index of the setpoints one wants to set</span>
+<span class="sd">            index: the index of the setpoints one wants to set</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            list: values that where actually set</span>
+<span class="sd">            list of values that where actually set</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">values</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">setpoints</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
         <span class="k">for</span> <span class="n">setFunction</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sets</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
@@ -2358,23 +2333,23 @@
 
 <div class="viewcode-block" id="InstrumentRefParameter"><a class="viewcode-back" href="../../../api/parameters/parameter.html#qcodes.instrument_drivers.devices.InstrumentRefParameter">[docs]</a><span class="k">class</span> <span class="nc">InstrumentRefParameter</span><span class="p">(</span><span class="n">Parameter</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    An InstrumentRefParameter</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        name (str): The name of the parameter that one wants to add.</span>
-
-<span class="sd">        instrument (Optional[Instrument]): The &quot;parent&quot; instrument this</span>
-<span class="sd">            parameter is attached to, if any.</span>
-
-<span class="sd">        initial_value (Optional[str]): Starting value, may be None even if</span>
-<span class="sd">            None does not pass the validator. None is only allowed as an</span>
-<span class="sd">            initial value and cannot be set after initiation.</span>
-
-<span class="sd">        **kwargs: Passed to InstrumentRefParameter parent class</span>
+<span class="sd">    An instrument reference parameter.</span>
 
 <span class="sd">    This parameter is useful when one needs a reference to another instrument</span>
 <span class="sd">    from within an instrument, e.g., when creating a meta instrument that</span>
 <span class="sd">    sets parameters on instruments it contains.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name: The name of the parameter that one wants to add.</span>
+
+<span class="sd">        instrument: The &quot;parent&quot; instrument this</span>
+<span class="sd">            parameter is attached to, if any.</span>
+
+<span class="sd">        initial_value: Starting value, may be None even if None does not</span>
+<span class="sd">            pass the validator. None is only allowed as an initial value</span>
+<span class="sd">            and cannot be set after initiation.</span>
+
+<span class="sd">        **kwargs: Passed to InstrumentRefParameter parent class</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
