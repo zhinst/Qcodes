@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>qcodes.logger.logger &mdash; QCoDeS 0.9.0a0+52.g3236b2c1c documentation</title>
+  <title>qcodes.logger.logger &mdash; QCoDeS 0.9.0a0+75.gbd2f54dbc documentation</title>
   
 
   
@@ -63,7 +63,7 @@
             
             
               <div class="version">
-                0.9.0a0+52.g3236b2c1c
+                0.9.0a0+75.gbd2f54dbc
               </div>
             
           
@@ -453,6 +453,56 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">start_command_history_logger</span><span class="p">()</span>
     <span class="n">start_logger</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="conditionally_start_all_logging"><a class="viewcode-back" href="../../../api/logger/logger.html#qcodes.logger.logger.conditionally_start_all_logging">[docs]</a><span class="k">def</span> <span class="nf">conditionally_start_all_logging</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Start logging if qcodesrc.json setup for it and in tool environment.</span>
+
+<span class="sd">    This function will start logging if the session is not being executed by</span>
+<span class="sd">    a tool such as pytest and under the following conditions depending on the</span>
+<span class="sd">    qcodes configuration of ``config.logger.start_logging_on_import``:</span>
+
+<span class="sd">    For ``never``:</span>
+
+<span class="sd">        don&#39;t start logging automatically</span>
+
+<span class="sd">    For ``always``:</span>
+
+<span class="sd">        Always start logging when not in test environment</span>
+
+<span class="sd">    For ``if_telemetry_set_up``:</span>
+
+<span class="sd">        Start logging if the GUID components and the instrumentation key for</span>
+<span class="sd">        telemetry are set up, and not in a test environment.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">start_logging_on_import</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">config</span>
+        <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">start_logging_on_import</span> <span class="o">==</span> <span class="s1">&#39;always&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">elif</span> <span class="n">config</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">start_logging_on_import</span> <span class="o">==</span> <span class="s1">&#39;never&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">elif</span> <span class="n">config</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">start_logging_on_import</span> <span class="o">==</span> <span class="s1">&#39;if_telemetry_set_up&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">(</span>
+                <span class="n">config</span><span class="o">.</span><span class="n">GUID_components</span><span class="o">.</span><span class="n">location</span> <span class="o">!=</span> <span class="mi">0</span> <span class="ow">and</span>
+                <span class="n">config</span><span class="o">.</span><span class="n">GUID_components</span><span class="o">.</span><span class="n">work_station</span> <span class="o">!=</span> <span class="mi">0</span> <span class="ow">and</span>
+                <span class="n">config</span><span class="o">.</span><span class="n">telemetry</span><span class="o">.</span><span class="n">instrumentation_key</span> <span class="o">!=</span> \
+                    <span class="s2">&quot;00000000-0000-0000-0000-000000000000&quot;</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Error in qcodesrc validation.&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">running_in_test_or_tool</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="kn">import</span> <span class="nn">sys</span>
+        <span class="n">tools</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="s1">&#39;pytest.py&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;pytest&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;_jb_pytest_runner.py&#39;</span><span class="p">,</span>  <span class="c1"># Jetbrains Pycharm</span>
+            <span class="s1">&#39;testlauncher.py&#39;</span>        <span class="c1"># VSCode</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="nb">any</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">tool</span><span class="p">)</span> <span class="k">for</span> <span class="n">tool</span> <span class="ow">in</span> <span class="n">tools</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">start_logging_on_import</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">running_in_test_or_tool</span><span class="p">():</span>
+        <span class="n">start_all_logging</span><span class="p">()</span></div>
 
 
 <div class="viewcode-block" id="handler_level"><a class="viewcode-back" href="../../../api/logger/logger.html#qcodes.logger.logger.handler_level">[docs]</a><span class="nd">@contextmanager</span>
