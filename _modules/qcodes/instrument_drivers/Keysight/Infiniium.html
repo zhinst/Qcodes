@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>qcodes.instrument_drivers.Keysight.Infiniium &mdash; QCoDeS 0.9.0rc1+83.g9c90a8cbf documentation</title>
+  <title>qcodes.instrument_drivers.Keysight.Infiniium &mdash; QCoDeS 0.9.0rc1+102.g03c77a63a documentation</title>
   
 
   
@@ -63,7 +63,7 @@
             
             
               <div class="version">
-                0.9.0rc1+83.g9c90a8cbf
+                0.9.0rc1+102.g03c77a63a
               </div>
             
           
@@ -161,7 +161,7 @@
             
   <h1>Source code for qcodes.instrument_drivers.Keysight.Infiniium</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">logging</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Callable</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Sequence</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
@@ -729,7 +729,64 @@
 <span class="sd">        Saves the channels currently shown on oscilloscope screen to a USB.</span>
 <span class="sd">        Must set data_format parameter prior to calling this</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;SAV:WAV &quot;</span><span class="si">{filename}</span><span class="s1">&quot;&#39;</span><span class="p">)</span></div></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;SAV:WAV &quot;</span><span class="si">{filename}</span><span class="s1">&quot;&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Infiniium.get_current_traces"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.Keysight.html#qcodes.instrument_drivers.Keysight.Infiniium.Infiniium.get_current_traces">[docs]</a>    <span class="k">def</span> <span class="nf">get_current_traces</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channels</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+                          <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the current traces of &#39;channels&#39; on the oscillsocope.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            channels: default [1, 2, 3, 4]</span>
+<span class="sd">                list of integers representing the channels.</span>
+<span class="sd">                gets the traces of these channels.</span>
+<span class="sd">                the only valid integers are 1,2,3,4</span>
+<span class="sd">                will turn any other channels off</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            a dict with keys &#39;ch1&#39;, &#39;ch2&#39;, &#39;ch3&#39;, &#39;ch4&#39;, &#39;time&#39;,</span>
+<span class="sd">            and values are np.ndarrays, corresponding to the voltages</span>
+<span class="sd">            of the four channels and the common time axis</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">channels</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">channels</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">]</span>
+        <span class="c1"># check that channels are valid</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="nb">all</span><span class="p">([</span><span class="n">ch</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">]</span> <span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="n">channels</span><span class="p">])</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;invalid channel in </span><span class="si">%s</span><span class="s2">, integers&quot;</span>
+                            <span class="s2">&quot; must be 1,2,3 or 4&quot;</span> <span class="o">%</span> <span class="n">channels</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;DIGitize&#39;</span><span class="p">)</span>
+        <span class="n">all_data</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;:SYSTem:HEADer OFF&#39;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">channels</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data_source</span><span class="p">(</span><span class="s1">&#39;CHAN</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">i</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;:WAVeform:FORMat WORD&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;:waveform:byteorder LSBFirst&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;:WAVeform:STReaming OFF&#39;</span><span class="p">)</span>
+
+            <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">visa_handle</span><span class="o">.</span><span class="n">query_binary_values</span><span class="p">(</span>
+                <span class="s1">&#39;WAV:DATA?&#39;</span><span class="p">,</span> <span class="n">datatype</span><span class="o">=</span><span class="s1">&#39;h&#39;</span><span class="p">,</span> <span class="n">is_big_endian</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">all_data</span><span class="p">[</span><span class="s1">&#39;ch</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="n">x_incr</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s2">&quot;:WAVeform:XINCrement?&quot;</span><span class="p">))</span>
+        <span class="n">y_incr</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s2">&quot;:WAVeform:YINCrement?&quot;</span><span class="p">))</span>
+        <span class="n">y_origin</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s2">&quot;:WAVeform:YORigin?&quot;</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">channels</span><span class="p">:</span>
+            <span class="n">all_data</span><span class="p">[</span><span class="s1">&#39;ch</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">all_data</span><span class="p">[</span><span class="s1">&#39;ch</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">i</span><span class="p">]</span> <span class="o">*</span> <span class="n">y_incr</span> <span class="o">+</span> <span class="n">y_origin</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;:CHANnel</span><span class="si">{}</span><span class="s1">:DISPlay ON&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">))</span>
+        <span class="n">all_data</span><span class="p">[</span><span class="s1">&#39;time&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_data</span><span class="p">[</span><span class="s1">&#39;ch</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">channels</span><span class="p">[</span><span class="mi">0</span><span class="p">]]))</span> \
+            <span class="o">*</span> <span class="n">x_incr</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;:RUN&#39;</span><span class="p">)</span>
+        <span class="c1"># turn the channels that were not requested off</span>
+        <span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">]</span> <span class="k">if</span> <span class="n">i</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">channels</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;:CHANnel</span><span class="si">{}</span><span class="s1">:DISPlay OFF&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ch</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">all_data</span></div></div>
 </pre></div>
 
            </div>
