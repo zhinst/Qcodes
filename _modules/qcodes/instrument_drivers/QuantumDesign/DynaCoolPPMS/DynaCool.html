@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>qcodes.instrument_drivers.QuantumDesign.DynaCoolPPMS.DynaCool &mdash; QCoDeS 0.9.0rc1+66.g94443210c documentation</title>
+  <title>qcodes.instrument_drivers.QuantumDesign.DynaCoolPPMS.DynaCool &mdash; QCoDeS 0.9.0rc1+83.g9c90a8cbf documentation</title>
   
 
   
@@ -63,7 +63,7 @@
             
             
               <div class="version">
-                0.9.0rc1+66.g94443210c
+                0.9.0rc1+83.g9c90a8cbf
               </div>
             
           
@@ -161,7 +161,6 @@
             
   <h1>Source code for qcodes.instrument_drivers.QuantumDesign.DynaCoolPPMS.DynaCool</h1><div class="highlight"><pre>
 <span></span><span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
-<span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">cast</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">List</span>
 <span class="kn">import</span> <span class="nn">warnings</span>
 <span class="kn">from</span> <span class="nn">time</span> <span class="kn">import</span> <span class="n">sleep</span>
@@ -181,7 +180,7 @@
 <span class="sd">    to be running on the DynaCool dedicated control PC.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        name: The name used internaly by QCoDeS for this driver</span>
+<span class="sd">        name: The name used internally by QCoDeS for this driver</span>
 <span class="sd">        address: The VISA resource name.</span>
 <span class="sd">          E.g. &#39;TCPIP0::127.0.0.1::5000::SOCKET&#39; with the appropriate IP</span>
 <span class="sd">          address instead of 127.0.0.1. Note that the port number is</span>
@@ -194,7 +193,7 @@
 
     <span class="n">temp_params</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;temperature_setpoint&#39;</span><span class="p">,</span> <span class="s1">&#39;temperature_rate&#39;</span><span class="p">,</span>
                    <span class="s1">&#39;temperature_settling&#39;</span><span class="p">]</span>
-    <span class="n">field_params</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;field_setpoint&#39;</span><span class="p">,</span> <span class="s1">&#39;field_rate&#39;</span><span class="p">,</span> <span class="s1">&#39;field_approach&#39;</span><span class="p">]</span>
+    <span class="n">field_params</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;field_target&#39;</span><span class="p">,</span> <span class="s1">&#39;field_rate&#39;</span><span class="p">,</span> <span class="s1">&#39;field_approach&#39;</span><span class="p">]</span>
 
     <span class="n">_errors</span> <span class="o">=</span> <span class="p">{</span><span class="o">-</span><span class="mi">2</span><span class="p">:</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;Unknown command&#39;</span><span class="p">),</span>
                <span class="mi">1</span><span class="p">:</span> <span class="k">lambda</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
@@ -258,16 +257,10 @@
                            <span class="n">get_parser</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="n">DynaCool</span><span class="o">.</span><span class="n">_pick_one</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="nb">int</span><span class="p">),</span>
                            <span class="n">get_cmd</span><span class="o">=</span><span class="s1">&#39;TEMP?&#39;</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;field&#39;</span><span class="p">,</span>
-                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Field strength&#39;</span><span class="p">,</span>
-                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_deprecated_field_getter</span><span class="p">,</span>
-                           <span class="n">snapshot_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;field_measured&#39;</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Field&#39;</span><span class="p">,</span>
                            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_present_field_getter</span><span class="p">)</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_measured_field_getter</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;field_target&#39;</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Field target&#39;</span><span class="p">,</span>
@@ -283,26 +276,14 @@
                            <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_field_ramp_setter</span><span class="p">,</span>
                            <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">(</span><span class="o">-</span><span class="mi">14</span><span class="p">,</span> <span class="mi">14</span><span class="p">))</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;field_setpoint&#39;</span><span class="p">,</span>
-                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Field setpoint&#39;</span><span class="p">,</span>
-                           <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T&#39;</span><span class="p">,</span>
-                           <span class="n">get_parser</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">*</span><span class="mf">1e-4</span><span class="p">,</span>  <span class="c1"># Oe to T</span>
-                           <span class="n">set_parser</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">*</span><span class="mf">1e4</span><span class="p">,</span>  <span class="c1"># T to Oe</span>
-                           <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_deprecated_field_setter</span><span class="p">,</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_field_getter</span><span class="p">,</span>
-                                           <span class="s1">&#39;field_setpoint&#39;</span><span class="p">),</span>
-                           <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">(</span><span class="o">-</span><span class="mi">9</span><span class="p">,</span> <span class="mi">9</span><span class="p">),</span>
-                           <span class="n">snapshot_value</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;field_rate&#39;</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Field rate&#39;</span><span class="p">,</span>
                            <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;T/s&#39;</span><span class="p">,</span>
                            <span class="n">get_parser</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">*</span><span class="mf">1e-4</span><span class="p">,</span>  <span class="c1"># Oe to T</span>
                            <span class="n">set_parser</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">*</span><span class="mf">1e4</span><span class="p">,</span>  <span class="c1"># T to Oe</span>
-                           <span class="n">set_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_field_setter</span><span class="p">,</span>
-                                           <span class="s1">&#39;field_rate&#39;</span><span class="p">),</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_field_getter</span><span class="p">,</span>
-                                           <span class="s1">&#39;field_rate&#39;</span><span class="p">),</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">initial_value</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
                            <span class="n">vals</span><span class="o">=</span><span class="n">vals</span><span class="o">.</span><span class="n">Numbers</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;field_approach&#39;</span><span class="p">,</span>
@@ -310,10 +291,9 @@
                            <span class="n">val_mapping</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;linear&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
                                         <span class="s1">&#39;no overshoot&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
                                         <span class="s1">&#39;oscillate&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">},</span>
-                           <span class="n">set_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_field_setter</span><span class="p">,</span>
-                                           <span class="s1">&#39;field_approach&#39;</span><span class="p">),</span>
-                           <span class="n">get_cmd</span><span class="o">=</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_field_getter</span><span class="p">,</span>
-                                           <span class="s1">&#39;field_approach&#39;</span><span class="p">))</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                           <span class="n">initial_value</span><span class="o">=</span><span class="s1">&#39;linear&#39;</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;magnet_state&#39;</span><span class="p">,</span>
                            <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Magnet state&#39;</span><span class="p">,</span>
@@ -376,8 +356,6 @@
         <span class="c1"># it is a safe default to set the target to the current value</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">field_target</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">field_measured</span><span class="p">())</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">field_setpoint</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
-
         <span class="bp">self</span><span class="o">.</span><span class="n">connect_message</span><span class="p">()</span>
 
     <span class="nd">@property</span>
@@ -387,7 +365,7 @@
     <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">_pick_one</span><span class="p">(</span><span class="n">which_one</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">parser</span><span class="p">:</span> <span class="nb">type</span><span class="p">,</span> <span class="n">resp</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Since most of the API calls return several values in a comma-seperated</span>
+<span class="sd">        Since most of the API calls return several values in a comma-separated</span>
 <span class="sd">        string, here&#39;s a convenience function to pick out the substring of</span>
 <span class="sd">        interest</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -396,9 +374,9 @@
 <div class="viewcode-block" id="DynaCool.get_idn"><a class="viewcode-back" href="../../../../../api/generated/qcodes.instrument_drivers.QuantumDesign.DynaCoolPPMS.html#qcodes.instrument_drivers.QuantumDesign.DynaCoolPPMS.DynaCool.DynaCool.get_idn">[docs]</a>    <span class="k">def</span> <span class="nf">get_idn</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
         <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;*IDN?&#39;</span><span class="p">)</span>
         <span class="c1"># just clip out the error code</span>
-        <span class="n">idparts</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="mi">2</span><span class="p">:]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;, &#39;</span><span class="p">)</span>
+        <span class="n">id_parts</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="mi">2</span><span class="p">:]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;, &#39;</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">((</span><span class="s1">&#39;vendor&#39;</span><span class="p">,</span> <span class="s1">&#39;model&#39;</span><span class="p">,</span> <span class="s1">&#39;serial&#39;</span><span class="p">,</span> <span class="s1">&#39;firmware&#39;</span><span class="p">),</span> <span class="n">idparts</span><span class="p">))</span></div>
+        <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">((</span><span class="s1">&#39;vendor&#39;</span><span class="p">,</span> <span class="s1">&#39;model&#39;</span><span class="p">,</span> <span class="s1">&#39;serial&#39;</span><span class="p">,</span> <span class="s1">&#39;firmware&#39;</span><span class="p">),</span> <span class="n">id_parts</span><span class="p">))</span></div>
 
 <div class="viewcode-block" id="DynaCool.ramp"><a class="viewcode-back" href="../../../../../api/generated/qcodes.instrument_drivers.QuantumDesign.DynaCoolPPMS.html#qcodes.instrument_drivers.QuantumDesign.DynaCoolPPMS.DynaCool.DynaCool.ramp">[docs]</a>    <span class="k">def</span> <span class="nf">ramp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;blocking&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -415,24 +393,24 @@
                              <span class="s1">&#39;either &quot;blocking&quot; or &quot;non-blocking&quot;, received &#39;</span>
                              <span class="sa">f</span><span class="s1">&#39;&quot;</span><span class="si">{mode}</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
 
-        <span class="n">target_in_T</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_target</span><span class="p">()</span>
+        <span class="n">target_in_tesla</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_target</span><span class="p">()</span>
         <span class="c1"># the target must be converted from T to Oersted</span>
-        <span class="n">target_in_oe</span> <span class="o">=</span> <span class="n">target_in_T</span><span class="o">*</span><span class="mf">1e4</span>
+        <span class="n">target_in_oe</span> <span class="o">=</span> <span class="n">target_in_tesla</span><span class="o">*</span><span class="mf">1e4</span>
 
         <span class="n">start_field</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_measured</span><span class="p">()</span>
-        <span class="n">ramp_range</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">start_field</span> <span class="o">-</span> <span class="n">target_in_T</span><span class="p">)</span>
-        <span class="c1"># as the second argument is zero rtol has no effect.</span>
+        <span class="n">ramp_range</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">start_field</span> <span class="o">-</span> <span class="n">target_in_tesla</span><span class="p">)</span>
+        <span class="c1"># as the second argument is zero relative tolerance has no effect.</span>
         <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">([</span><span class="n">ramp_range</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">field_tolerance</span><span class="p">()):</span>
             <span class="k">return</span>
 
         <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;blocking&quot;</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_do_blocking_ramp</span><span class="p">(</span><span class="n">target_in_T</span><span class="p">,</span> <span class="n">start_field</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_do_blocking_ramp</span><span class="p">(</span><span class="n">target_in_tesla</span><span class="p">,</span> <span class="n">start_field</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_field_setter</span><span class="p">(</span><span class="n">param</span><span class="o">=</span><span class="s1">&#39;field_setpoint&#39;</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_field_setter</span><span class="p">(</span><span class="n">param</span><span class="o">=</span><span class="s1">&#39;field_target&#39;</span><span class="p">,</span>
                                <span class="n">value</span><span class="o">=</span><span class="n">target_in_oe</span><span class="p">)</span></div>
 
-    <span class="k">def</span> <span class="nf">_do_blocking_ramp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target_in_T</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
-                          <span class="n">start_field_in_T</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">_do_blocking_ramp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target_in_tesla</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+                          <span class="n">start_field_in_tesla</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Perform a blocking ramp. Only call this function from withing the</span>
 <span class="sd">        `ramp` method.</span>
@@ -442,15 +420,16 @@
 <span class="sd">        not immediately change to &#39;ramping&#39; when asked to ramp.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="n">target_in_oe</span> <span class="o">=</span> <span class="n">target_in_T</span><span class="o">*</span><span class="mf">1e4</span>
-        <span class="n">ramp_range</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">target_in_T</span> <span class="o">-</span> <span class="n">start_field_in_T</span><span class="p">)</span>
+        <span class="n">target_in_oe</span> <span class="o">=</span> <span class="n">target_in_tesla</span><span class="o">*</span><span class="mf">1e4</span>
+        <span class="n">ramp_range</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">target_in_tesla</span> <span class="o">-</span> <span class="n">start_field_in_tesla</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_field_setter</span><span class="p">(</span><span class="n">param</span><span class="o">=</span><span class="s1">&#39;field_setpoint&#39;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">target_in_oe</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_field_setter</span><span class="p">(</span><span class="n">param</span><span class="o">=</span><span class="s1">&#39;field_target&#39;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">target_in_oe</span><span class="p">)</span>
 
         <span class="c1"># step 1: wait for the magnet to actually start ramping</span>
         <span class="c1"># NB: depending on the `field_approach`, we may reach the target</span>
         <span class="c1"># several times before the ramp is over (oscillations around target)</span>
-        <span class="k">while</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">field_measured</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_field_in_T</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">ramp_range</span><span class="o">*</span><span class="mf">0.5</span><span class="p">:</span>
+        <span class="k">while</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">field_measured</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_field_in_tesla</span><span class="p">)</span> \
+                <span class="o">&lt;</span> <span class="n">ramp_range</span> <span class="o">*</span> <span class="mf">0.5</span><span class="p">:</span>
             <span class="n">sleep</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ramp_time_resolution</span><span class="p">)</span>
 
         <span class="c1"># step 2: wait for the magnet to report that is has reached the</span>
@@ -466,22 +445,11 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">field_target</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ramp</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s1">&#39;blocking&#39;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_present_field_getter</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">_measured_field_getter</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
         <span class="n">resp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;FELD?&#39;</span><span class="p">)</span>
         <span class="n">number_in_oersted</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">DynaCool</span><span class="o">.</span><span class="n">_pick_one</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="n">resp</span><span class="p">))</span>
-        <span class="n">number_in_T</span> <span class="o">=</span> <span class="n">number_in_oersted</span><span class="o">*</span><span class="mf">1e-4</span>
-        <span class="k">return</span> <span class="n">number_in_T</span>
-
-    <span class="k">def</span> <span class="nf">_deprecated_field_getter</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
-        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;The &quot;field&quot; parameter is deprecated. Please use the &#39;</span>
-                      <span class="s1">&#39;&quot;field_measured&quot; parameter instead.&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_present_field_getter</span><span class="p">()</span>
-
-    <span class="k">def</span> <span class="nf">_deprecated_field_setter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s1">&#39;The &quot;field_setpoint&quot; parameter is deprecated. Please &#39;</span>
-                      <span class="s1">&#39;use the &quot;field_target&quot; parameter and the &quot;ramp&quot; &#39;</span>
-                      <span class="s1">&#39;method instead.&#39;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_field_setter</span><span class="p">(</span><span class="n">param</span><span class="o">=</span><span class="s1">&#39;field_setpoint&#39;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">)</span>
+        <span class="n">number_in_tesla</span> <span class="o">=</span> <span class="n">number_in_oersted</span><span class="o">*</span><span class="mf">1e-4</span>
+        <span class="k">return</span> <span class="n">number_in_tesla</span>
 
     <span class="k">def</span> <span class="nf">_field_getter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -500,9 +468,9 @@
 <span class="sd">        The combined set function for the three field parameters,</span>
 <span class="sd">        field_setpoint, field_rate, and field_approach</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">temp_values</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">raw_value</span>
-                           <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_params</span><span class="p">)</span>
-        <span class="n">values</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">]],</span> <span class="n">temp_values</span><span class="p">)</span>
+        <span class="n">temporary_values</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">.</span><span class="n">raw_value</span>
+                                <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_params</span><span class="p">)</span>
+        <span class="n">values</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">]],</span> <span class="n">temporary_values</span><span class="p">)</span>
         <span class="n">values</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">field_params</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">param</span><span class="p">)]</span> <span class="o">=</span> <span class="n">value</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;FELD </span><span class="si">{values[0]}</span><span class="s1">, </span><span class="si">{values[1]}</span><span class="s1">, </span><span class="si">{values[2]}</span><span class="s1">, 0&#39;</span><span class="p">)</span>
