@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>qcodes.instrument_drivers.tektronix.Keithley_2450 &mdash; QCoDeS 0.10.0+13.g326b0fd40 documentation</title>
+  <title>qcodes.instrument_drivers.tektronix.Keithley_2450 &mdash; QCoDeS 0.10.0+19.ge5c532438 documentation</title>
   
 
   
@@ -63,7 +63,7 @@
             
             
               <div class="version">
-                0.10.0+13.g326b0fd40
+                0.10.0+19.ge5c532438
               </div>
             
           
@@ -164,7 +164,7 @@
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">cast</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Union</span>
 
 <span class="kn">from</span> <span class="nn">qcodes</span> <span class="kn">import</span> <span class="n">VisaInstrument</span><span class="p">,</span> <span class="n">InstrumentChannel</span><span class="p">,</span> <span class="n">ParameterWithSetpoints</span>
-<span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="kn">import</span> <span class="n">Enum</span><span class="p">,</span> <span class="n">Numbers</span><span class="p">,</span> <span class="n">Arrays</span>
+<span class="kn">from</span> <span class="nn">qcodes.utils.validators</span> <span class="kn">import</span> <span class="n">Enum</span><span class="p">,</span> <span class="n">Numbers</span><span class="p">,</span> <span class="n">Arrays</span><span class="p">,</span> <span class="n">Ints</span>
 <span class="kn">from</span> <span class="nn">qcodes.utils.helpers</span> <span class="kn">import</span> <span class="n">create_on_off_val_mapping</span>
 
 
@@ -249,6 +249,27 @@
             <span class="n">parameter_class</span><span class="o">=</span><span class="n">ParameterWithSetpoints</span>
         <span class="p">)</span>
 
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s2">&quot;nplc&quot;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;:SENSe:</span><span class="si">{self._proper_function}</span><span class="s2">:NPLCycles?&quot;</span><span class="p">,</span>
+            <span class="n">set_cmd</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;:SENSe:</span><span class="si">{self._proper_function}</span><span class="s2">:NPLCycles {{}}&quot;</span><span class="p">,</span>
+            <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(</span><span class="mf">0.001</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s1">&#39;user_number&#39;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">vals</span><span class="o">=</span><span class="n">Ints</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s2">&quot;user_delay&quot;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_user_delay</span><span class="p">,</span>
+            <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_user_delay</span><span class="p">,</span>
+            <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mf">1e4</span><span class="p">)</span>
+        <span class="p">)</span>
+
     <span class="k">def</span> <span class="nf">_measure</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">output_enabled</span><span class="p">():</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Output needs to be on for a measurement&quot;</span><span class="p">)</span>
@@ -269,7 +290,17 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Clear the data buffer</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;:TRACe:CLEar&quot;</span><span class="p">)</span></div></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;:TRACe:CLEar&quot;</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_get_user_delay</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="n">get_cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;:SENSe:</span><span class="si">{self._proper_function}</span><span class="s2">:DELay:USER&quot;</span> \
+                  <span class="sa">f</span><span class="s2">&quot;{self.user_number()}?&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="n">get_cmd</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_set_user_delay</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">set_cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;:SENSe:</span><span class="si">{self._proper_function}</span><span class="s2">:DELay:USER&quot;</span> \
+                  <span class="sa">f</span><span class="s2">&quot;{self.user_number()} </span><span class="si">{value}</span><span class="s2">&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">set_cmd</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="Source2450"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.Keithley_2450.Source2450">[docs]</a><span class="k">class</span> <span class="nc">Source2450</span><span class="p">(</span><span class="n">InstrumentChannel</span><span class="p">):</span>
@@ -356,6 +387,34 @@
             <span class="n">unit</span><span class="o">=</span><span class="n">unit</span>
         <span class="p">)</span>
 
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s2">&quot;delay&quot;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;:SOURce:</span><span class="si">{self._proper_function}</span><span class="s2">:DELay?&quot;</span><span class="p">,</span>
+            <span class="n">set_cmd</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;:SOURce:</span><span class="si">{self._proper_function}</span><span class="s2">:DELay {{}}&quot;</span><span class="p">,</span>
+            <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mf">1e4</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s1">&#39;user_number&#39;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">set_cmd</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">vals</span><span class="o">=</span><span class="n">Ints</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s2">&quot;user_delay&quot;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_user_delay</span><span class="p">,</span>
+            <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_user_delay</span><span class="p">,</span>
+            <span class="n">vals</span><span class="o">=</span><span class="n">Numbers</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mf">1e4</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
+            <span class="s2">&quot;auto_delay&quot;</span><span class="p">,</span>
+            <span class="n">get_cmd</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;:SOURce:</span><span class="si">{self._proper_function}</span><span class="s2">:DELay:AUTO?&quot;</span><span class="p">,</span>
+            <span class="n">set_cmd</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;:SOURce:</span><span class="si">{self._proper_function}</span><span class="s2">:DELay:AUTO {{}}&quot;</span><span class="p">,</span>
+            <span class="n">val_mapping</span><span class="o">=</span><span class="n">create_on_off_val_mapping</span><span class="p">(</span><span class="n">on_val</span><span class="o">=</span><span class="s2">&quot;1&quot;</span><span class="p">,</span> <span class="n">off_val</span><span class="o">=</span><span class="s2">&quot;0&quot;</span><span class="p">)</span>
+        <span class="p">)</span>
+
 <div class="viewcode-block" id="Source2450.get_sweep_axis"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.Keithley_2450.Source2450.get_sweep_axis">[docs]</a>    <span class="k">def</span> <span class="nf">get_sweep_axis</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sweep_arguments</span> <span class="o">==</span> <span class="p">{}:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
@@ -403,7 +462,17 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;*WAI&quot;</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Source2450.sweep_reset"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.Keithley_2450.Source2450.sweep_reset">[docs]</a>    <span class="k">def</span> <span class="nf">sweep_reset</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_sweep_arguments</span> <span class="o">=</span> <span class="p">{}</span></div></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sweep_arguments</span> <span class="o">=</span> <span class="p">{}</span></div>
+
+    <span class="k">def</span> <span class="nf">_get_user_delay</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="n">get_cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;:SOURce:</span><span class="si">{self._proper_function}</span><span class="s2">:DELay:USER&quot;</span> \
+                  <span class="sa">f</span><span class="s2">&quot;{self.user_number()}?&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="n">get_cmd</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_set_user_delay</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">set_cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;:SOURce:</span><span class="si">{self._proper_function}</span><span class="s2">:DELay:USER&quot;</span> \
+                  <span class="sa">f</span><span class="s2">&quot;{self.user_number()} </span><span class="si">{value}</span><span class="s2">&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">set_cmd</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="Keithley2450"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.Keithley_2450.Keithley2450">[docs]</a><span class="k">class</span> <span class="nc">Keithley2450</span><span class="p">(</span><span class="n">VisaInstrument</span><span class="p">):</span>
@@ -571,7 +640,13 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Query if we have the correct language mode</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s2">&quot;*LANG?&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;SCPI&quot;</span></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s2">&quot;*LANG?&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;SCPI&quot;</span>
+
+<div class="viewcode-block" id="Keithley2450.reset"><a class="viewcode-back" href="../../../../api/generated/qcodes.instrument_drivers.tektronix.html#qcodes.instrument_drivers.tektronix.Keithley_2450.Keithley2450.reset">[docs]</a>    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns instrument to default settings, cancels all pending commands.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;*RST&quot;</span><span class="p">)</span></div></div>
 </pre></div>
 
            </div>
