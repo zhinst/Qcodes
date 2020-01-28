@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>qcodes.monitor.monitor &mdash; QCoDeS 0.10.0+36.g8f25028ba documentation</title>
+  <title>qcodes.monitor.monitor &mdash; QCoDeS 0.10.0+43.gd5db617ae documentation</title>
   
 
   
@@ -63,7 +63,7 @@
             
             
               <div class="version">
-                0.10.0+36.g8f25028ba
+                0.10.0+43.gd5db617ae
               </div>
             
           
@@ -175,8 +175,8 @@
 
 <span class="sd">``% python -m qcodes.monitor.monitor``</span>
 
-<span class="sd">Add parameters to monitor in your measurement by creating a new monitor with a list</span>
-<span class="sd">of parameters to monitor:</span>
+<span class="sd">Add parameters to monitor in your measurement by creating a new monitor with a</span>
+<span class="sd">list of parameters to monitor:</span>
 
 <span class="sd">``monitor = qcodes.Monitor(param1, param2, param3, ...)``</span>
 <span class="sd">&quot;&quot;&quot;</span>
@@ -188,7 +188,7 @@
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">suppress</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Awaitable</span>
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
 
 <span class="kn">import</span> <span class="nn">asyncio</span>
@@ -201,21 +201,10 @@
 
 <span class="kn">from</span> <span class="nn">qcodes.instrument.parameter</span> <span class="kn">import</span> <span class="n">Parameter</span>
 
-
-<span class="k">def</span> <span class="nf">_get_all_tasks</span><span class="p">():</span>
-    <span class="c1"># all tasks has moved in python 3.7. Once we drop support for 3.6</span>
-    <span class="c1"># this can be replaced by the else case only.</span>
-    <span class="c1"># we wrap this in a function to trick mypy into not inspecting it</span>
-    <span class="c1"># as there seems to be no good way of writing this code in a way</span>
-    <span class="c1"># which keeps mypy happy on both 3.6 and 3.7</span>
-    <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">version_info</span><span class="o">.</span><span class="n">major</span> <span class="o">==</span> <span class="mi">3</span> <span class="ow">and</span> <span class="n">sys</span><span class="o">.</span><span class="n">version_info</span><span class="o">.</span><span class="n">minor</span> <span class="o">==</span> <span class="mi">6</span><span class="p">:</span>
-        <span class="n">all_tasks</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Task</span><span class="o">.</span><span class="n">all_tasks</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">all_tasks</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">all_tasks</span>
-    <span class="k">return</span> <span class="n">all_tasks</span>
-
-
-<span class="n">all_tasks</span> <span class="o">=</span> <span class="n">_get_all_tasks</span><span class="p">()</span>
+<span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">version_info</span> <span class="o">&lt;</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">7</span><span class="p">):</span>
+    <span class="n">all_tasks</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Task</span><span class="o">.</span><span class="n">all_tasks</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="n">all_tasks</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">all_tasks</span>
 
 <span class="n">WEBSOCKET_PORT</span> <span class="o">=</span> <span class="mi">5678</span>
 <span class="n">SERVER_PORT</span> <span class="o">=</span> <span class="mi">3000</span>
@@ -223,20 +212,22 @@
 <span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
-<span class="k">def</span> <span class="nf">_get_metadata</span><span class="p">(</span><span class="o">*</span><span class="n">parameters</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="k">def</span> <span class="nf">_get_metadata</span><span class="p">(</span><span class="o">*</span><span class="n">parameters</span><span class="p">:</span> <span class="n">Parameter</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Return a dictionary that contains the parameter metadata grouped by the</span>
 <span class="sd">    instrument it belongs to.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">metadata_timestamp</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
     <span class="c1"># group metadata by instrument</span>
-    <span class="n">metas</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span> <span class="c1"># type: dict</span>
+    <span class="n">metas</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
     <span class="k">for</span> <span class="n">parameter</span> <span class="ow">in</span> <span class="n">parameters</span><span class="p">:</span>
-        <span class="c1"># Get the latest value from the parameter, respecting the max_val_age parameter</span>
+        <span class="c1"># Get the latest value from the parameter,</span>
+        <span class="c1"># respecting the max_val_age parameter</span>
         <span class="n">meta</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="n">meta</span><span class="p">[</span><span class="s2">&quot;value&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">parameter</span><span class="o">.</span><span class="n">get_latest</span><span class="p">())</span>
-        <span class="k">if</span> <span class="n">parameter</span><span class="o">.</span><span class="n">get_latest</span><span class="o">.</span><span class="n">get_timestamp</span><span class="p">()</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">meta</span><span class="p">[</span><span class="s2">&quot;ts&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">parameter</span><span class="o">.</span><span class="n">get_latest</span><span class="o">.</span><span class="n">get_timestamp</span><span class="p">()</span><span class="o">.</span><span class="n">timestamp</span><span class="p">()</span>
+        <span class="n">timestamp</span> <span class="o">=</span> <span class="n">parameter</span><span class="o">.</span><span class="n">get_latest</span><span class="o">.</span><span class="n">get_timestamp</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">timestamp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">meta</span><span class="p">[</span><span class="s2">&quot;ts&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">timestamp</span><span class="o">.</span><span class="n">timestamp</span><span class="p">())</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">meta</span><span class="p">[</span><span class="s2">&quot;ts&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">meta</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">parameter</span><span class="o">.</span><span class="n">label</span> <span class="ow">or</span> <span class="n">parameter</span><span class="o">.</span><span class="n">name</span>
@@ -259,11 +250,12 @@
     <span class="k">return</span> <span class="n">state</span>
 
 
-<span class="k">def</span> <span class="nf">_handler</span><span class="p">(</span><span class="n">parameters</span><span class="p">,</span> <span class="n">interval</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">_handler</span><span class="p">(</span><span class="n">parameters</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Parameter</span><span class="p">],</span> <span class="n">interval</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> \
+        <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">websockets</span><span class="o">.</span><span class="n">WebSocketServerProtocol</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="n">Awaitable</span><span class="p">[</span><span class="kc">None</span><span class="p">]]:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Return the websockets server handler.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">async</span> <span class="k">def</span> <span class="nf">server_func</span><span class="p">(</span><span class="n">websocket</span><span class="p">,</span> <span class="n">_</span><span class="p">):</span>
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">server_func</span><span class="p">(</span><span class="n">websocket</span><span class="p">:</span> <span class="n">websockets</span><span class="o">.</span><span class="n">WebSocketServerProtocol</span><span class="p">,</span> <span class="n">_</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Create a websockets handler that sends parameter values to a listener</span>
 <span class="sd">        every &quot;interval&quot; seconds.</span>
@@ -281,11 +273,13 @@
                 <span class="c1"># Wait for interval seconds and then send again</span>
                 <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">interval</span><span class="p">)</span>
             <span class="k">except</span> <span class="p">(</span><span class="n">CancelledError</span><span class="p">,</span> <span class="n">websockets</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">ConnectionClosed</span><span class="p">):</span>
-                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Got CancelledError or ConnectionClosed&quot;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Got CancelledError or ConnectionClosed&quot;</span><span class="p">,</span>
+                          <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
                 <span class="k">break</span>
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Closing websockets connection&quot;</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">server_func</span>
+
 
 <div class="viewcode-block" id="Monitor"><a class="viewcode-back" href="../../../api/monitor/monitor.html#qcodes.monitor.monitor.Monitor">[docs]</a><span class="k">class</span> <span class="nc">Monitor</span><span class="p">(</span><span class="n">Thread</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -293,7 +287,7 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">running</span> <span class="o">=</span> <span class="kc">None</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">parameters</span><span class="p">,</span> <span class="n">interval</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">parameters</span><span class="p">:</span> <span class="n">Parameter</span><span class="p">,</span> <span class="n">interval</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Monitor qcodes parameters.</span>
 
@@ -306,10 +300,11 @@
         <span class="c1"># Check that all values are valid parameters</span>
         <span class="k">for</span> <span class="n">parameter</span> <span class="ow">in</span> <span class="n">parameters</span><span class="p">:</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">parameter</span><span class="p">,</span> <span class="n">Parameter</span><span class="p">):</span>
-                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;We can only monitor QCodes Parameters, not {type(parameter)}&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;We can only monitor QCodes &quot;</span>
+                                <span class="sa">f</span><span class="s2">&quot;Parameters, not {type(parameter)}&quot;</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">loop</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">server</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loop</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">asyncio</span><span class="o">.</span><span class="n">AbstractEventLoop</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">server</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">websockets</span><span class="o">.</span><span class="n">WebSocketServer</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_parameters</span> <span class="o">=</span> <span class="n">parameters</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">loop_is_closed</span> <span class="o">=</span> <span class="n">Event</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">server_is_started</span> <span class="o">=</span> <span class="n">Event</span><span class="p">()</span>
@@ -328,7 +323,7 @@
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Failed to start server&quot;</span><span class="p">)</span>
         <span class="n">Monitor</span><span class="o">.</span><span class="n">running</span> <span class="o">=</span> <span class="bp">self</span>
 
-<div class="viewcode-block" id="Monitor.run"><a class="viewcode-back" href="../../../api/monitor/monitor.html#qcodes.monitor.monitor.Monitor.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Monitor.run"><a class="viewcode-back" href="../../../api/monitor/monitor.html#qcodes.monitor.monitor.Monitor.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Start the event loop and run forever.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -353,7 +348,7 @@
             <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;loop closed&quot;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">loop_is_closed</span><span class="o">.</span><span class="n">set</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="Monitor.update_all"><a class="viewcode-back" href="../../../api/monitor/monitor.html#qcodes.monitor.monitor.Monitor.update_all">[docs]</a>    <span class="k">def</span> <span class="nf">update_all</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Monitor.update_all"><a class="viewcode-back" href="../../../api/monitor/monitor.html#qcodes.monitor.monitor.Monitor.update_all">[docs]</a>    <span class="k">def</span> <span class="nf">update_all</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Update all parameters in the monitor.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -370,17 +365,20 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
         <span class="n">Monitor</span><span class="o">.</span><span class="n">running</span> <span class="o">=</span> <span class="kc">None</span></div>
 
-    <span class="k">async</span> <span class="k">def</span> <span class="nf">__stop_server</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">async</span> <span class="k">def</span> <span class="nf">__stop_server</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;asking server </span><span class="si">%r</span><span class="s2"> to close&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">server</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">server</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">server</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">server</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;waiting for server to close&quot;</span><span class="p">)</span>
-        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">loop</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">server</span><span class="o">.</span><span class="n">wait_closed</span><span class="p">())</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">loop</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">server</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">loop</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">server</span><span class="o">.</span><span class="n">wait_closed</span><span class="p">())</span>
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;stopping loop&quot;</span><span class="p">)</span>
-        <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Pending tasks at stop: </span><span class="si">%r</span><span class="s2">&quot;</span><span class="p">,</span>
-                  <span class="n">all_tasks</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loop</span><span class="p">))</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">loop</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">loop</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Pending tasks at stop: </span><span class="si">%r</span><span class="s2">&quot;</span><span class="p">,</span>
+                      <span class="n">all_tasks</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loop</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">loop</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
 
-<div class="viewcode-block" id="Monitor.join"><a class="viewcode-back" href="../../../api/monitor/monitor.html#qcodes.monitor.monitor.Monitor.join">[docs]</a>    <span class="k">def</span> <span class="nf">join</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<div class="viewcode-block" id="Monitor.join"><a class="viewcode-back" href="../../../api/monitor/monitor.html#qcodes.monitor.monitor.Monitor.join">[docs]</a>    <span class="k">def</span> <span class="nf">join</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Overwrite ``Thread.join`` to make sure server is stopped before</span>
 <span class="sd">        joining avoiding a potential deadlock.</span>
@@ -392,7 +390,9 @@
             <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;monitor is dead&quot;</span><span class="p">)</span>
             <span class="k">return</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">asyncio</span><span class="o">.</span><span class="n">run_coroutine_threadsafe</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__stop_server</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">loop</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">loop</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">asyncio</span><span class="o">.</span><span class="n">run_coroutine_threadsafe</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__stop_server</span><span class="p">(),</span>
+                                                 <span class="bp">self</span><span class="o">.</span><span class="n">loop</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">RuntimeError</span><span class="p">:</span>
             <span class="c1"># the above may throw a runtime error if the loop is already</span>
             <span class="c1"># stopped in which case there is nothing more to do</span>
@@ -405,7 +405,7 @@
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Monitor Thread has joined&quot;</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Monitor.show"><a class="viewcode-back" href="../../../api/monitor/monitor.html#qcodes.monitor.monitor.Monitor.show">[docs]</a>    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">show</span><span class="p">():</span>
+    <span class="k">def</span> <span class="nf">show</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Overwrite this method to show/raise your monitor GUI</span>
 <span class="sd">        F.ex.</span>
@@ -420,10 +420,11 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">webbrowser</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;http://localhost:</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">SERVER_PORT</span><span class="p">))</span></div></div>
 
+
 <span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
     <span class="kn">import</span> <span class="nn">http.server</span>
-    <span class="c1"># If this file is run, create a simple webserver that serves a simple website</span>
-    <span class="c1"># that can be used to view monitored parameters.</span>
+    <span class="c1"># If this file is run, create a simple webserver that serves a simple</span>
+    <span class="c1"># website that can be used to view monitored parameters.</span>
     <span class="n">STATIC_DIR</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">),</span> <span class="s1">&#39;dist&#39;</span><span class="p">)</span>
     <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">STATIC_DIR</span><span class="p">)</span>
     <span class="k">try</span><span class="p">:</span>
