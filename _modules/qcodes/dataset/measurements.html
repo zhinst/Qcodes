@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>qcodes.dataset.measurements &mdash; QCoDeS 0.10.0+126.g5e295d7a3 documentation</title>
+  <title>qcodes.dataset.measurements &mdash; QCoDeS 0.11.0+33.g97dec7844 documentation</title>
   
 
   
@@ -63,7 +63,7 @@
             
             
               <div class="version">
-                0.10.0+126.g5e295d7a3
+                0.11.0+33.g97dec7844
               </div>
             
           
@@ -179,6 +179,7 @@
 <span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">deepcopy</span>
 <span class="kn">import</span> <span class="nn">traceback</span> <span class="k">as</span> <span class="nn">tb_module</span>
 <span class="kn">import</span> <span class="nn">io</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
@@ -241,7 +242,8 @@
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">DataSet</span><span class="p">,</span>
                  <span class="n">write_period</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
-                 <span class="n">interdeps</span><span class="p">:</span> <span class="n">InterDependencies_</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+                 <span class="n">interdeps</span><span class="p">:</span> <span class="n">InterDependencies_</span><span class="p">,</span>
+                 <span class="n">write_in_background</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_dataset</span> <span class="o">=</span> <span class="n">dataset</span>
         <span class="k">if</span> <span class="n">DataSaver</span><span class="o">.</span><span class="n">default_callback</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> \
                 <span class="ow">and</span> <span class="s1">&#39;run_tables_subscription_callback&#39;</span> \
@@ -271,6 +273,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_last_save_time</span> <span class="o">=</span> <span class="n">perf_counter</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_known_dependencies</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">parent_datasets</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">DataSet</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_write_in_background</span> <span class="o">=</span> <span class="n">write_in_background</span>
 
         <span class="k">for</span> <span class="n">link</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dataset</span><span class="o">.</span><span class="n">parent_dataset_links</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">parent_datasets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">load_by_guid</span><span class="p">(</span><span class="n">link</span><span class="o">.</span><span class="n">tail</span><span class="p">))</span>
@@ -694,11 +698,17 @@
         <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;Flushing to database&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_results</span> <span class="o">!=</span> <span class="p">[]:</span>
             <span class="k">try</span><span class="p">:</span>
-                <span class="n">write_point</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dataset</span><span class="o">.</span><span class="n">add_results</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_results</span><span class="p">)</span>
-                <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Successfully wrote from index </span><span class="si">{write_point}</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_dataset</span><span class="o">.</span><span class="n">add_results</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_results</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_in_background</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Succesfully enqueued result for write thread&quot;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Successfully wrote result to disk&#39;</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_results</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-                <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Could not commit to database; </span><span class="si">{e}</span><span class="s1">&#39;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_write_in_background</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not enqueue result; </span><span class="si">{e}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Could not commit to database; </span><span class="si">{e}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s1">&#39;No results to flush&#39;</span><span class="p">)</span></div>
 
@@ -737,7 +747,12 @@
                                         <span class="n">Union</span><span class="p">[</span><span class="n">MutableSequence</span><span class="p">,</span>
                                               <span class="n">MutableMapping</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
             <span class="n">parent_datasets</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">[],</span>
-            <span class="n">extra_log_info</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">extra_log_info</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+            <span class="n">write_in_background</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+
+        <span class="k">if</span> <span class="n">write_in_background</span> <span class="ow">and</span> <span class="p">(</span><span class="n">write_period</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The specified write period of </span><span class="si">{write_period}</span><span class="s2"> s &quot;</span>
+                          <span class="s2">&quot;will be ignored, since write_in_background==True&quot;</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">enteractions</span> <span class="o">=</span> <span class="n">enteractions</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">exitactions</span> <span class="o">=</span> <span class="n">exitactions</span>
@@ -755,9 +770,12 @@
         <span class="c1"># be read from some config file</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">write_period</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">write_period</span><span class="p">)</span> \
             <span class="k">if</span> <span class="n">write_period</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mf">5.0</span>
+        <span class="k">if</span> <span class="n">write_in_background</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">write_period</span> <span class="o">=</span> <span class="mf">0.0</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span> <span class="k">if</span> <span class="n">name</span> <span class="k">else</span> <span class="s1">&#39;results&#39;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_parent_datasets</span> <span class="o">=</span> <span class="n">parent_datasets</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_extra_log_info</span> <span class="o">=</span> <span class="n">extra_log_info</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_write_in_background</span> <span class="o">=</span> <span class="n">write_in_background</span>
 
     <span class="k">def</span> <span class="fm">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataSaver</span><span class="p">:</span>
         <span class="c1"># TODO: should user actions really precede the dataset?</span>
@@ -791,7 +809,7 @@
         <span class="n">links</span> <span class="o">=</span> <span class="p">[</span><span class="n">Link</span><span class="p">(</span><span class="n">head</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ds</span><span class="o">.</span><span class="n">guid</span><span class="p">,</span> <span class="o">**</span><span class="n">pdict</span><span class="p">)</span>
                  <span class="k">for</span> <span class="n">pdict</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parent_datasets</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ds</span><span class="o">.</span><span class="n">parent_dataset_links</span> <span class="o">=</span> <span class="n">links</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">ds</span><span class="o">.</span><span class="n">mark_started</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ds</span><span class="o">.</span><span class="n">mark_started</span><span class="p">(</span><span class="n">start_bg_writer</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_write_in_background</span><span class="p">)</span>
 
         <span class="c1"># register all subscribers</span>
         <span class="k">for</span> <span class="p">(</span><span class="n">callble</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">subscribers</span><span class="p">:</span>
@@ -805,10 +823,13 @@
               <span class="sa">f</span><span class="s1">&#39; </span><span class="si">{self._extra_log_info}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Starting measurement with guid: </span><span class="si">{self.ds.guid}</span><span class="s1">.&#39;</span>
                  <span class="sa">f</span><span class="s1">&#39; </span><span class="si">{self._extra_log_info}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Using background writing: </span><span class="si">{self._write_in_background}</span><span class="s1">&#39;</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">datasaver</span> <span class="o">=</span> <span class="n">DataSaver</span><span class="p">(</span><span class="n">dataset</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ds</span><span class="p">,</span>
-                                   <span class="n">write_period</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">write_period</span><span class="p">,</span>
-                                   <span class="n">interdeps</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_interdependencies</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">datasaver</span> <span class="o">=</span> <span class="n">DataSaver</span><span class="p">(</span>
+                            <span class="n">dataset</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ds</span><span class="p">,</span>
+                            <span class="n">write_period</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">write_period</span><span class="p">,</span>
+                            <span class="n">interdeps</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_interdependencies</span><span class="p">,</span>
+                            <span class="n">write_in_background</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_write_in_background</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">datasaver</span>
 
@@ -837,6 +858,8 @@
 
             <span class="c1"># and finally mark the dataset as closed, thus</span>
             <span class="c1"># finishing the measurement</span>
+            <span class="c1"># Note that the completion of a dataset entails waiting for the</span>
+            <span class="c1"># write thread to terminate (iff the write thread has been started)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">ds</span><span class="o">.</span><span class="n">mark_completed</span><span class="p">()</span>
             <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Finished measurement with guid: </span><span class="si">{self.ds.guid}</span><span class="s1">. &#39;</span>
                      <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{self._extra_log_info}</span><span class="s1">&#39;</span><span class="p">)</span>
@@ -1355,9 +1378,15 @@
 
         <span class="k">return</span> <span class="bp">self</span></div>
 
-<div class="viewcode-block" id="Measurement.run"><a class="viewcode-back" href="../../../api/dataset/measurements.html#qcodes.dataset.measurements.Measurement.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Runner</span><span class="p">:</span>
+<div class="viewcode-block" id="Measurement.run"><a class="viewcode-back" href="../../../api/dataset/measurements.html#qcodes.dataset.measurements.Measurement.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">write_in_background</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Runner</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns the context manager for the experimental run</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            write_in_background: if True, results that will be added</span>
+<span class="sd">                within the context manager with ``DataSaver.add_result``</span>
+<span class="sd">                will be stored in background, without blocking the</span>
+<span class="sd">                main thread that is executing the context manager.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">Runner</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">enteractions</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">exitactions</span><span class="p">,</span>
                       <span class="bp">self</span><span class="o">.</span><span class="n">experiment</span><span class="p">,</span> <span class="n">station</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">station</span><span class="p">,</span>
@@ -1366,7 +1395,8 @@
                       <span class="n">name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
                       <span class="n">subscribers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">subscribers</span><span class="p">,</span>
                       <span class="n">parent_datasets</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_parent_datasets</span><span class="p">,</span>
-                      <span class="n">extra_log_info</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_extra_log_info</span><span class="p">)</span></div></div>
+                      <span class="n">extra_log_info</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_extra_log_info</span><span class="p">,</span>
+                      <span class="n">write_in_background</span><span class="o">=</span><span class="n">write_in_background</span><span class="p">)</span></div></div>
 </pre></div>
 
            </div>
