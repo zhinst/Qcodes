@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>qcodes.instrument_drivers.yokogawa.GS200 &mdash; QCoDeS 0.11.0+33.g97dec7844 documentation</title>
+  <title>qcodes.instrument_drivers.yokogawa.GS200 &mdash; QCoDeS 0.11.0+48.gc4f3de891 documentation</title>
   
 
   
@@ -63,7 +63,7 @@
             
             
               <div class="version">
-                0.11.0+33.g97dec7844
+                0.11.0+48.gc4f3de891
               </div>
             
           
@@ -207,6 +207,12 @@
         <span class="c1"># Start off with all disabled</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_enabled</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_output</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="c1"># Set up mode cache. These will be filled in once the parent</span>
+        <span class="c1"># is fully initialized.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_range</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_unit</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+
         <span class="c1"># Set up monitoring parameters</span>
         <span class="k">if</span> <span class="n">present</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;enabled&#39;</span><span class="p">,</span>
@@ -222,7 +228,8 @@
             <span class="c1"># measurement is enabled.</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;measure&#39;</span><span class="p">,</span>
                                <span class="n">label</span><span class="o">=</span><span class="s1">&#39;&lt;unset&gt;&#39;</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s1">&#39;V/I&#39;</span><span class="p">,</span>
-                               <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_measurement</span><span class="p">)</span>
+                               <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_measurement</span><span class="p">,</span>
+                               <span class="n">snapshot_get</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="s1">&#39;NPLC&#39;</span><span class="p">,</span>
                                <span class="n">label</span><span class="o">=</span><span class="s1">&#39;NPLC&#39;</span><span class="p">,</span>
@@ -279,6 +286,8 @@
         <span class="k">return</span> <span class="n">state</span></div>
 
     <span class="k">def</span> <span class="nf">_get_measurement</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unit</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_range</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">GS200Exception</span><span class="p">(</span><span class="s2">&quot;Measurement module not initialized.&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parent</span><span class="o">.</span><span class="n">auto_range</span><span class="o">.</span><span class="n">get</span><span class="p">()</span> <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_unit</span> <span class="o">==</span> <span class="s1">&#39;VOLT&#39;</span>
                                              <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_range</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">):</span>
             <span class="c1"># Measurements will not work with autorange, or when</span>
@@ -533,8 +542,7 @@
         <span class="k">if</span> <span class="n">output_level</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_set_output</span><span class="p">(</span><span class="n">output_level</span><span class="p">)</span>
             <span class="k">return</span> <span class="kc">None</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s2">&quot;:SOUR:LEV?&quot;</span><span class="p">))</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s2">&quot;:SOUR:LEV?&quot;</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">_set_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">output_level</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
