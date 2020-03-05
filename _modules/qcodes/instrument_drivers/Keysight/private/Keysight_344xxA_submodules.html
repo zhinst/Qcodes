@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>qcodes.instrument_drivers.Keysight.private.Keysight_344xxA_submodules &mdash; QCoDeS 0.11.0+157.g9c9e2cf95 documentation</title>
+  <title>qcodes.instrument_drivers.Keysight.private.Keysight_344xxA_submodules &mdash; QCoDeS 0.11.0+169.g67a7c0c50 documentation</title>
   
 
   
@@ -63,7 +63,7 @@
             
             
               <div class="version">
-                0.11.0+157.g9c9e2cf95
+                0.11.0+169.g67a7c0c50
               </div>
             
           
@@ -969,7 +969,8 @@
 
     <span class="k">def</span> <span class="nf">_get_parameter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sense_function</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;DC Voltage&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Measure the parameter given by sense_function</span>
+<span class="sd">        Measure the parameter given by sense_function. In case of overload i.e.</span>
+<span class="sd">        when instrument throws +/-9.9e37, it is converted to +/-inf.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            sense_function: The parameter to measure. Valid values are those</span>
@@ -981,6 +982,11 @@
         <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">sense_function</span><span class="o">.</span><span class="n">set_to</span><span class="p">(</span><span class="n">sense_function</span><span class="p">):</span>
             <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample</span><span class="o">.</span><span class="n">count</span><span class="o">.</span><span class="n">set_to</span><span class="p">(</span><span class="mi">1</span><span class="p">):</span>
                 <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="s1">&#39;READ?&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">float</span><span class="p">(</span><span class="n">response</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mf">9.9e37</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+        <span class="k">elif</span> <span class="nb">float</span><span class="p">(</span><span class="n">response</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="o">-</span><span class="mf">9.9e37</span><span class="p">:</span>
+            <span class="k">return</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span>
 
         <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
 
@@ -1068,7 +1074,8 @@
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Helper function that converts comma-delimited string of floating-point</span>
 <span class="sd">    values to a numpy 1D array of them. Most data retrieval command of these</span>
-<span class="sd">    instruments return data in this format.</span>
+<span class="sd">    instruments return data in this format.In case of overload i.e.</span>
+<span class="sd">        when instrument throws +/-9.9e37, it is converted to +/-inf.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        raw_vals: comma-delimited string of floating-point values</span>
@@ -1076,7 +1083,10 @@
 <span class="sd">    Returns:</span>
 <span class="sd">        numpy 1D array of data</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span><span class="n">raw_vals</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">result_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span><span class="n">raw_vals</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">result_array</span><span class="p">[</span><span class="n">result_array</span> <span class="o">&gt;=</span> <span class="mf">9.9e37</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+    <span class="n">result_array</span><span class="p">[</span><span class="n">result_array</span> <span class="o">&lt;=</span> <span class="o">-</span><span class="mf">9.9e37</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+    <span class="k">return</span> <span class="n">result_array</span>
 </pre></div>
 
            </div>
