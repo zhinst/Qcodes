@@ -480,7 +480,6 @@ alt="Binder badge"
 <span></span><span class="o">%</span><span class="k">matplotlib</span> inline
 <span class="kn">import</span> <span class="nn">numpy.random</span> <span class="k">as</span> <span class="nn">rd</span>
 <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
-<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
 <span class="kn">from</span> <span class="nn">time</span> <span class="kn">import</span> <span class="n">sleep</span><span class="p">,</span> <span class="n">monotonic</span>
@@ -508,7 +507,7 @@ Output logging : True
 Raw input log  : False
 Timestamping   : True
 State          : active
-Qcodes Logfile : /home/vsts/.qcodes/logs/200414-19985-qcodes.log
+Qcodes Logfile : /home/vsts/.qcodes/logs/200415-20780-qcodes.log
 Activating auto-logging. Current session state plus future input saved.
 Filename       : /home/vsts/.qcodes/logs/command_history.log
 Mode           : append
@@ -516,31 +515,12 @@ Output logging : True
 Raw input log  : False
 Timestamping   : True
 State          : active
-Qcodes Logfile : /home/vsts/.qcodes/logs/200414-19985-qcodes.log
+Qcodes Logfile : /home/vsts/.qcodes/logs/200415-20780-qcodes.log
 </pre></div></div>
 </div>
 <p>In what follows, we shall define some utility functions as well as declare our dummy instruments. We, then, add these instruments to a <code class="docutils literal notranslate"><span class="pre">Station</span></code> object.</p>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="c1"># a generator to simulate a physical signal, in this case an exponentially</span>
-<span class="c1"># decaying signal</span>
-
-<span class="k">def</span> <span class="nf">exponential_decay</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="nb">float</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Yields a*exp(-b*x) where x is put in</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">x</span> <span class="o">=</span> <span class="mi">0</span>
-    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-        <span class="n">x</span> <span class="o">=</span> <span class="k">yield</span>
-        <span class="k">yield</span> <span class="n">a</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">b</span><span class="o">*</span><span class="n">x</span><span class="p">)</span> <span class="o">+</span> <span class="mf">0.02</span><span class="o">*</span><span class="n">a</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">()</span>
-</pre></div>
-</div>
-</div>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -554,27 +534,45 @@ Qcodes Logfile : /home/vsts/.qcodes/logs/200414-19985-qcodes.log
 </div>
 </div>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="c1"># and then a bit of &quot;wiring&quot; to make the dmm &quot;measure&quot;</span>
-<span class="c1"># the exponential decay</span>
+<span></span><span class="c1"># dmm_parameter simulate a physical signal, in this case an exponentially</span>
+<span class="c1"># decaying signal</span>
 
-<span class="n">ed</span> <span class="o">=</span> <span class="n">exponential_decay</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">)</span>
-<span class="nb">next</span><span class="p">(</span><span class="n">ed</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">dmm_parameter</span><span class="p">(</span><span class="n">qc</span><span class="o">.</span><span class="n">Parameter</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">exponential_decay</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">)</span>
+        <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ed</span><span class="p">)</span>
 
-<span class="k">def</span> <span class="nf">customgetter</span><span class="p">(</span><span class="n">dac</span><span class="p">):</span>
-    <span class="n">val</span> <span class="o">=</span> <span class="n">ed</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">dac</span><span class="o">.</span><span class="n">ch1</span><span class="p">())</span>
-    <span class="nb">next</span><span class="p">(</span><span class="n">ed</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">val</span>
+    <span class="k">def</span> <span class="nf">get_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This method is automatically wrapped to</span>
+<span class="sd">        provide a ``get`` method on the parameter instance.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ed</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">dac</span><span class="o">.</span><span class="n">ch1</span><span class="p">())</span>
+        <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ed</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">val</span>
 
-<span class="n">dmm</span><span class="o">.</span><span class="n">v1</span><span class="o">.</span><span class="n">get</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">customgetter</span><span class="p">,</span> <span class="n">dac</span><span class="p">)</span>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">exponential_decay</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="nb">float</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Yields a*exp(-b*x) where x is put in</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="k">yield</span>
+            <span class="k">yield</span> <span class="n">a</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">b</span><span class="o">*</span><span class="n">x</span><span class="p">)</span> <span class="o">+</span> <span class="mf">0.02</span><span class="o">*</span><span class="n">a</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">()</span>
+
+
+<span class="n">dmm</span><span class="o">.</span><span class="n">v1</span> <span class="o">=</span> <span class="n">dmm_parameter</span><span class="p">(</span><span class="s1">&#39;dmm_v1&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -596,7 +594,7 @@ Qcodes Logfile : /home/vsts/.qcodes/logs/200414-19985-qcodes.log
 <p>Furthermore, datasets are associated to an experiment. By default the run is appended to the latest existing experiments. If no experiment has been created, we must create one. We do that by calling the <code class="docutils literal notranslate"><span class="pre">load_or_create_experiment</span></code> function.</p>
 <p>Here we explicitly pass the loaded or created experiment to the <code class="docutils literal notranslate"><span class="pre">Measurement</span></code> object to ensure that we are always using the <code class="docutils literal notranslate"><span class="pre">performing_meas_using_parameters_and_dataset</span></code> <code class="docutils literal notranslate"><span class="pre">Experiment</span></code> created within this tutorial.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -607,7 +605,7 @@ Qcodes Logfile : /home/vsts/.qcodes/logs/200414-19985-qcodes.log
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -648,7 +646,7 @@ End of experiment
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -660,7 +658,7 @@ End of experiment
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_11_0.png" src="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_11_0.png" />
+<img alt="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_10_0.png" src="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_10_0.png" />
 </div>
 </div>
 <div class="section" id="Exporting-data">
@@ -668,7 +666,7 @@ End of experiment
 <p>QCoDeS <code class="docutils literal notranslate"><span class="pre">DataSet</span></code> implements a number of methods for accessing the data of a given dataset. Here we will concentrate on the two most user friendly methods. For a more detailed walkthrough of the <code class="docutils literal notranslate"><span class="pre">DataSet</span></code> class, refer to <a class="reference internal" href="DataSet-class-walkthrough.html"><span class="doc">DataSet class walkthrough</span></a> notebook.</p>
 <p>The method <code class="docutils literal notranslate"><span class="pre">get_parameter_data</span></code> returns the data as a dictionary of <code class="docutils literal notranslate"><span class="pre">numpy</span></code> arrays. The dictionary is indexed by the measured (dependent) parameter in the outermost level and the names of the dependent and independent parameters in the innermost level. The first parameter in the innermost level is always the dependent parameter.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -677,20 +675,20 @@ End of experiment
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-{&#39;dmm_v1&#39;: {&#39;dmm_v1&#39;: array([ 5.02001128,  2.86159583,  1.74074041,  0.8535443 ,  0.59708282,
-          0.46864069,  0.01265898, -0.01285427,  0.12112344,  0.10809741]),
+{&#39;dmm_v1&#39;: {&#39;dmm_v1&#39;: array([ 5.05348716,  2.70160263,  1.64809897,  0.82402181,  0.67068191,
+          0.25835368,  0.36191425, -0.09418518,  0.14352168,  0.15969858]),
   &#39;dac_ch1&#39;: array([ 0.        ,  2.77777778,  5.55555556,  8.33333333, 11.11111111,
          13.88888889, 16.66666667, 19.44444444, 22.22222222, 25.        ])}}
 </pre></div></div>
 </div>
 <p>By default <code class="docutils literal notranslate"><span class="pre">get_parameter_data</span></code> returns all data stored in the dataset. The data that is specific to one or more measured parameters can be returned by passing the parameter name(s) or by using <code class="docutils literal notranslate"><span class="pre">ParamSpec</span></code> object:</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -699,20 +697,20 @@ End of experiment
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-{&#39;dmm_v1&#39;: {&#39;dmm_v1&#39;: array([ 5.02001128,  2.86159583,  1.74074041,  0.8535443 ,  0.59708282,
-          0.46864069,  0.01265898, -0.01285427,  0.12112344,  0.10809741]),
+{&#39;dmm_v1&#39;: {&#39;dmm_v1&#39;: array([ 5.05348716,  2.70160263,  1.64809897,  0.82402181,  0.67068191,
+          0.25835368,  0.36191425, -0.09418518,  0.14352168,  0.15969858]),
   &#39;dac_ch1&#39;: array([ 0.        ,  2.77777778,  5.55555556,  8.33333333, 11.11111111,
          13.88888889, 16.66666667, 19.44444444, 22.22222222, 25.        ])}}
 </pre></div></div>
 </div>
 <p>You can also simply fetch the data for one or more dependent parameter</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -721,7 +719,7 @@ End of experiment
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -733,7 +731,7 @@ End of experiment
 <p>For more details about accessing data of a given <code class="docutils literal notranslate"><span class="pre">DataSet</span></code>, see <a class="reference internal" href="Accessing-data-in-DataSet.html"><span class="doc">Accessing data in DataSet notebook</span></a>.</p>
 <p>The data can also be exported as one or more <a class="reference external" href="https://pandas.pydata.org/">Pandas</a> DataFrames. The DataFrames are returned as a dictionary from measured parameters to DataFrames.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -742,7 +740,7 @@ End of experiment
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
 </pre></div>
 </div>
 <div class="output_area rendered_html docutils container">
@@ -774,43 +772,43 @@ End of experiment
   <tbody>
     <tr>
       <th>0.000000</th>
-      <td>5.020011</td>
+      <td>5.053487</td>
     </tr>
     <tr>
       <th>2.777778</th>
-      <td>2.861596</td>
+      <td>2.701603</td>
     </tr>
     <tr>
       <th>5.555556</th>
-      <td>1.740740</td>
+      <td>1.648099</td>
     </tr>
     <tr>
       <th>8.333333</th>
-      <td>0.853544</td>
+      <td>0.824022</td>
     </tr>
     <tr>
       <th>11.111111</th>
-      <td>0.597083</td>
+      <td>0.670682</td>
     </tr>
     <tr>
       <th>13.888889</th>
-      <td>0.468641</td>
+      <td>0.258354</td>
     </tr>
     <tr>
       <th>16.666667</th>
-      <td>0.012659</td>
+      <td>0.361914</td>
     </tr>
     <tr>
       <th>19.444444</th>
-      <td>-0.012854</td>
+      <td>-0.094185</td>
     </tr>
     <tr>
       <th>22.222222</th>
-      <td>0.121123</td>
+      <td>0.143522</td>
     </tr>
     <tr>
       <th>25.000000</th>
-      <td>0.108097</td>
+      <td>0.159699</td>
     </tr>
   </tbody>
 </table>
@@ -822,7 +820,7 @@ End of experiment
 <p>To load existing datasets QCoDeS provides several functions. The most useful and generic function is called <code class="docutils literal notranslate"><span class="pre">load_by_run_spec</span></code>. This function takes one or more pieces of information about a dataset and will either, if the dataset is uniquely identifiable by the information, load the dataset or print information about all the datasets that match the supplied information allowing you to provide more information to uniquely identify the dataset.</p>
 <p>Here, we will load a dataset based on the <code class="docutils literal notranslate"><span class="pre">captured_run_id</span></code> printed on the plot above.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -831,7 +829,7 @@ End of experiment
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -840,7 +838,7 @@ End of experiment
 </pre></div></div>
 </div>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -849,7 +847,7 @@ End of experiment
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -858,7 +856,7 @@ End of experiment
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -873,7 +871,7 @@ True
 <h2>GUID<a class="headerlink" href="#GUID" title="Permalink to this headline">¶</a></h2>
 <p>Internally each dataset is refereed too by a Globally Unique Identifier (GUID) that ensures that the dataset uniquely identified even if datasets from several databases with potentially identical captured_run_id, experiment and sample names. A dataset can always be reloaded from the GUID if known.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -886,11 +884,11 @@ True
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-Dataset GUID is: aaaaaaaa-0000-0000-0000-01717863cfc7
+Dataset GUID is: aaaaaaaa-0000-0000-0000-01717db0e3bc
 </pre></div></div>
 </div>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -899,7 +897,7 @@ Dataset GUID is: aaaaaaaa-0000-0000-0000-01717863cfc7
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -908,7 +906,7 @@ Dataset GUID is: aaaaaaaa-0000-0000-0000-01717863cfc7
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -920,7 +918,7 @@ True
 <h3>The power of the new construct<a class="headerlink" href="#The-power-of-the-new-construct" title="Permalink to this headline">¶</a></h3>
 <p>This new form is so free that we may easily do thing impossible with the old Loop construct</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -956,7 +954,7 @@ End of experiment
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -968,11 +966,11 @@ End of experiment
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_38_0.png" src="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_38_0.png" />
+<img alt="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_37_0.png" src="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_37_0.png" />
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1012,7 +1010,7 @@ End of experiment
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[22]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1029,14 +1027,14 @@ End of experiment
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_40_0.png" src="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_40_0.png" />
+<img alt="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_39_0.png" src="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_39_0.png" />
 </div>
 </div>
 </div>
 <div class="section" id="Some-2D-examples">
 <h3>Some 2D examples<a class="headerlink" href="#Some-2D-examples" title="Permalink to this headline">¶</a></h3>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[22]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1052,54 +1050,57 @@ End of experiment
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[22]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-&lt;qcodes.dataset.measurements.Measurement at 0x7ff4b70a0410&gt;
+&lt;qcodes.dataset.measurements.Measurement at 0x7f629b09f810&gt;
 </pre></div></div>
 </div>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[24]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="c1"># and we&#39;ll make a 2D gaussian to sample from/measure</span>
-<span class="k">def</span> <span class="nf">gauss_model</span><span class="p">(</span><span class="n">x0</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">y0</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">sigma</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">noise</span><span class="p">:</span> <span class="nb">float</span><span class="o">=</span><span class="mf">0.0005</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Returns a generator sampling a gaussian. The gaussian is</span>
-<span class="sd">    normalised such that its maximal value is simply 1</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-        <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="o">=</span> <span class="k">yield</span>
-        <span class="n">model</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="p">((</span><span class="n">x0</span><span class="o">-</span><span class="n">x</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="p">(</span><span class="n">y0</span><span class="o">-</span><span class="n">y</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="o">/</span><span class="n">sigma</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">sigma</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
-        <span class="n">noise</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">()</span><span class="o">*</span><span class="n">noise</span>
-        <span class="k">yield</span> <span class="n">model</span> <span class="o">+</span> <span class="n">noise</span>
-</pre></div>
-</div>
-</div>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[25]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="c1"># and finally wire up the dmm v1 to &quot;measure&quot; the gaussian</span>
+<span></span><span class="c1"># dmm_parameter simulate a physical signal, in this case an exponentially</span>
+<span class="c1"># decaying signal</span>
 
-<span class="n">gauss</span> <span class="o">=</span> <span class="n">gauss_model</span><span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">)</span>
-<span class="nb">next</span><span class="p">(</span><span class="n">gauss</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">dmm_gauss_parameter</span><span class="p">(</span><span class="n">qc</span><span class="o">.</span><span class="n">Parameter</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gauss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gauss_model</span><span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">)</span>
+        <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gauss</span><span class="p">)</span>
 
-<span class="k">def</span> <span class="nf">measure_gauss</span><span class="p">(</span><span class="n">dac</span><span class="p">):</span>
-    <span class="n">val</span> <span class="o">=</span> <span class="n">gauss</span><span class="o">.</span><span class="n">send</span><span class="p">((</span><span class="n">dac</span><span class="o">.</span><span class="n">ch1</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span> <span class="n">dac</span><span class="o">.</span><span class="n">ch2</span><span class="o">.</span><span class="n">get</span><span class="p">()))</span>
-    <span class="nb">next</span><span class="p">(</span><span class="n">gauss</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">val</span>
 
-<span class="n">dmm</span><span class="o">.</span><span class="n">v1</span><span class="o">.</span><span class="n">get</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">measure_gauss</span><span class="p">,</span> <span class="n">dac</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">get_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This method is automatically wrapped to</span>
+<span class="sd">        provide a ``get`` method on the parameter instance.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gauss</span><span class="o">.</span><span class="n">send</span><span class="p">((</span><span class="n">dac</span><span class="o">.</span><span class="n">ch1</span><span class="o">.</span><span class="n">get</span><span class="p">(),</span> <span class="n">dac</span><span class="o">.</span><span class="n">ch2</span><span class="o">.</span><span class="n">get</span><span class="p">()))</span>
+        <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gauss</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">val</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">gauss_model</span><span class="p">(</span><span class="n">x0</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">y0</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">sigma</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">noise</span><span class="p">:</span> <span class="nb">float</span><span class="o">=</span><span class="mf">0.0005</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a generator sampling a gaussian. The gaussian is</span>
+<span class="sd">        normalised such that its maximal value is simply 1</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="o">=</span> <span class="k">yield</span>
+            <span class="n">model</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="p">((</span><span class="n">x0</span><span class="o">-</span><span class="n">x</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="p">(</span><span class="n">y0</span><span class="o">-</span><span class="n">y</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="o">/</span><span class="n">sigma</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">sigma</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">noise</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">()</span><span class="o">*</span><span class="n">noise</span>
+            <span class="k">yield</span> <span class="n">model</span> <span class="o">+</span> <span class="n">noise</span>
+
+
+<span class="n">dmm</span><span class="o">.</span><span class="n">v1</span> <span class="o">=</span> <span class="n">dmm_gauss_parameter</span><span class="p">(</span><span class="s1">&#39;dmm_v1&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[26]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[24]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1130,7 +1131,7 @@ Starting experimental run with id: 104.
 </div>
 <p>When exporting a two or higher dimensional datasets as a Pandas DataFrame a <a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/user_guide/advanced.html">MultiIndex</a> is used to index the measured parameter based on all the dependencies</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[27]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[25]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1139,7 +1140,7 @@ Starting experimental run with id: 104.
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[27]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[25]:
 </pre></div>
 </div>
 <div class="output_area rendered_html docutils container">
@@ -1174,43 +1175,43 @@ Starting experimental run with id: 104.
     <tr>
       <th rowspan="10" valign="top">-1.0</th>
       <th>-1.000000</th>
-      <td>-4.772800e-04</td>
+      <td>0.000449</td>
     </tr>
     <tr>
       <th>-0.989950</th>
-      <td>-1.023050e-04</td>
+      <td>0.000899</td>
     </tr>
     <tr>
       <th>-0.979899</th>
-      <td>-5.053662e-05</td>
+      <td>-0.000745</td>
     </tr>
     <tr>
       <th>-0.969849</th>
-      <td>7.237512e-05</td>
+      <td>0.000199</td>
     </tr>
     <tr>
       <th>-0.959799</th>
-      <td>-3.517830e-05</td>
+      <td>-0.000307</td>
     </tr>
     <tr>
       <th>-0.949749</th>
-      <td>-6.241775e-06</td>
+      <td>-0.000530</td>
     </tr>
     <tr>
       <th>-0.939698</th>
-      <td>1.677958e-06</td>
+      <td>-0.000081</td>
     </tr>
     <tr>
       <th>-0.929648</th>
-      <td>3.961804e-07</td>
+      <td>0.000047</td>
     </tr>
     <tr>
       <th>-0.919598</th>
-      <td>-1.775150e-07</td>
+      <td>0.000090</td>
     </tr>
     <tr>
       <th>-0.909548</th>
-      <td>5.337777e-08</td>
+      <td>-0.000004</td>
     </tr>
   </tbody>
 </table>
@@ -1218,7 +1219,7 @@ Starting experimental run with id: 104.
 </div>
 <p>If your data is on a regular grid it may make sense to view the data as an <a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/user_guide/advanced.html">XArray</a> Dataset. The Pandas DataFrame can be directly exported to a XArray Dataset.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[28]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[26]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1227,7 +1228,7 @@ Starting experimental run with id: 104.
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[28]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[26]:
 </pre></div>
 </div>
 <div class="output_area rendered_html docutils container">
@@ -1565,7 +1566,7 @@ dl.xr-attrs {
   stroke: currentColor;
   fill: currentColor;
 }
-</style><div class='xr-wrap'><div class='xr-header'><div class='xr-obj-type'>xarray.Dataset</div></div><ul class='xr-sections'><li class='xr-section-item'><input id='section-6a193857-a38e-4a96-9f06-9f90e33f6a1e' class='xr-section-summary-in' type='checkbox' disabled ><label for='section-6a193857-a38e-4a96-9f06-9f90e33f6a1e' class='xr-section-summary'  title='Expand/collapse section'>Dimensions:</label><div class='xr-section-inline-details'><ul class='xr-dim-list'><li><span class='xr-has-index'>dac_ch1</span>: 200</li><li><span class='xr-has-index'>dac_ch2</span>: 200</li></ul></div><div class='xr-section-details'></div></li><li class='xr-section-item'><input id='section-e10a2c15-f8e2-4ce6-8ed9-40b68c6662a4' class='xr-section-summary-in' type='checkbox'  checked><label for='section-e10a2c15-f8e2-4ce6-8ed9-40b68c6662a4' class='xr-section-summary' >Coordinates: <span>(2)</span></label><div class='xr-section-inline-details'></div><div class='xr-section-details'><ul class='xr-var-list'><li class='xr-var-item'><div class='xr-var-name'><span class='xr-has-index'>dac_ch1</span></div><div class='xr-var-dims'>(dac_ch1)</div><div class='xr-var-dtype'>float64</div><div class='xr-var-preview xr-preview'>-1.0 -0.9899 -0.9799 ... 0.9899 1.0</div><input id='attrs-25a01e17-74d0-4eac-be7a-729057d91ae8' class='xr-var-attrs-in' type='checkbox' disabled><label for='attrs-25a01e17-74d0-4eac-be7a-729057d91ae8' title='Show/Hide attributes'><svg class='icon xr-icon-file-text2'><use xlink:href='#icon-file-text2'></use></svg></label><input id='data-4dd63d88-61df-47b8-8eef-06b556234b38' class='xr-var-data-in' type='checkbox'><label for='data-4dd63d88-61df-47b8-8eef-06b556234b38' title='Show/Hide data repr'><svg class='icon xr-icon-database'><use xlink:href='#icon-database'></use></svg></label><div class='xr-var-attrs'><dl class='xr-attrs'></dl></div><pre class='xr-var-data'>array([-1.      , -0.98995 , -0.979899, -0.969849, -0.959799, -0.949749,
+</style><div class='xr-wrap'><div class='xr-header'><div class='xr-obj-type'>xarray.Dataset</div></div><ul class='xr-sections'><li class='xr-section-item'><input id='section-6ce7e06c-8794-47ab-a453-b7fb28762398' class='xr-section-summary-in' type='checkbox' disabled ><label for='section-6ce7e06c-8794-47ab-a453-b7fb28762398' class='xr-section-summary'  title='Expand/collapse section'>Dimensions:</label><div class='xr-section-inline-details'><ul class='xr-dim-list'><li><span class='xr-has-index'>dac_ch1</span>: 200</li><li><span class='xr-has-index'>dac_ch2</span>: 200</li></ul></div><div class='xr-section-details'></div></li><li class='xr-section-item'><input id='section-d6ff95c9-9465-4567-8d67-a026b63a3d5d' class='xr-section-summary-in' type='checkbox'  checked><label for='section-d6ff95c9-9465-4567-8d67-a026b63a3d5d' class='xr-section-summary' >Coordinates: <span>(2)</span></label><div class='xr-section-inline-details'></div><div class='xr-section-details'><ul class='xr-var-list'><li class='xr-var-item'><div class='xr-var-name'><span class='xr-has-index'>dac_ch1</span></div><div class='xr-var-dims'>(dac_ch1)</div><div class='xr-var-dtype'>float64</div><div class='xr-var-preview xr-preview'>-1.0 -0.9899 -0.9799 ... 0.9899 1.0</div><input id='attrs-61bc31c9-6d2b-4778-9065-86b3e645e107' class='xr-var-attrs-in' type='checkbox' disabled><label for='attrs-61bc31c9-6d2b-4778-9065-86b3e645e107' title='Show/Hide attributes'><svg class='icon xr-icon-file-text2'><use xlink:href='#icon-file-text2'></use></svg></label><input id='data-9340257f-8f7d-47d9-a727-60d5ae7333f2' class='xr-var-data-in' type='checkbox'><label for='data-9340257f-8f7d-47d9-a727-60d5ae7333f2' title='Show/Hide data repr'><svg class='icon xr-icon-database'><use xlink:href='#icon-database'></use></svg></label><div class='xr-var-attrs'><dl class='xr-attrs'></dl></div><pre class='xr-var-data'>array([-1.      , -0.98995 , -0.979899, -0.969849, -0.959799, -0.949749,
        -0.939698, -0.929648, -0.919598, -0.909548, -0.899497, -0.889447,
        -0.879397, -0.869347, -0.859296, -0.849246, -0.839196, -0.829146,
        -0.819095, -0.809045, -0.798995, -0.788945, -0.778894, -0.768844,
@@ -1598,7 +1599,7 @@ dl.xr-attrs {
         0.809045,  0.819095,  0.829146,  0.839196,  0.849246,  0.859296,
         0.869347,  0.879397,  0.889447,  0.899497,  0.909548,  0.919598,
         0.929648,  0.939698,  0.949749,  0.959799,  0.969849,  0.979899,
-        0.98995 ,  1.      ])</pre></li><li class='xr-var-item'><div class='xr-var-name'><span class='xr-has-index'>dac_ch2</span></div><div class='xr-var-dims'>(dac_ch2)</div><div class='xr-var-dtype'>float64</div><div class='xr-var-preview xr-preview'>-1.0 -0.9899 -0.9799 ... 0.9899 1.0</div><input id='attrs-bd2d309f-3138-4b53-98a5-d8f4db523ab8' class='xr-var-attrs-in' type='checkbox' disabled><label for='attrs-bd2d309f-3138-4b53-98a5-d8f4db523ab8' title='Show/Hide attributes'><svg class='icon xr-icon-file-text2'><use xlink:href='#icon-file-text2'></use></svg></label><input id='data-31d837e0-4c8f-4dc5-ac47-32534eba48fe' class='xr-var-data-in' type='checkbox'><label for='data-31d837e0-4c8f-4dc5-ac47-32534eba48fe' title='Show/Hide data repr'><svg class='icon xr-icon-database'><use xlink:href='#icon-database'></use></svg></label><div class='xr-var-attrs'><dl class='xr-attrs'></dl></div><pre class='xr-var-data'>array([-1.      , -0.98995 , -0.979899, -0.969849, -0.959799, -0.949749,
+        0.98995 ,  1.      ])</pre></li><li class='xr-var-item'><div class='xr-var-name'><span class='xr-has-index'>dac_ch2</span></div><div class='xr-var-dims'>(dac_ch2)</div><div class='xr-var-dtype'>float64</div><div class='xr-var-preview xr-preview'>-1.0 -0.9899 -0.9799 ... 0.9899 1.0</div><input id='attrs-d5033ce3-3f75-4144-abb9-b7a0c9637473' class='xr-var-attrs-in' type='checkbox' disabled><label for='attrs-d5033ce3-3f75-4144-abb9-b7a0c9637473' title='Show/Hide attributes'><svg class='icon xr-icon-file-text2'><use xlink:href='#icon-file-text2'></use></svg></label><input id='data-ead313cc-0062-47ac-be33-26e27d6d33e8' class='xr-var-data-in' type='checkbox'><label for='data-ead313cc-0062-47ac-be33-26e27d6d33e8' title='Show/Hide data repr'><svg class='icon xr-icon-database'><use xlink:href='#icon-database'></use></svg></label><div class='xr-var-attrs'><dl class='xr-attrs'></dl></div><pre class='xr-var-data'>array([-1.      , -0.98995 , -0.979899, -0.969849, -0.959799, -0.949749,
        -0.939698, -0.929648, -0.919598, -0.909548, -0.899497, -0.889447,
        -0.879397, -0.869347, -0.859296, -0.849246, -0.839196, -0.829146,
        -0.819095, -0.809045, -0.798995, -0.788945, -0.778894, -0.768844,
@@ -1631,7 +1632,7 @@ dl.xr-attrs {
         0.809045,  0.819095,  0.829146,  0.839196,  0.849246,  0.859296,
         0.869347,  0.879397,  0.889447,  0.899497,  0.909548,  0.919598,
         0.929648,  0.939698,  0.949749,  0.959799,  0.969849,  0.979899,
-        0.98995 ,  1.      ])</pre></li></ul></div></li><li class='xr-section-item'><input id='section-61f6d6e2-d5d6-4810-aa7e-35ea1ab010c3' class='xr-section-summary-in' type='checkbox'  checked><label for='section-61f6d6e2-d5d6-4810-aa7e-35ea1ab010c3' class='xr-section-summary' >Data variables: <span>(1)</span></label><div class='xr-section-inline-details'></div><div class='xr-section-details'><ul class='xr-var-list'><li class='xr-var-item'><div class='xr-var-name'><span>dmm_v1</span></div><div class='xr-var-dims'>(dac_ch1, dac_ch2)</div><div class='xr-var-dtype'>float64</div><div class='xr-var-preview xr-preview'>-0.0004773 -0.0001023 ... 1.039e-05</div><input id='attrs-581660a0-5031-480f-92c3-2af91353c216' class='xr-var-attrs-in' type='checkbox' disabled><label for='attrs-581660a0-5031-480f-92c3-2af91353c216' title='Show/Hide attributes'><svg class='icon xr-icon-file-text2'><use xlink:href='#icon-file-text2'></use></svg></label><input id='data-e921b346-c586-4422-adf6-c0b66776c744' class='xr-var-data-in' type='checkbox'><label for='data-e921b346-c586-4422-adf6-c0b66776c744' title='Show/Hide data repr'><svg class='icon xr-icon-database'><use xlink:href='#icon-database'></use></svg></label><div class='xr-var-attrs'><dl class='xr-attrs'></dl></div><pre class='xr-var-data'>array([[-4.77279995e-04, -1.02305050e-04, -5.05366173e-05, ...,
+        0.98995 ,  1.      ])</pre></li></ul></div></li><li class='xr-section-item'><input id='section-6e1e6295-ee91-4958-8ebf-91e80f41d8ba' class='xr-section-summary-in' type='checkbox'  checked><label for='section-6e1e6295-ee91-4958-8ebf-91e80f41d8ba' class='xr-section-summary' >Data variables: <span>(1)</span></label><div class='xr-section-inline-details'></div><div class='xr-section-details'><ul class='xr-var-list'><li class='xr-var-item'><div class='xr-var-name'><span>dmm_v1</span></div><div class='xr-var-dims'>(dac_ch1, dac_ch2)</div><div class='xr-var-dtype'>float64</div><div class='xr-var-preview xr-preview'>0.0004486 0.0008994 ... 1.039e-05</div><input id='attrs-cef89763-0bf4-4f3d-aa15-7a7ea3c53265' class='xr-var-attrs-in' type='checkbox' disabled><label for='attrs-cef89763-0bf4-4f3d-aa15-7a7ea3c53265' title='Show/Hide attributes'><svg class='icon xr-icon-file-text2'><use xlink:href='#icon-file-text2'></use></svg></label><input id='data-5a2bf5e6-348f-4e7b-8f62-2b540960f178' class='xr-var-data-in' type='checkbox'><label for='data-5a2bf5e6-348f-4e7b-8f62-2b540960f178' title='Show/Hide data repr'><svg class='icon xr-icon-database'><use xlink:href='#icon-database'></use></svg></label><div class='xr-var-attrs'><dl class='xr-attrs'></dl></div><pre class='xr-var-data'>array([[ 4.48596805e-04,  8.99387877e-04, -7.44597778e-04, ...,
          5.45836799e-07,  4.81112434e-07,  4.23378186e-07],
        [ 8.38905006e-10,  1.01663582e-09,  1.23003129e-09, ...,
          6.50926276e-07,  5.73740587e-07,  5.04890815e-07],
@@ -1643,11 +1644,11 @@ dl.xr-attrs {
        [ 1.99291084e-08,  2.41512988e-08,  2.92207420e-08, ...,
          1.54634675e-05,  1.36298368e-05,  1.19942350e-05],
        [ 1.72578280e-08,  2.09140797e-08,  2.53040192e-08, ...,
-         1.33907577e-05,  1.18029053e-05,  1.03865381e-05]])</pre></li></ul></div></li><li class='xr-section-item'><input id='section-375d76b1-85a1-417a-8c04-ee43989f1473' class='xr-section-summary-in' type='checkbox' disabled ><label for='section-375d76b1-85a1-417a-8c04-ee43989f1473' class='xr-section-summary'  title='Expand/collapse section'>Attributes: <span>(0)</span></label><div class='xr-section-inline-details'></div><div class='xr-section-details'><dl class='xr-attrs'></dl></div></li></ul></div></div></div>
+         1.33907577e-05,  1.18029053e-05,  1.03865381e-05]])</pre></li></ul></div></li><li class='xr-section-item'><input id='section-9ec67516-342c-40df-916f-d5df46de66b3' class='xr-section-summary-in' type='checkbox' disabled ><label for='section-9ec67516-342c-40df-916f-d5df46de66b3' class='xr-section-summary'  title='Expand/collapse section'>Attributes: <span>(0)</span></label><div class='xr-section-inline-details'></div><div class='xr-section-details'><dl class='xr-attrs'></dl></div></li></ul></div></div></div>
 </div>
 <p>Note, however, that XArray is only suited for data that is on a rectangular grid with few or no missing values.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[29]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[27]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1659,11 +1660,11 @@ dl.xr-attrs {
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_51_0.png" src="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_51_0.png" />
+<img alt="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_49_0.png" src="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_49_0.png" />
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[30]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[28]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1701,7 +1702,7 @@ Starting experimental run with id: 105.
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[31]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[29]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1713,11 +1714,11 @@ Starting experimental run with id: 105.
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_53_0.png" src="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_53_0.png" />
+<img alt="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_51_0.png" src="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_51_0.png" />
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[32]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[30]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1790,7 +1791,7 @@ Starting experimental run with id: 106.
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[33]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[31]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1802,12 +1803,12 @@ Starting experimental run with id: 106.
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_55_0.png" src="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_55_0.png" />
+<img alt="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_53_0.png" src="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_53_0.png" />
 </div>
 </div>
 </div>
-<div class="section" id="Interrupting-measurments-early">
-<h3>Interrupting measurments early<a class="headerlink" href="#Interrupting-measurments-early" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="Interrupting-measurements-early">
+<h3>Interrupting measurements early<a class="headerlink" href="#Interrupting-measurements-early" title="Permalink to this headline">¶</a></h3>
 <p>There may be cases where you do not want to complete a measurement. Currently QCoDeS is designed to allow the user to interrupt the measurements with a standard KeyBoardInterrupt. KeyBoardInterrupts can be raised with either a Ctrl-C keyboard shortcut or using the interrupt button in Juypter / Spyder which is typically in the form of a Square stop button. QCoDeS is designed such that KeyboardInterrupts are delayed around critical parts of the code and the measurement is stopped when its safe to
 do so.</p>
 </div>
@@ -1815,11 +1816,11 @@ do so.</p>
 <h3>Random sampling<a class="headerlink" href="#Random-sampling" title="Permalink to this headline">¶</a></h3>
 <p>We may also chose to sample completely randomly across the phase space</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[34]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[32]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="n">gauss</span> <span class="o">=</span> <span class="n">gauss_model</span><span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">)</span>
+<span></span><span class="n">gauss</span> <span class="o">=</span> <span class="n">dmm_gauss_parameter</span><span class="o">.</span><span class="n">gauss_model</span><span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">)</span>
 <span class="nb">next</span><span class="p">(</span><span class="n">gauss</span><span class="p">)</span>
 
 <span class="k">def</span> <span class="nf">measure_gauss</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
@@ -1832,7 +1833,7 @@ do so.</p>
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[35]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[33]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1864,7 +1865,7 @@ Starting experimental run with id: 107.
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[36]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[34]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1876,11 +1877,11 @@ Starting experimental run with id: 107.
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_61_0.png" src="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_61_0.png" />
+<img alt="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_59_0.png" src="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_59_0.png" />
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[37]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[35]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1889,7 +1890,7 @@ Starting experimental run with id: 107.
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[37]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[35]:
 </pre></div>
 </div>
 <div class="output_area rendered_html docutils container">
@@ -1922,54 +1923,54 @@ Starting experimental run with id: 107.
   </thead>
   <tbody>
     <tr>
-      <th>-0.388151</th>
-      <th>0.164231</th>
-      <td>0.166457</td>
+      <th>0.481739</th>
+      <th>0.646446</th>
+      <td>0.071578</td>
     </tr>
     <tr>
-      <th>0.802897</th>
-      <th>0.691922</th>
-      <td>0.003109</td>
+      <th>-0.485867</th>
+      <th>0.581683</th>
+      <td>0.022753</td>
     </tr>
     <tr>
-      <th>0.184186</th>
-      <th>0.497307</th>
-      <td>0.527894</td>
+      <th>0.439966</th>
+      <th>-0.069659</th>
+      <td>0.251215</td>
     </tr>
     <tr>
-      <th>-0.080237</th>
-      <th>-0.231068</th>
-      <td>0.197613</td>
+      <th>-0.305734</th>
+      <th>0.728556</th>
+      <td>0.032457</td>
     </tr>
     <tr>
-      <th>0.468886</th>
-      <th>-0.042236</th>
-      <td>0.238581</td>
+      <th>-0.918908</th>
+      <th>0.343716</th>
+      <td>0.000294</td>
     </tr>
     <tr>
-      <th>-0.741325</th>
-      <th>0.898269</th>
-      <td>0.000079</td>
+      <th>0.485569</th>
+      <th>-0.085333</th>
+      <td>0.179789</td>
     </tr>
     <tr>
-      <th>0.643030</th>
-      <th>-0.115071</th>
-      <td>0.048403</td>
+      <th>-0.285291</th>
+      <th>-0.528417</th>
+      <td>0.004919</td>
     </tr>
     <tr>
-      <th>0.228831</th>
-      <th>-0.515047</th>
-      <td>0.016604</td>
+      <th>-0.364101</th>
+      <th>-0.396097</th>
+      <td>0.011780</td>
     </tr>
     <tr>
-      <th>-0.507264</th>
-      <th>0.057755</th>
-      <td>0.050437</td>
+      <th>0.650564</th>
+      <th>0.399592</th>
+      <td>0.072902</td>
     </tr>
     <tr>
-      <th>0.756482</th>
-      <th>-0.111289</th>
-      <td>0.016607</td>
+      <th>-0.060225</th>
+      <th>0.257945</th>
+      <td>0.898311</td>
     </tr>
   </tbody>
 </table>
@@ -1977,7 +1978,7 @@ Starting experimental run with id: 107.
 </div>
 <p>Unlike the data measured above, which lies on a grid, here, all the measured data points have an unique combination of the two dependent parameters. When exporting to XArray NaN’s will therefore replace all the missing combinations of <code class="docutils literal notranslate"><span class="pre">dac_ch1</span></code> and <code class="docutils literal notranslate"><span class="pre">dac_ch2</span></code> and the data is unlikely to be useful in this format.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[38]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[36]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -1992,7 +1993,7 @@ Starting experimental run with id: 107.
 <h3>Optimiser<a class="headerlink" href="#Optimiser" title="Permalink to this headline">¶</a></h3>
 <p>An example to show that the algorithm is flexible enough to be used with completely unstructured data such as the output of an downhill simplex optimization. The downhill simplex is somewhat more sensitive to noise and it is important that ‘fatol’ is set to match the expected noise.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[39]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[37]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -2001,13 +2002,13 @@ Starting experimental run with id: 107.
 </div>
 </div>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[40]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[38]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
 <span></span><span class="n">noise</span> <span class="o">=</span> <span class="mf">0.0005</span>
 
-<span class="n">gauss</span> <span class="o">=</span> <span class="n">gauss_model</span><span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">,</span> <span class="n">noise</span><span class="o">=</span><span class="n">noise</span><span class="p">)</span>
+<span class="n">gauss</span> <span class="o">=</span> <span class="n">dmm_gauss_parameter</span><span class="o">.</span><span class="n">gauss_model</span><span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">,</span> <span class="n">noise</span><span class="o">=</span><span class="n">noise</span><span class="p">)</span>
 <span class="nb">next</span><span class="p">(</span><span class="n">gauss</span><span class="p">)</span>
 
 <span class="k">def</span> <span class="nf">measure_gauss</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
@@ -2019,7 +2020,7 @@ Starting experimental run with id: 107.
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[41]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[39]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -2046,7 +2047,7 @@ Starting experimental run with id: 108.
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[42]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[40]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -2055,7 +2056,7 @@ Starting experimental run with id: 108.
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[42]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[40]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -2065,15 +2066,15 @@ Starting experimental run with id: 108.
        [0.1, 0.2]]), array([-1.13314845, -1.13314845, -1.13314845]))
            fun: -1.1331484530668263
        message: &#39;Optimization terminated successfully.&#39;
-          nfev: 162
-           nit: 78
+          nfev: 163
+           nit: 79
         status: 0
        success: True
              x: array([0.1, 0.2])
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[43]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[41]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -2085,7 +2086,7 @@ Starting experimental run with id: 108.
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_71_0.png" src="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_71_0.png" />
+<img alt="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_69_0.png" src="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_69_0.png" />
 </div>
 </div>
 </div>
@@ -2099,7 +2100,7 @@ Starting experimental run with id: 108.
 <div class="section" id="Subscription-example-1:-simple-printing">
 <h2>Subscription example 1: simple printing<a class="headerlink" href="#Subscription-example-1:-simple-printing" title="Permalink to this headline">¶</a></h2>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[44]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[42]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -2159,7 +2160,7 @@ The run now holds 10 rows
 <h2>Subscription example 2: using the state<a class="headerlink" href="#Subscription-example-2:-using-the-state" title="Permalink to this headline">¶</a></h2>
 <p>We add two subscribers now.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[45]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[43]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -2203,6 +2204,7 @@ Added points to measurement, step 0.
 First parameter value list: []
 Added points to measurement, step 1.
 First parameter value list: []
+The run now holds 2 rows
 The run now holds 3 rows
 Added points to measurement, step 2.
 First parameter value list: [0, 1, 2]
@@ -2223,8 +2225,8 @@ Added points to measurement, step 8.
 First parameter value list: [0, 1, 2, 3, 4, 5, 6, 7, 8]
 Added points to measurement, step 9.
 First parameter value list: [0, 1, 2, 3, 4, 5, 6, 7, 8]
-The run now holds 10 rowsThe run now holds 10 rows
-
+The run now holds 10 rows
+The run now holds 10 rows
 The run now holds 10 rows
 </pre></div></div>
 </div>
@@ -2233,7 +2235,7 @@ The run now holds 10 rows
 <p>The <code class="docutils literal notranslate"><span class="pre">Measurement</span></code> object supports automatic handling of <code class="docutils literal notranslate"><span class="pre">Array</span></code> and <code class="docutils literal notranslate"><span class="pre">MultiParameters</span></code>. When registering these parameters the individual components are unpacked and added to the dataset as if they were separate parameters. Lets consider a <code class="docutils literal notranslate"><span class="pre">MultiParamter</span></code> with array components as the most general case.</p>
 <p>First lets use a dummy instrument that produces data as <code class="docutils literal notranslate"><span class="pre">Array</span></code> and <code class="docutils literal notranslate"><span class="pre">MultiParameters</span></code>.</p>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[46]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[44]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -2242,7 +2244,7 @@ The run now holds 10 rows
 </div>
 </div>
 <div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[47]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[45]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -2252,7 +2254,7 @@ The run now holds 10 rows
 </div>
 <p>This instrument produces two <code class="docutils literal notranslate"><span class="pre">Array</span></code>s with the names, shapes and setpoints given below.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[48]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[46]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -2261,7 +2263,7 @@ The run now holds 10 rows
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[48]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[46]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -2270,7 +2272,7 @@ The run now holds 10 rows
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[49]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[47]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -2279,7 +2281,7 @@ The run now holds 10 rows
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[49]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[47]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -2288,7 +2290,7 @@ The run now holds 10 rows
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[50]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[48]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -2297,7 +2299,7 @@ The run now holds 10 rows
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[50]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[48]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -2306,7 +2308,7 @@ The run now holds 10 rows
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[51]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[49]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -2318,7 +2320,7 @@ The run now holds 10 rows
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[51]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[49]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -2331,7 +2333,7 @@ The run now holds 10 rows
 </div>
 <p>When adding the MultiParameter to the measurement we can see that we add each of the individual components as a separate parameter.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[52]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[50]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -2350,7 +2352,7 @@ Starting experimental run with id: 111.
 </div>
 <p>And when adding the result of a <code class="docutils literal notranslate"><span class="pre">MultiParameter</span></code> it is automatically unpacked into its components.</p>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[53]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[51]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -2359,33 +2361,33 @@ Starting experimental run with id: 111.
 </div>
 </div>
 <div class="nboutput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[53]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[51]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-([&lt;matplotlib.axes._subplots.AxesSubplot at 0x7ff4adecd0d0&gt;,
-  &lt;matplotlib.axes._subplots.AxesSubplot at 0x7ff4ade84710&gt;],
- [&lt;matplotlib.colorbar.Colorbar at 0x7ff4ade72850&gt;,
-  &lt;matplotlib.colorbar.Colorbar at 0x7ff4ade367d0&gt;])
+([&lt;matplotlib.axes._subplots.AxesSubplot at 0x7f6291e191d0&gt;,
+  &lt;matplotlib.axes._subplots.AxesSubplot at 0x7f6291dc6e10&gt;],
+ [&lt;matplotlib.colorbar.Colorbar at 0x7f629b092050&gt;,
+  &lt;matplotlib.colorbar.Colorbar at 0x7f629a6a1850&gt;])
 </pre></div></div>
 </div>
 <div class="nboutput docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_89_1.png" src="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_89_1.png" />
+<img alt="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_87_1.png" src="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_87_1.png" />
 </div>
 </div>
 <div class="nboutput nblast docutils container">
 <div class="prompt empty docutils container">
 </div>
 <div class="output_area docutils container">
-<img alt="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_89_2.png" src="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_89_2.png" />
+<img alt="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_87_2.png" src="../../_images/examples_DataSet_Performing-measurements-using-qcodes-parameters-and-dataset_87_2.png" />
 </div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[54]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[52]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -2394,7 +2396,7 @@ Starting experimental run with id: 111.
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[54]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[52]:
 </pre></div>
 </div>
 <div class="output_area docutils container">
@@ -2405,7 +2407,7 @@ Starting experimental run with id: 111.
 </pre></div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[55]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[53]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -2414,7 +2416,7 @@ Starting experimental run with id: 111.
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[55]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[53]:
 </pre></div>
 </div>
 <div class="output_area rendered_html docutils container">
@@ -2516,7 +2518,7 @@ Starting experimental run with id: 111.
 </div></div>
 </div>
 <div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[56]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[54]:
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
@@ -2525,7 +2527,7 @@ Starting experimental run with id: 111.
 </div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[56]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[54]:
 </pre></div>
 </div>
 <div class="output_area rendered_html docutils container">
@@ -2863,11 +2865,11 @@ dl.xr-attrs {
   stroke: currentColor;
   fill: currentColor;
 }
-</style><div class='xr-wrap'><div class='xr-header'><div class='xr-obj-type'>xarray.Dataset</div></div><ul class='xr-sections'><li class='xr-section-item'><input id='section-dfc57d9d-bd0b-4d1f-8ed9-eba83e38b749' class='xr-section-summary-in' type='checkbox' disabled ><label for='section-dfc57d9d-bd0b-4d1f-8ed9-eba83e38b749' class='xr-section-summary'  title='Expand/collapse section'>Dimensions:</label><div class='xr-section-inline-details'><ul class='xr-dim-list'><li><span class='xr-has-index'>MyDummy_ChanA_that_setpoint</span>: 3</li><li><span class='xr-has-index'>MyDummy_ChanA_this_setpoint</span>: 5</li></ul></div><div class='xr-section-details'></div></li><li class='xr-section-item'><input id='section-93b35f5c-c78d-4dc4-b10c-9689ab028ed3' class='xr-section-summary-in' type='checkbox'  checked><label for='section-93b35f5c-c78d-4dc4-b10c-9689ab028ed3' class='xr-section-summary' >Coordinates: <span>(2)</span></label><div class='xr-section-inline-details'></div><div class='xr-section-details'><ul class='xr-var-list'><li class='xr-var-item'><div class='xr-var-name'><span class='xr-has-index'>MyDummy_ChanA_this_setpoint</span></div><div class='xr-var-dims'>(MyDummy_ChanA_this_setpoint)</div><div class='xr-var-dtype'>int64</div><div class='xr-var-preview xr-preview'>5 6 7 8 9</div><input id='attrs-f6ebd977-544b-46e8-83d4-38163ca11c8d' class='xr-var-attrs-in' type='checkbox' disabled><label for='attrs-f6ebd977-544b-46e8-83d4-38163ca11c8d' title='Show/Hide attributes'><svg class='icon xr-icon-file-text2'><use xlink:href='#icon-file-text2'></use></svg></label><input id='data-10714dce-19cb-49fc-ad0f-c27dd2f9953d' class='xr-var-data-in' type='checkbox'><label for='data-10714dce-19cb-49fc-ad0f-c27dd2f9953d' title='Show/Hide data repr'><svg class='icon xr-icon-database'><use xlink:href='#icon-database'></use></svg></label><div class='xr-var-attrs'><dl class='xr-attrs'></dl></div><pre class='xr-var-data'>array([5, 6, 7, 8, 9])</pre></li><li class='xr-var-item'><div class='xr-var-name'><span class='xr-has-index'>MyDummy_ChanA_that_setpoint</span></div><div class='xr-var-dims'>(MyDummy_ChanA_that_setpoint)</div><div class='xr-var-dtype'>int64</div><div class='xr-var-preview xr-preview'>9 10 11</div><input id='attrs-97d1d723-9834-4fba-bfdd-c3daaee2d64c' class='xr-var-attrs-in' type='checkbox' disabled><label for='attrs-97d1d723-9834-4fba-bfdd-c3daaee2d64c' title='Show/Hide attributes'><svg class='icon xr-icon-file-text2'><use xlink:href='#icon-file-text2'></use></svg></label><input id='data-1f280b28-a303-477f-a861-d53cf334b646' class='xr-var-data-in' type='checkbox'><label for='data-1f280b28-a303-477f-a861-d53cf334b646' title='Show/Hide data repr'><svg class='icon xr-icon-database'><use xlink:href='#icon-database'></use></svg></label><div class='xr-var-attrs'><dl class='xr-attrs'></dl></div><pre class='xr-var-data'>array([ 9, 10, 11])</pre></li></ul></div></li><li class='xr-section-item'><input id='section-f05781ae-5c20-4f41-9e43-9e2fa53cd94d' class='xr-section-summary-in' type='checkbox'  checked><label for='section-f05781ae-5c20-4f41-9e43-9e2fa53cd94d' class='xr-section-summary' >Data variables: <span>(1)</span></label><div class='xr-section-inline-details'></div><div class='xr-section-details'><ul class='xr-var-list'><li class='xr-var-item'><div class='xr-var-name'><span>that</span></div><div class='xr-var-dims'>(MyDummy_ChanA_this_setpoint, MyDummy_ChanA_that_setpoint)</div><div class='xr-var-dtype'>int64</div><div class='xr-var-preview xr-preview'>1 1 1 1 1 1 1 1 1 1 1 1 1 1 1</div><input id='attrs-28d4b3d6-25c6-4b16-a0cf-2ba64ba50066' class='xr-var-attrs-in' type='checkbox' disabled><label for='attrs-28d4b3d6-25c6-4b16-a0cf-2ba64ba50066' title='Show/Hide attributes'><svg class='icon xr-icon-file-text2'><use xlink:href='#icon-file-text2'></use></svg></label><input id='data-223b0c87-9da1-4e35-8833-5b0baf166f80' class='xr-var-data-in' type='checkbox'><label for='data-223b0c87-9da1-4e35-8833-5b0baf166f80' title='Show/Hide data repr'><svg class='icon xr-icon-database'><use xlink:href='#icon-database'></use></svg></label><div class='xr-var-attrs'><dl class='xr-attrs'></dl></div><pre class='xr-var-data'>array([[1, 1, 1],
+</style><div class='xr-wrap'><div class='xr-header'><div class='xr-obj-type'>xarray.Dataset</div></div><ul class='xr-sections'><li class='xr-section-item'><input id='section-123eeba4-be68-4173-922f-2c0d183c5230' class='xr-section-summary-in' type='checkbox' disabled ><label for='section-123eeba4-be68-4173-922f-2c0d183c5230' class='xr-section-summary'  title='Expand/collapse section'>Dimensions:</label><div class='xr-section-inline-details'><ul class='xr-dim-list'><li><span class='xr-has-index'>MyDummy_ChanA_that_setpoint</span>: 3</li><li><span class='xr-has-index'>MyDummy_ChanA_this_setpoint</span>: 5</li></ul></div><div class='xr-section-details'></div></li><li class='xr-section-item'><input id='section-820985ca-30ad-42be-917f-187452ff2244' class='xr-section-summary-in' type='checkbox'  checked><label for='section-820985ca-30ad-42be-917f-187452ff2244' class='xr-section-summary' >Coordinates: <span>(2)</span></label><div class='xr-section-inline-details'></div><div class='xr-section-details'><ul class='xr-var-list'><li class='xr-var-item'><div class='xr-var-name'><span class='xr-has-index'>MyDummy_ChanA_this_setpoint</span></div><div class='xr-var-dims'>(MyDummy_ChanA_this_setpoint)</div><div class='xr-var-dtype'>int64</div><div class='xr-var-preview xr-preview'>5 6 7 8 9</div><input id='attrs-08eef831-5ed4-4cd8-90cc-1656316b4581' class='xr-var-attrs-in' type='checkbox' disabled><label for='attrs-08eef831-5ed4-4cd8-90cc-1656316b4581' title='Show/Hide attributes'><svg class='icon xr-icon-file-text2'><use xlink:href='#icon-file-text2'></use></svg></label><input id='data-7ee7fb61-de98-4765-a98d-7ff1656ccc49' class='xr-var-data-in' type='checkbox'><label for='data-7ee7fb61-de98-4765-a98d-7ff1656ccc49' title='Show/Hide data repr'><svg class='icon xr-icon-database'><use xlink:href='#icon-database'></use></svg></label><div class='xr-var-attrs'><dl class='xr-attrs'></dl></div><pre class='xr-var-data'>array([5, 6, 7, 8, 9])</pre></li><li class='xr-var-item'><div class='xr-var-name'><span class='xr-has-index'>MyDummy_ChanA_that_setpoint</span></div><div class='xr-var-dims'>(MyDummy_ChanA_that_setpoint)</div><div class='xr-var-dtype'>int64</div><div class='xr-var-preview xr-preview'>9 10 11</div><input id='attrs-dded3d60-0058-4a22-983c-c6ab2777dd1e' class='xr-var-attrs-in' type='checkbox' disabled><label for='attrs-dded3d60-0058-4a22-983c-c6ab2777dd1e' title='Show/Hide attributes'><svg class='icon xr-icon-file-text2'><use xlink:href='#icon-file-text2'></use></svg></label><input id='data-08529a14-97d4-4887-95d1-5e96d2c8d1ff' class='xr-var-data-in' type='checkbox'><label for='data-08529a14-97d4-4887-95d1-5e96d2c8d1ff' title='Show/Hide data repr'><svg class='icon xr-icon-database'><use xlink:href='#icon-database'></use></svg></label><div class='xr-var-attrs'><dl class='xr-attrs'></dl></div><pre class='xr-var-data'>array([ 9, 10, 11])</pre></li></ul></div></li><li class='xr-section-item'><input id='section-bb2ad18f-5101-4831-88d5-6e814cda54da' class='xr-section-summary-in' type='checkbox'  checked><label for='section-bb2ad18f-5101-4831-88d5-6e814cda54da' class='xr-section-summary' >Data variables: <span>(1)</span></label><div class='xr-section-inline-details'></div><div class='xr-section-details'><ul class='xr-var-list'><li class='xr-var-item'><div class='xr-var-name'><span>that</span></div><div class='xr-var-dims'>(MyDummy_ChanA_this_setpoint, MyDummy_ChanA_that_setpoint)</div><div class='xr-var-dtype'>int64</div><div class='xr-var-preview xr-preview'>1 1 1 1 1 1 1 1 1 1 1 1 1 1 1</div><input id='attrs-133f41bf-bf76-4371-9ae2-38f79cafe5d1' class='xr-var-attrs-in' type='checkbox' disabled><label for='attrs-133f41bf-bf76-4371-9ae2-38f79cafe5d1' title='Show/Hide attributes'><svg class='icon xr-icon-file-text2'><use xlink:href='#icon-file-text2'></use></svg></label><input id='data-6f64e9ee-b569-4ead-b3f8-374ec1e255fa' class='xr-var-data-in' type='checkbox'><label for='data-6f64e9ee-b569-4ead-b3f8-374ec1e255fa' title='Show/Hide data repr'><svg class='icon xr-icon-database'><use xlink:href='#icon-database'></use></svg></label><div class='xr-var-attrs'><dl class='xr-attrs'></dl></div><pre class='xr-var-data'>array([[1, 1, 1],
        [1, 1, 1],
        [1, 1, 1],
        [1, 1, 1],
-       [1, 1, 1]])</pre></li></ul></div></li><li class='xr-section-item'><input id='section-530eca7e-edfb-441a-b4b2-9fa9404a0ed8' class='xr-section-summary-in' type='checkbox' disabled ><label for='section-530eca7e-edfb-441a-b4b2-9fa9404a0ed8' class='xr-section-summary'  title='Expand/collapse section'>Attributes: <span>(0)</span></label><div class='xr-section-inline-details'></div><div class='xr-section-details'><dl class='xr-attrs'></dl></div></li></ul></div></div></div>
+       [1, 1, 1]])</pre></li></ul></div></li><li class='xr-section-item'><input id='section-b64338ca-b6e1-4ccf-94f3-bee7ad272742' class='xr-section-summary-in' type='checkbox' disabled ><label for='section-b64338ca-b6e1-4ccf-94f3-bee7ad272742' class='xr-section-summary'  title='Expand/collapse section'>Attributes: <span>(0)</span></label><div class='xr-section-inline-details'></div><div class='xr-section-details'><dl class='xr-attrs'></dl></div></li></ul></div></div></div>
 </div>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[ ]:
