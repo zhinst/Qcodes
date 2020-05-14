@@ -158,12 +158,12 @@
   <h1>Source code for qcodes.instrument_drivers.Keysight.keysightb1500.KeysightB1520A</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">re</span>
 <span class="kn">import</span> <span class="nn">textwrap</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Dict</span>
 
 <span class="kn">from</span> <span class="nn">qcodes.instrument.channel</span> <span class="kn">import</span> <span class="n">InstrumentChannel</span>
 
 <span class="kn">from</span> <span class="nn">.KeysightB1500_module</span> <span class="kn">import</span> <span class="n">B1500Module</span><span class="p">,</span> <span class="n">parse_dcorr_query_response</span><span class="p">,</span> \
-    <span class="n">format_dcorr_response</span><span class="p">,</span> <span class="n">_DCORRResponse</span>
+    <span class="n">format_dcorr_response</span><span class="p">,</span> <span class="n">_DCORRResponse</span><span class="p">,</span> <span class="n">parse_dcv_measurement_response</span>
 <span class="kn">from</span> <span class="nn">.message_builder</span> <span class="kn">import</span> <span class="n">MessageBuilder</span>
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">constants</span>
 <span class="kn">from</span> <span class="nn">.constants</span> <span class="kn">import</span> <span class="n">ModuleKind</span><span class="p">,</span> <span class="n">ChNr</span>
@@ -198,17 +198,20 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">channels</span> <span class="o">=</span> <span class="p">(</span><span class="n">ChNr</span><span class="p">(</span><span class="n">slot_nr</span><span class="p">),)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
-            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;voltage_dc&quot;</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_voltage_dc</span><span class="p">,</span> <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span>
-        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;voltage_dc&quot;</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_voltage_dc</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_voltage_dc</span>
+                           <span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
-            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;voltage_ac&quot;</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_voltage_ac</span><span class="p">,</span> <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span>
-        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;voltage_ac&quot;</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_voltage_ac</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_voltage_ac</span>
+                           <span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span>
-            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;frequency&quot;</span><span class="p">,</span> <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_frequency</span><span class="p">,</span> <span class="n">get_cmd</span><span class="o">=</span><span class="kc">None</span>
-        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;frequency&quot;</span><span class="p">,</span>
+                           <span class="n">set_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_set_frequency</span><span class="p">,</span>
+                           <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_frequency</span>
+                           <span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">add_parameter</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;capacitance&quot;</span><span class="p">,</span>
                            <span class="n">get_cmd</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_capacitance</span><span class="p">,</span>
@@ -246,6 +249,27 @@
         <span class="n">msg</span> <span class="o">=</span> <span class="n">MessageBuilder</span><span class="p">()</span><span class="o">.</span><span class="n">acv</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">value</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">message</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_dcv</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_enabled</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;The channels are disabled. Cannot get value.&quot;</span><span class="p">)</span>
+
+        <span class="n">msg</span> <span class="o">=</span> <span class="n">MessageBuilder</span><span class="p">()</span><span class="o">.</span><span class="n">lrn_query</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ask</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">message</span><span class="p">)</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">parse_dcv_measurement_response</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">d</span>
+
+    <span class="k">def</span> <span class="nf">_get_voltage_dc</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="n">dcv</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_dcv</span><span class="p">()</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">dcv</span><span class="p">[</span><span class="s1">&#39;voltage_dc&#39;</span><span class="p">])</span>
+
+    <span class="k">def</span> <span class="nf">_get_voltage_ac</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="n">dcv</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_dcv</span><span class="p">()</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">dcv</span><span class="p">[</span><span class="s1">&#39;voltage_ac&#39;</span><span class="p">])</span>
+
+    <span class="k">def</span> <span class="nf">_get_frequency</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="n">dcv</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_dcv</span><span class="p">()</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">dcv</span><span class="p">[</span><span class="s1">&#39;frequency&#39;</span><span class="p">])</span>
 
     <span class="k">def</span> <span class="nf">_set_frequency</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">msg</span> <span class="o">=</span> <span class="n">MessageBuilder</span><span class="p">()</span><span class="o">.</span><span class="n">fc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">channels</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">value</span><span class="p">)</span>
