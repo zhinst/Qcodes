@@ -1041,6 +1041,10 @@
 <span class="sd">       :meth:`set_raw` methods are automatically wrapped to provide ``get`` and</span>
 <span class="sd">       ``set``.</span>
 
+<span class="sd">    It is an error to do both 1 and 2. E.g supply a ``get_cmd``/``set_cmd``</span>
+<span class="sd">     and implement ``get_raw``/``set_raw``</span>
+
+
 <span class="sd">    To detect if a parameter is gettable or settable check the attributes</span>
 <span class="sd">    ``gettable`` and ``settable`` on the parameter.</span>
 
@@ -1165,7 +1169,11 @@
         <span class="c1"># in the scope of this class.</span>
         <span class="c1"># (previous call to `super().__init__` wraps existing</span>
         <span class="c1"># get_raw/set_raw into get/set methods)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;get&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">get_cmd</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">False</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">gettable</span> <span class="ow">and</span> <span class="n">get_cmd</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Supplying a not None or False `get_cmd` to a Parameter&quot;</span>
+                            <span class="s2">&quot; that already implements&quot;</span>
+                            <span class="s2">&quot; get_raw is an error.&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">gettable</span> <span class="ow">and</span> <span class="n">get_cmd</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">False</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">get_cmd</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">get_raw</span> <span class="o">=</span> <span class="p">(</span>  <span class="c1"># type: ignore[assignment]</span>
                     <span class="k">lambda</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">raw_value</span><span class="p">)</span>
@@ -1178,8 +1186,11 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">gettable</span> <span class="o">=</span> <span class="kc">True</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">get</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_wrap_get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_raw</span><span class="p">)</span>
 
-
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;set&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">set_cmd</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">False</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">settable</span> <span class="ow">and</span> <span class="n">set_cmd</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Supplying a not None or False `set_cmd` to a Parameter&quot;</span>
+                            <span class="s2">&quot; that already implements&quot;</span>
+                            <span class="s2">&quot; set_raw is an error.&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">settable</span> <span class="ow">and</span> <span class="n">set_cmd</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">False</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">set_cmd</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">set_raw</span><span class="p">:</span> <span class="n">Callable</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span>
             <span class="k">else</span><span class="p">:</span>
