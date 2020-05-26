@@ -558,7 +558,7 @@
                 <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;no set cmd found in&#39;</span> <span class="o">+</span>
                                           <span class="s1">&#39; Parameter </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
 
-    <span class="k">def</span> <span class="nf">snapshot_base</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="k">def</span> <span class="nf">snapshot_base</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
                       <span class="n">params_to_skip_update</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
                       <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -573,8 +573,9 @@
 <span class="sd">        Args:</span>
 <span class="sd">            update: If True, update the state by calling ``parameter.get()``</span>
 <span class="sd">                unless ``snapshot_get`` of the parameter is ``False``.</span>
-<span class="sd">                If ``update`` is ``False``, just use the current value from the</span>
-<span class="sd">                ``cache``.</span>
+<span class="sd">                If ``update`` is ``None``, use the current value from the</span>
+<span class="sd">                ``cache`` unless the cache is invalid. If ``False``, never call</span>
+<span class="sd">                ``parameter.get()``.</span>
 <span class="sd">            params_to_skip_update: No effect but may be passed from superclass</span>
 
 <span class="sd">        Returns:</span>
@@ -585,21 +586,25 @@
                 <span class="sa">f</span><span class="s2">&quot;Parameter (</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">) is used in the snapshot while it &quot;</span>
                 <span class="sa">f</span><span class="s2">&quot;should be excluded from the snapshot&quot;</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">gettable</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_snapshot_get</span> \
-                <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_snapshot_value</span> <span class="ow">and</span> <span class="n">update</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+        <span class="n">state</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;__class__&#39;</span><span class="p">:</span> <span class="n">full_class</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span>
+                                 <span class="s1">&#39;full_name&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="p">)}</span>
 
-        <span class="n">state</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">_value</span><span class="p">,</span>
-            <span class="s1">&#39;raw_value&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">raw_value</span><span class="p">,</span>
-            <span class="s1">&#39;ts&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">timestamp</span>
-        <span class="p">}</span>
-        <span class="n">state</span><span class="p">[</span><span class="s1">&#39;__class__&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">full_class</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
-        <span class="n">state</span><span class="p">[</span><span class="s1">&#39;full_name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_snapshot_value</span><span class="p">:</span>
+            <span class="n">has_get</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gettable</span>
+            <span class="n">allowed_to_call_get_when_snapshotting</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_snapshot_get</span>
+                                                     <span class="ow">and</span> <span class="n">update</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">False</span><span class="p">)</span>
+            <span class="n">can_call_get_when_snapshotting</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">allowed_to_call_get_when_snapshotting</span> <span class="ow">and</span> <span class="n">has_get</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_snapshot_value</span><span class="p">:</span>
-            <span class="n">state</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;value&#39;</span><span class="p">)</span>
-            <span class="n">state</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;raw_value&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">can_call_get_when_snapshotting</span> <span class="ow">and</span> <span class="n">update</span><span class="p">:</span>
+                <span class="n">state</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">state</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                    <span class="n">get_if_invalid</span><span class="o">=</span><span class="n">can_call_get_when_snapshotting</span><span class="p">)</span>
+
+            <span class="n">state</span><span class="p">[</span><span class="s1">&#39;raw_value&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">raw_value</span>
+
+        <span class="n">state</span><span class="p">[</span><span class="s1">&#39;ts&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">timestamp</span>
 
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">state</span><span class="p">[</span><span class="s1">&#39;ts&#39;</span><span class="p">],</span> <span class="n">datetime</span><span class="p">):</span>
             <span class="n">dttime</span><span class="p">:</span> <span class="n">datetime</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="s1">&#39;ts&#39;</span><span class="p">]</span>
@@ -1512,7 +1517,7 @@
 <div class="viewcode-block" id="DelegateParameter.set_raw"><a class="viewcode-back" href="../../../api/parameters/parameter.html#qcodes.instrument_drivers.devices.DelegateParameter.set_raw">[docs]</a>    <span class="k">def</span> <span class="nf">set_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="DelegateParameter.snapshot_base"><a class="viewcode-back" href="../../../api/parameters/parameter.html#qcodes.instrument_drivers.devices.DelegateParameter.snapshot_base">[docs]</a>    <span class="k">def</span> <span class="nf">snapshot_base</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<div class="viewcode-block" id="DelegateParameter.snapshot_base"><a class="viewcode-back" href="../../../api/parameters/parameter.html#qcodes.instrument_drivers.devices.DelegateParameter.snapshot_base">[docs]</a>    <span class="k">def</span> <span class="nf">snapshot_base</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
                       <span class="n">params_to_skip_update</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
                       <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
         <span class="n">snapshot</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">snapshot_base</span><span class="p">(</span>
@@ -2337,7 +2342,7 @@
         <span class="c1"># i.e. how many setpoint</span>
         <span class="k">return</span> <span class="n">numpy</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">setpoints</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
-<div class="viewcode-block" id="CombinedParameter.snapshot_base"><a class="viewcode-back" href="../../../api/parameters/parameter.html#qcodes.instrument_drivers.devices.CombinedParameter.snapshot_base">[docs]</a>    <span class="k">def</span> <span class="nf">snapshot_base</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<div class="viewcode-block" id="CombinedParameter.snapshot_base"><a class="viewcode-back" href="../../../api/parameters/parameter.html#qcodes.instrument_drivers.devices.CombinedParameter.snapshot_base">[docs]</a>    <span class="k">def</span> <span class="nf">snapshot_base</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">update</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
                       <span class="n">params_to_skip_update</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
                       <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;</span>
